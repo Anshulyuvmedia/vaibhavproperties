@@ -1,0 +1,27 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "jsx": "react-native",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "app/(root)/(tabs)/index.jsx",
+    "app/_layout.jsx",
+    "app/(root)/signin.jsx",
+    "app/(root)/signup.jsx",
+    "nativewind-env.d.ts",
+    "constants/icons.jsx",
+    "constants/images.jsx",
+    "app/(root)/_layout.jsx"
+  ]
+}

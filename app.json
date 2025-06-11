@@ -1,0 +1,102 @@
+{
+  "expo": {
+    "name": "Vaibhav Properties",
+    "slug": "vaibhavproperties",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo.png",
+    "scheme": "vaibhavproperties",
+    "entryPoint": "expo-router/entry",
+    "host": "localhost",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vaibhav.properties",
+      "associatedDomains": [
+        "applinks:your-server.com",
+        "applinks:your-server.com",
+        "applinks:your-server.com",
+        "applinks:your-server.com"
+      ],
+      "runtimeVersion": {
+        "policy": "appVersion"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.vaibhav.properties",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/investorIcon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "runtimeVersion": "1.0.0",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyA_KLtDmYZB0Qy_b0f6LHJSlDV2wYYPf8s"
+        }
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/investorIcon.png",
+      "config": {
+        "react-native-maps": {
+          "web": "google"
+        }
+      }
+    },
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logo.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#ffffff",
+          "enableFullScreenImage_legacy": true
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Rubik-Bold.ttf",
+            "./assets/fonts/Rubik-ExtraBold.ttf",
+            "./assets/fonts/Rubik-Medium.ttf",
+            "./assets/fonts/Rubik-Light.ttf",
+            "./assets/fonts/Rubik-Regular.ttf",
+            "./assets/fonts/Rubik-SemiBold.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "GOOGLE_MAPS_API_KEY": "AIzaSyA_KLtDmYZB0Qy_b0f6LHJSlDV2wYYPf8s",
+      "ANDROID_CLIENT_ID": "429638913170-5mhhuo7d8jcb3puni9ggephkqi601kab.apps.googleusercontent.com",
+      "WEB_CLIENT_ID": "429638913170-oeb8ah87ve9hqgilbpnnvghburkd9f8h.apps.googleusercontent.com",
+      "IOS_CLIENT_ID": "429638913170-m3o3jo3tpf1gst47v76cmd0k7tq2qmp9.apps.googleusercontent.com"
+    }
+    }
+}
