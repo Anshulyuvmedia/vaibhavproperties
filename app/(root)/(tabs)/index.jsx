@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
 import Search from '@/components/Search';
-import { Card, FeaturedCard } from '@/components/Cards';
+import { Card, HorizontalCard } from '@/components/Cards';
 import Filters from '@/components/Filters';
 import { Link, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +12,9 @@ import axios from 'axios';
 // import * as Location from 'expo-location';
 // import { useNavigation } from "expo-router"; 
 import { useNavigation } from "@react-navigation/native";
+import HomeCarousel from '@/components/HomeCarousel';
+import LocationScroll from '@/components/LocationScroll';
+import AgentScroll from '@/components/AgentScroll';
 
 const Index = () => {
     const handleCardPress = (id) => router.push(`/properties/${id}`);
@@ -104,7 +107,7 @@ const Index = () => {
     //         }
     //     })();
     // }, []);
-    
+
     // Define the getLocation function
     // const getLocation = async () => {
     //     try {
@@ -138,43 +141,61 @@ const Index = () => {
                 showsVerticalScrollIndicator={false}
                 ListHeaderComponent={
                     <View className='px-5'>
-                        <View className='flex flex-row items-center justify-between mt-5'>
-                            <TouchableOpacity onPress={() => router.push('/dashboard')} className='flex flex-row items-center ml-2 justify-center'>
-                                <Image source={typeof image === 'string' ? { uri: image } : images.avatar} className='size-12 rounded-full' />
-                                <View className='flex flex-col items-start ml-2 justify-center'>
-                                    <Text className='text-xs font-rubik text-black-100'>
-                                        Welcome
-                                    </Text>
-                                    <Text className='text-base font-rubik-medium text-black-300'>
-                                        {userData?.name?.split(' ')[0] || 'User'}
-                                    </Text>
-                                </View>
-                            </TouchableOpacity>
+                        <View className='flex-row items-center justify-between mt-5'>
+                            <View className='flex flex-col items-start ml-2 justify-center'>
+                                <Text className='text-2xl '>
+                                    Hey, <Text className='font-rubik-medium text-primary-300'>{userData?.name?.split(' ')[0] || 'User'} </Text>
+                                </Text>
+                                <Text className='text-2xl font-rubik text-black'>
+                                    Let's Start Exploring
+                                </Text>
+                            </View>
 
-                            <TouchableOpacity onPress={() => router.push('/notifications')}>
-                                <Image source={icons.bell} className='size-6' />
-                            </TouchableOpacity>
-                        </View>
-
-                        <Search />
-                        <View className='my-5'>
-                            <View className='flex flex-row items-center justify-between'>
-                                <Text className='text-xl font-rubik-bold text-black-300'>Featured</Text>
-                                {/* <TouchableOpacity>
-                                    <Text className='text-base font-rubik-bold' style={{ color: Colors.brown }}>See All</Text>
-                                </TouchableOpacity> */}
+                            <View className='flex-row items-start  justify-center'>
+                                <TouchableOpacity onPress={() => router.push('/notifications')} className='border px-3 py-3 rounded-full'>
+                                    <Image source={icons.bell} className='size-6' />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => router.push('/dashboard')} className='flex flex-row items-center ml-2 justify-center border px-1 py-1 rounded-full'>
+                                    <Image source={typeof image === 'string' ? { uri: image } : images.avatar} className='size-10 rounded-full ' />
+                                </TouchableOpacity>
                             </View>
                         </View>
 
-                        <FlatList
-                            data={listingData?.data || []}
-                            renderItem={({ item }) => <FeaturedCard item={item} onPress={() => handleCardPress(item.id)} />}
-                            keyExtractor={(item) => item.id.toString()}
-                            horizontal
-                            bounces={false}
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerClassName='flex gap-5'
-                        />
+                        <Search />
+                        <Filters />
+                        <HomeCarousel />
+
+
+                        <View className='my-5'>
+                            <View className='flex flex-row items-center justify-between mb-5'>
+                                <Text className='text-xl font-rubik-bold text-black-300'>Featured Estate</Text>
+                                <TouchableOpacity>
+                                    <Text className='text-base font-rubik text-primary-300'>See All</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <FlatList
+                                data={listingData?.data || []}
+                                renderItem={({ item }) => <HorizontalCard item={item} onPress={() => handleCardPress(item.id)} />}
+                                keyExtractor={(item) => item.id.toString()}
+                                horizontal
+                                bounces={false}
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerClassName='flex gap-5'
+                            />
+                        </View>
+
+                        <View className='mt-5'>
+                            <View className='flex flex-row items-center justify-between'>
+                                <Text className='text-xl font-rubik-bold text-black-300'>Top Locations</Text>
+                                <TouchableOpacity>
+                                    <Text className='text-base font-rubik text-primary-300'>Explore</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <LocationScroll />
+                        </View>
+                        
+                        <AgentScroll />
+
 
                         <View className='my-5'>
                             <View className='flex flex-row items-center justify-between'>
@@ -185,7 +206,6 @@ const Index = () => {
                             </View>
                         </View>
 
-                        <Filters />
 
                     </View>
                 }

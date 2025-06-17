@@ -15,9 +15,9 @@ module.exports = {
       },
       colors: {
         primary: {
-          100: "#0061FF0A",
-          200: "#0061FF1A",
-          300: "#0061FF",
+          100: "#f4f2f7",
+          200: "#234F681A",
+          300: "#234F68",
         },
         accent: {
           100: "#FBFBFD",

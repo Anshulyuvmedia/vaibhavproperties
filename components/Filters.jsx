@@ -6,7 +6,7 @@ import axios from 'axios';
 const Filters = () => {
     const params = useLocalSearchParams();
     const router = useRouter();
-    
+
     const [selectedCategory, setSelectedCategory] = useState(params.propertyType || 'All');
     const [categoryData, setCategoryData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -54,15 +54,14 @@ const Filters = () => {
     }, []);
 
     return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-3 mb-2 pb-3">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-4 ">
             <TouchableOpacity
                 key="all"
                 onPress={() => handleCategoryPress('All')}
-                className={`flex flex-col items-start mr-4 px-4 py-2 rounded-full ${
-                    selectedCategory === 'All' ? 'bg-yellow-800' : 'bg-primary-100 border border-primary-200'
-                }`}
+                className={`flex items-start mr-2 px-5  py-3  rounded-xl ${selectedCategory === 'All' ? 'bg-primary-300' : 'bg-primary-100'
+                    }`}
             >
-                <Text className={`text-sm ${selectedCategory === 'All' ? 'text-white font-rubik-bold mt-0.5' : 'text-black-300 font-rubik'}`}>
+                <Text className={`text-sm font-rubik ${selectedCategory === 'All' ? 'text-white  ' : 'text-black-300'}`}>
                     All
                 </Text>
             </TouchableOpacity>
@@ -71,11 +70,10 @@ const Filters = () => {
                 <TouchableOpacity
                     key={item.id.toString()} // ✅ Ensure unique key
                     onPress={() => handleCategoryPress(item.label)}
-                    className={`flex flex-col items-start mr-4 px-4 py-2 rounded-full ${
-                        selectedCategory === item.label ? 'bg-yellow-800' : 'bg-primary-100 border border-primary-200'
-                    }`}
+                    className={`flex items-start mr-2 px-5  py-3 rounded-xl ${selectedCategory === item.label ? 'bg-primary-300' : 'bg-primary-100'
+                        }`}
                 >
-                    <Text className={`text-sm ${selectedCategory === item.label ? 'text-white font-rubik-bold mt-0.5' : 'text-black-300 font-rubik'}`}>
+                    <Text className={`text-sm font-rubik ${selectedCategory === item.label ? 'text-white' : 'text-black-300 '}`}>
                         {item.label}
                     </Text>
                 </TouchableOpacity>

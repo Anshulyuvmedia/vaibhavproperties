@@ -9,9 +9,12 @@ import map from "@/assets/images/map.png";
 import noResult from "@/assets/images/no-result.png";
 import applogo from "@/assets/images/mainlogo.jpeg";
 import appfavicon from "@/assets/images/logo.png";
+import loginbanner from "@/assets/images/loginbanner.png";
+import banner from "@/assets/images/banner.png";
 
 export default {
   onboarding,
+  banner,
   avatar,
   newYork,
   japan,
@@ -21,5 +24,6 @@ export default {
   map,
   noResult,
   applogo,
+  loginbanner,
   appfavicon,
 };

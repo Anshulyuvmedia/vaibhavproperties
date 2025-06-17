@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
@@ -17,68 +18,67 @@ import images from '@/constants/images';
 import icons from '@/constants/icons';
 import * as WebBrowser from "expo-web-browser";
 import * as Google from 'expo-auth-session/providers/google';
+import * as Facebook from 'expo-auth-session/providers/facebook';
 import Constants from "expo-constants";
 import Toast, { BaseToast } from 'react-native-toast-message';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const Signin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const router = useRouter();
   const [userInfo, setUserInfo] = useState(null);
+
   const ANDROID_CLIENT_ID = Constants.expoConfig.extra.ANDROID_CLIENT_ID;
   const WEB_CLIENT_ID = Constants.expoConfig.extra.WEB_CLIENT_ID;
   const IOS_CLIENT_ID = Constants.expoConfig.extra.IOS_CLIENT_ID;
+  const FACEBOOK_APP_ID = Constants.expoConfig.extra.FACEBOOK_APP_ID || 'your-facebook-app-id'; // Add to app.json
+
   const toastConfig = {
     success: (props) => (
       <BaseToast
         {...props}
         style={{ borderLeftColor: "green" }}
-        text1Style={{
-          fontSize: 16,
-          fontWeight: "bold",
-        }}
-        text2Style={{
-          fontSize: 14,
-        }}
+        text1Style={{ fontSize: 16, fontWeight: "bold" }}
+        text2Style={{ fontSize: 14 }}
       />
     ),
     error: (props) => (
       <BaseToast
         {...props}
         style={{ borderLeftColor: "red" }}
-        text1Style={{
-          fontSize: 16,
-          fontWeight: "bold",
-        }}
-        text2Style={{
-          fontSize: 14,
-        }}
+        text1Style={{ fontSize: 16, fontWeight: "bold" }}
+        text2Style={{ fontSize: 14 }}
       />
     ),
   };
-  const config = {
+
+  // Google Auth Request
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     androidClientId: ANDROID_CLIENT_ID,
     iosClientId: IOS_CLIENT_ID,
     webClientId: WEB_CLIENT_ID,
-  };
-  // Google Auth Request
-  const [request, response, promptAsync] = Google.useAuthRequest(config);
+  });
+
+  // Facebook Auth Request
+  const [facebookRequest, facebookResponse, facebookPromptAsync] = Facebook.useAuthRequest({
+    clientId: FACEBOOK_APP_ID,
+  });
 
   // Handle Email Login
   const emaillogin = async () => {
     if (!email || !password) {
-      Toast.show({
-        type: 'error',
-        text1: 'Validation Error',
-        text2: "Please enter both email and password.",
-      });
+      setError("Please enter both email and password.");
       return;
     }
 
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch('https://investorlands.com/api/login-user', {
         method: 'POST',
@@ -91,34 +91,27 @@ const Signin = () => {
       if (response.ok && data.success) {
         await AsyncStorage.setItem('userToken', data.token);
         await AsyncStorage.setItem('userData', JSON.stringify(data.data));
-
         router.push('/'); // Redirect to dashboard
       } else {
-        console.error('Login Failed', data.message || 'Invalid credentials');
-        Toast.show({
-          type: 'error',
-          text1: 'Login Failed',
-          text2: "Invalid credentials",
-      });
+        setError(data.message || "Invalid credentials");
       }
     } catch (error) {
-      console.error('Login Error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: "An unexpected error occurred",
-    });
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  const getUserInfo = async (token) => {
+  const getUserInfo = async (token, provider) => {
     if (!token) return;
 
     try {
-      const res = await fetch("https://www.googleapis.com/userinfo/v2/me", {
-        headers: { Authorization: `Bearer ${token}` },
+      let url = provider === 'google'
+        ? "https://www.googleapis.com/userinfo/v2/me"
+        : "https://graph.facebook.com/me?access_token=" + token;
+
+      const res = await fetch(url, {
+        headers: provider === 'google' ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (!res.ok) {
@@ -128,94 +121,125 @@ const Signin = () => {
       const user = await res.json();
       await AsyncStorage.setItem("user", JSON.stringify(user));
       setUserInfo(user);
+      router.push('/'); // Redirect to dashboard
     } catch (error) {
-      console.error("Failed to fetch user data:", error);
+      setError("Failed to fetch user data");
     }
   };
-
 
   const signInWithGoogle = async () => {
     try {
-      if (response?.type === 'success') {
-        const { authentication } = response;
+      if (googleResponse?.type === 'success') {
+        const { authentication } = googleResponse;
         if (authentication?.accessToken) {
-          await getUserInfo(authentication.accessToken);
+          await getUserInfo(authentication.accessToken, 'google');
         }
       }
     } catch (error) {
-      console.error('Google Sign-In Error:', error);
+      setError('Google Sign-In Error');
     }
   };
 
+  const signInWithFacebook = async () => {
+    try {
+      if (facebookResponse?.type === 'success') {
+        const { authentication } = facebookResponse;
+        if (authentication?.accessToken) {
+          await getUserInfo(authentication.accessToken, 'facebook');
+        }
+      }
+    } catch (error) {
+      setError('Facebook Sign-In Error');
+    }
+  };
 
-  //add it to a useEffect with response as a dependency 
   useEffect(() => {
-    // console.log('Google Auth Response:', response);
     signInWithGoogle();
-  }, [response]);
+  }, [googleResponse]);
 
-
-  //log the userInfo to see user details
-  // console.log(JSON.stringify(userInfo))
-
+  useEffect(() => {
+    signInWithFacebook();
+  }, [facebookResponse]);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Toast config={toastConfig} position="top" />
 
-        <Image source={images.appfavicon} style={styles.logo} resizeMode="contain" />
+        <ImageBackground
+          source={images.loginbanner}
+          style={styles.backgroundImage}
+          resizeMode="cover"
+        />
 
         <View style={styles.formContainer}>
           <Text style={styles.title}>
-            Let's Get You Closer To <Text style={styles.highlight}>Your Dream Home</Text>
+            Let's <Text style={styles.highlight}>Sign In</Text>
           </Text>
 
-          <Text style={styles.subtitle}>Login to Investor Lands</Text>
+          <Text style={styles.subtitle}> Get You Closer To Your Dream Home</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          {error && (
+            <Text style={styles.errorText}>{error}</Text>
+          )}
+
+          <View style={styles.inputContainer}>
+            <Ionicons name="mail-outline" size={20} color="black" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="black" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+            />
+          </View>
+
+          <View style={styles.optionsContainer}>
+            <TouchableOpacity onPress={() => Linking.openURL("https://investorlands.com/resetpassword")}>
+              <Text style={styles.forgotPassword}>Forgot password?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Text style={styles.showPassword}>{showPassword ? 'Hide password' : 'Show password'}</Text>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity onPress={emaillogin} style={styles.loginButton} disabled={loading}>
             {loading ? (
-              <ActivityIndicator size="small" color="#FFF" />
+              <ActivityIndicator size="small" color="#FFF" style={styles.loginButtonText} />
             ) : (
               <Text style={styles.loginButtonText}>Login</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => Linking.openURL("https://investorlands.com/resetpassword")}>
-            <Text style={styles.forgotPassword}>Forgot password?</Text>
-          </TouchableOpacity>
+          {/* <Text style={styles.orText}>OR</Text>
 
-          {/* <Text style={styles.orText}>Or with</Text>
+          <View style={styles.socialButtonsContainer}>
+            <TouchableOpacity onPress={() => googlePromptAsync()} style={styles.socialButton} disabled={!googleRequest}>
+              <Image source={icons.google} style={styles.socialIcon} resizeMode="contain" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => facebookPromptAsync()} style={styles.socialButton} disabled={!facebookRequest}>
+              <Image source={icons.facebook} style={styles.socialIcon} resizeMode="contain" />
+            </TouchableOpacity>
+          </View> */}
 
-          <TouchableOpacity onPress={() => promptAsync()} style={styles.googleButton} disabled={!request}>
-            <View style={styles.googleContent}>
-              <Image source={icons.google} style={styles.googleIcon} resizeMode="contain" />
-              <Text style={styles.googleText}>Continue with Google</Text>
-            </View>
-          </TouchableOpacity> */}
-
+        </View>
           <Link href="/signup" style={styles.registerLink}>
             <Text style={styles.registerText}>
-              Don't have an account? <Text style={styles.highlight}>Register now</Text>
+              Don't have an account? <Text style={styles.highlight}>Register</Text>
             </Text>
           </Link>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -226,21 +250,25 @@ export default Signin;
 // Styles
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' },
-  scrollContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
-  logo: { width: '100%', height: '15%' },
+  scrollContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'space-between' },
+  backgroundImage: { width: '100%', height: 150 },
   formContainer: { paddingHorizontal: 40, width: '100%', alignItems: 'center' },
-  title: { fontSize: 24, textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#333', marginTop: 10 },
-  highlight: { color: '#854d0e' },
+  title: { fontSize: 24, textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#333', marginTop: 20 },
+  highlight: { color: '#1F4C6B', fontFamily: 'Rubik-Bold', },
   subtitle: { fontSize: 18, fontFamily: 'Rubik-Regular', color: '#555', textAlign: 'center', marginVertical: 15 },
-  input: { height: 45, borderColor: '#ccc', borderWidth: 1, borderRadius: 5, paddingHorizontal: 10, marginBottom: 10, width: '100%' },
-  loginButton: { backgroundColor: '#854d0e', borderRadius: 25, paddingVertical: 14, alignItems: 'center', marginTop: 10, width: '100%' },
+  errorText: { backgroundColor: '#1e3a8a', color: 'white', padding: 10, borderRadius: 5, marginBottom: 10, width: '100%', textAlign: 'center' },
+  inputContainer: { flexDirection: 'row', padding: 10, alignItems: 'center', backgroundColor: '#f5f4f8', borderWidth: 0, borderRadius: 10, marginBottom: 10, width: '100%' },
+  inputIcon: { marginLeft: 10 },
+  input: { flex: 1, height: 45, paddingHorizontal: 10 },
+  optionsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 10 },
+  forgotPassword: { color: "#1F4C6B" },
+  showPassword: { color: "#1F4C6B" },
+  loginButton: { backgroundColor: '#8BC83F', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10, width: '100%' },
   loginButtonText: { fontSize: 18, fontFamily: 'Rubik-Medium', color: 'white' },
-  forgotPassword: { color: "#854d0e", textDecorationLine: "underline", marginTop: 10 },
-  orText: { fontSize: 14, fontFamily: 'Rubik-Regular', color: '#555', textAlign: 'center', marginTop: 30 },
-  googleButton: { backgroundColor: 'lightgrey', borderRadius: 50, paddingVertical: 15, marginTop: 20, alignItems: 'center', width: '100%' },
-  googleContent: { flexDirection: 'row', alignItems: 'center' },
-  googleIcon: { width: 20, height: 20 },
-  googleText: { fontSize: 18, fontFamily: 'Rubik-Medium', color: '#333', marginLeft: 10 },
-  registerLink: { marginTop: 20, alignItems: 'center' },
+  orText: { fontSize: 14, fontFamily: 'Rubik-Regular', color: '#555', textAlign: 'center', marginVertical: 20 },
+  socialButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '60%' },
+  socialButton: { backgroundColor: 'lightgrey', borderRadius: 50, padding: 10, alignItems: 'center', width: 60, height: 60, justifyContent: 'center' },
+  socialIcon: { width: 30, height: 30 },
+  registerLink: { marginBlock: 20, alignItems: 'center' },
   registerText: { fontSize: 16, fontFamily: 'Rubik-Regular', color: '#000', textAlign: 'center' },
 });

@@ -2,7 +2,6 @@ import { ScrollView, StyleSheet, Text, View, SafeAreaView, Image, TouchableOpaci
 import React, { useState, useEffect } from 'react';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
-import * as IntentLauncher from 'expo-intent-launcher';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { router } from 'expo-router';
@@ -10,6 +9,7 @@ import axios from 'axios';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast, { BaseToast } from 'react-native-toast-message';
+import { Ionicons, Octicons, Feather } from '@expo/vector-icons';
 
 const EditProfile = () => {
     const [image, setImage] = useState(null);
@@ -22,9 +22,26 @@ const EditProfile = () => {
     const [loading, setLoading] = useState(false);
     const [userId, setUserId] = useState(null);
 
-    // Fetch existing profile data
-    useEffect(() => {
+    const toastConfig = {
+        success: (props) => (
+            <BaseToast
+                {...props}
+                style={{ borderLeftColor: "green" }}
+                text1Style={{ fontSize: 16, fontWeight: "bold" }}
+                text2Style={{ fontSize: 14 }}
+            />
+        ),
+        error: (props) => (
+            <BaseToast
+                {...props}
+                style={{ borderLeftColor: "red" }}
+                text1Style={{ fontSize: 16, fontWeight: "bold" }}
+                text2Style={{ fontSize: 14 }}
+            />
+        ),
+    };
 
+    useEffect(() => {
         fetchProfileData();
     }, []);
 
@@ -41,7 +58,6 @@ const EditProfile = () => {
 
             const response = await axios.get(`https://investorlands.com/api/userprofile?id=${parsedUserData.id}`);
             const data = response.data.data;
-            // console.log(response.data.data);
 
             setUserId(data.id);
             setUsername(data.name);
@@ -52,10 +68,8 @@ const EditProfile = () => {
             setCompanyDocs(data.company_document ? [data.company_document] : []);
 
             let profileImage = data.profile_photo_path;
-
-            // 🔹 Ensure profile_photo_path is a valid string before setting it
             if (typeof profileImage === 'number') {
-                profileImage = profileImage.toString(); // Convert number to string
+                profileImage = profileImage.toString();
             }
 
             if (typeof profileImage === 'string' && profileImage.trim() !== '' && profileImage !== 'null' && profileImage !== 'undefined') {
@@ -63,10 +77,9 @@ const EditProfile = () => {
                     ? profileImage
                     : `https://investorlands.com/assets/images/Users/${profileImage}`;
             } else {
-                profileImage = images.avatar; // Ensure default image is a valid source
+                profileImage = images.avatar;
             }
 
-            // console.log('Final Image URL:', profileImage); // Debugging
             setImage(profileImage);
         } catch (error) {
             console.error('Error fetching profile data:', error);
@@ -75,36 +88,6 @@ const EditProfile = () => {
         }
     };
 
-    const toastConfig = {
-        success: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "green" }}
-                text1Style={{
-                    fontSize: 16,
-                    fontWeight: "bold",
-                }}
-                text2Style={{
-                    fontSize: 14,
-                }}
-            />
-        ),
-        error: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "red" }}
-                text1Style={{
-                    fontSize: 16,
-                    fontWeight: "bold",
-                }}
-                text2Style={{
-                    fontSize: 14,
-                }}
-            />
-        ),
-    };
-
-    // Handle image selection
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -118,7 +101,6 @@ const EditProfile = () => {
         }
     };
 
-    // Handle document selection
     const pickDocument = async () => {
         try {
             const result = await DocumentPicker.getDocumentAsync({
@@ -129,7 +111,7 @@ const EditProfile = () => {
 
             if (result.canceled) return;
 
-            const { mimeType, uri, name } = result.assets[0]; // Ensure correct structure
+            const { mimeType, uri, name } = result.assets[0];
 
             if (!['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'].includes(mimeType)) {
                 Toast.show({
@@ -140,7 +122,6 @@ const EditProfile = () => {
                 return;
             }
 
-            // Replace the old document with the new one
             setCompanyDocs([{ uri, name, mimeType }]);
 
             Toast.show({
@@ -148,7 +129,6 @@ const EditProfile = () => {
                 text1: 'File Added',
                 text2: `${name} has been successfully added.`,
             });
-
         } catch (error) {
             console.error('Document Picker Error:', error);
             Toast.show({
@@ -184,24 +164,21 @@ const EditProfile = () => {
 
     const handleSubmit = async () => {
         setLoading(true);
-        
         try {
             const formData = new FormData();
             formData.append('name', username);
             formData.append('email', email);
             formData.append('mobile', phoneNumber);
             formData.append('company_name', companyName);
-    
-            // ✅ Append image ONLY if it's a local file
-            if (image && image.startsWith('file://')) { 
+
+            if (image && image.startsWith('file://')) {
                 formData.append('myprofileimage', {
                     uri: image,
                     name: 'profile.jpg',
                     type: 'image/jpeg',
                 });
             }
-    
-            // ✅ Append document if changed
+
             if (companyDocs.length > 0) {
                 const doc = companyDocs[0];
                 if (doc.uri && doc.uri.startsWith('file://')) {
@@ -212,9 +189,7 @@ const EditProfile = () => {
                     });
                 }
             }
-    
-            console.log("Submitting FormData:", formData);
-    
+
             const response = await axios.post(
                 `https://investorlands.com/api/updateuserprofile/${userId}`,
                 formData,
@@ -225,15 +200,14 @@ const EditProfile = () => {
                     },
                 }
             );
-    
+
             if (response.status === 200) {
                 Toast.show({
                     type: 'success',
                     text1: 'Success',
                     text2: 'Profile updated successfully!',
                 });
-    
-                fetchProfileData(); // Refresh profile
+                fetchProfileData();
             } else {
                 throw new Error('Unexpected server response.');
             }
@@ -248,82 +222,126 @@ const EditProfile = () => {
             setLoading(false);
         }
     };
-    
-    
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Image source={icons.backArrow} style={styles.icon} />
+                    <Image source={icons.backArrow} style={styles.backIcon} resizeMode="contain" />
                 </TouchableOpacity>
                 <Text style={styles.headerText} className="capitalize">Edit {usertype} Profile</Text>
-                <View></View>
+                <View style={styles.placeholder} />
             </View>
+
             <Toast config={toastConfig} position="top" />
 
             {loading ? (
-                <ActivityIndicator size="large" color="#8a4c00" style={{ marginTop: 50 }} />
+                <ActivityIndicator size="large" color="#1F4C6B" style={styles.loadingIndicator} />
             ) : (
-                <ScrollView showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                     <View style={styles.profileImageContainer}>
-                        <Image source={image ? { uri: image } : images.avatar} style={styles.profileImage} />
+                        <Image
+                            source={image ? { uri: image } : images.avatar}
+                            style={styles.profileImage}
+                            resizeMode="cover"
+                        />
                         <TouchableOpacity onPress={pickImage} style={styles.editIconContainer}>
-                            <Image source={icons.edit} style={styles.editIcon} />
+                            <Feather name="edit" size={24} color="#1F4C6B" style={styles.inputIcon} />
                         </TouchableOpacity>
-                        <Text style={styles.roleText} className="capitalize text-black font-rubik-bold">{username}</Text>
-                        <Text style={styles.roleText} className="capitalize font-rubik">{usertype}</Text>
+                        <Text style={styles.usernameText} className="capitalize">{username}</Text>
+                        <Text style={styles.roleText} className="capitalize">{usertype}</Text>
                     </View>
 
-                    <View>
-                        <Text style={styles.label}>Username</Text>
-                        <TextInput style={styles.input} value={username} onChangeText={setUsername} placeholder="Enter your name" />
+                    <View style={styles.formContainer}>
+                        <View style={styles.inputContainer}>
+                            <Ionicons name="person-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={username}
+                                onChangeText={setUsername}
+                                placeholder="Username"
+                            />
+                        </View>
 
-                        <Text style={styles.label}>Email Address</Text>
-                        <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Enter email address" />
+                        <View style={styles.inputContainer}>
+                            <Ionicons name="mail-outline" size={20} color="#1F4C6B" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                placeholder="Email Address"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                        </View>
 
-                        <Text style={styles.label}>Phone Number</Text>
-                        <TextInput style={styles.input} value={phoneNumber} onChangeText={setPhoneNumber} placeholder="Enter phone number" />
+                        <View style={styles.inputContainer}>
+                            <Octicons name="device-mobile" size={20} color="#1F4C6B" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={phoneNumber}
+                                onChangeText={setPhoneNumber}
+                                placeholder="Phone Number"
+                                keyboardType="phone-pad"
+                            />
+                        </View>
+
                         {usertype === 'agent' && (
-                            <View>
-                                <Text style={styles.label}>Company Name</Text>
-                                <TextInput style={styles.input} value={companyName} onChangeText={setCompanyName} placeholder="Enter company name" />
+                            <>
+                                <View style={styles.inputContainer}>
+                                    <Ionicons name="business-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.input}
+                                        value={companyName}
+                                        onChangeText={setCompanyName}
+                                        placeholder="Company Name"
+                                    />
+                                </View>
 
                                 <Text style={styles.label}>Company Document</Text>
                                 {companyDocs.length > 0 ? (
                                     companyDocs.map((doc, index) => {
                                         const fileName = typeof doc === "string" ? doc : doc.name;
-                                        const displayFileName = fileName.length > 10 ? `${fileName.substring(0, 10)}...` : fileName;
+                                        const displayFileName = fileName.length > 15 ? `${fileName.substring(0, 15)}...` : fileName;
                                         const fileExtension = fileName.split('.').pop();
 
                                         return (
-                                            <View key={index} style={styles.docItem}>
-                                                <Image source={{ uri: "https://cdn-icons-png.flaticon.com/512/337/337946.png" }} style={styles.thumbnail} />
-                                                <Text>{displayFileName}.{fileExtension}</Text>
-                                                <TouchableOpacity onPress={() => openFileInBrowser(typeof doc === 'string' ? doc : doc.name)} style={styles.dropbox}>
-                                                    <Text style={styles.downloadText}>View Document</Text>
+                                            <View key={index} style={styles.docContainer}>
+                                                <Image
+                                                    source={{ uri: "https://cdn-icons-png.flaticon.com/512/337/337946.png" }}
+                                                    style={styles.docThumbnail}
+                                                    resizeMode="contain"
+                                                />
+                                                <Text style={styles.docText}>{displayFileName}.{fileExtension}</Text>
+                                                <TouchableOpacity
+                                                    onPress={() => openFileInBrowser(typeof doc === 'string' ? doc : doc.name)}
+                                                    style={styles.viewDocButton}
+                                                >
+                                                    <Text style={styles.viewDocText}>View</Text>
                                                 </TouchableOpacity>
                                             </View>
                                         );
                                     })
                                 ) : (
-                                    <Text>No document available</Text>
+                                    <Text style={styles.noDocText}>No document available</Text>
                                 )}
 
-
-
-                                <TouchableOpacity onPress={pickDocument} style={styles.dropbox}>
-                                    <Text style={styles.downloadText}>Change Company Document</Text>
+                                <TouchableOpacity onPress={pickDocument} style={styles.uploadButton}>
+                                    <Text style={styles.uploadText}>Change Company Document</Text>
                                 </TouchableOpacity>
-                            </View>
+                            </>
                         )}
                     </View>
+
                 </ScrollView>
             )}
-
-            <TouchableOpacity onPress={handleSubmit} style={styles.submitButton} disabled={loading}>
-                <Text style={styles.submitButtonText}>{loading ? 'UPDATING...' : 'UPDATE PROFILE'}</Text>
-            </TouchableOpacity>
+            <View className='px-4'>
+                <TouchableOpacity onPress={handleSubmit} style={styles.submitButton} disabled={loading}>
+                    <Text style={styles.submitButtonText}>
+                        {loading ? 'Updating...' : 'Update Profile'}
+                    </Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 };
@@ -332,28 +350,40 @@ export default EditProfile;
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: 'white',
         flex: 1,
-        padding: 16,
+        backgroundColor: 'white',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
     },
     backButton: {
-        backgroundColor: '#ccc',
+        backgroundColor: '#e5e7eb',
         borderRadius: 20,
-        padding: 10,
+        padding: 8,
     },
-    icon: {
+    backIcon: {
         width: 20,
         height: 20,
     },
     headerText: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
+        color: '#1F4C6B',
+    },
+    placeholder: {
+        width: 40, // Placeholder to balance the header layout
+    },
+    loadingIndicator: {
+        marginTop: 50,
+    },
+    scrollContainer: {
+        flexGrow: 1,
+        paddingHorizontal: 16,
+        paddingBottom: 20,
     },
     profileImageContainer: {
         alignItems: 'center',
@@ -363,63 +393,112 @@ const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
+        borderWidth: 2,
+        borderColor: '#1F4C6B',
     },
     editIconContainer: {
         position: 'absolute',
-        bottom: 70,
-        right: 135,
+        bottom: 60,
+        right: '35%',
+        // backgroundColor: '#1F4C6B',
+        borderRadius: 15,
+        padding: 5,
     },
     editIcon: {
-        width: 30,
-        height: 30,
+        width: 20,
+        height: 20,
+    },
+    usernameText: {
+        fontSize: 18,
+        fontFamily: 'Rubik-Bold',
+        color: '#1F4C6B',
+        marginTop: 10,
     },
     roleText: {
         fontSize: 16,
-        fontWeight: 'normal',
+        fontFamily: 'Rubik-Regular',
+        color: '#555',
+        marginTop: 5,
+    },
+    formContainer: {
         marginTop: 10,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f3f4f6',
+        borderRadius: 10,
+        marginBottom: 10,
+        padding: 10,
+    },
+    inputIcon: {
+        marginLeft: 10,
+    },
+    input: {
+        flex: 1,
+        height: 45,
+        paddingHorizontal: 10,
+        fontFamily: 'Rubik-Regular',
+        color: '#333',
     },
     label: {
         fontSize: 16,
+        fontFamily: 'Rubik-Medium',
+        color: '#1F4C6B',
         marginVertical: 5,
     },
-    input: {
-        backgroundColor: '#edf5ff',
-        borderRadius: 8,
+    docContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f3f4f6',
+        borderRadius: 5,
         padding: 10,
         marginBottom: 10,
     },
-    docItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-    },
-    thumbnail: {
-        width: 50,
-        height: 50,
+    docThumbnail: {
+        width: 40,
+        height: 40,
         marginRight: 10,
     },
-    dropbox: {
-        backgroundColor: '#e0e0e0',
-        padding: 10,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 10,
+    docText: {
+        flex: 1,
+        fontFamily: 'Rubik-Regular',
+        color: '#333',
     },
-    downloadText: {
-        color: 'black',
+    viewDocButton: {
+        padding: 5,
+    },
+    viewDocText: {
+        color: '#1F4C6B',
+        fontFamily: 'Rubik-Medium',
+        textDecorationLine: 'underline',
+    },
+    noDocText: {
+        fontFamily: 'Rubik-Regular',
+        color: '#555',
+        marginBottom: 10,
+    },
+    uploadButton: {
+        backgroundColor: '#e5e7eb',
+        borderRadius: 5,
+        padding: 10,
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    uploadText: {
+        color: '#1F4C6B',
+        fontFamily: 'Rubik-Medium',
     },
     submitButton: {
-        backgroundColor: '#8a4c00',
-        padding: 15,
-        borderRadius: 8,
+        backgroundColor: '#8BC83F',
+        borderRadius: 10,
+        paddingVertical: 14,
         alignItems: 'center',
         marginVertical: 20,
     },
     submitButtonText: {
+        fontSize: 16,
+        fontFamily: 'Rubik-Medium',
         color: 'white',
-        fontWeight: 'bold',
     },
 });

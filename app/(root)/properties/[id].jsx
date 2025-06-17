@@ -632,7 +632,7 @@ const PropertyDetails = () => {
                         </Text>
                     </View> */}
 
-                    <TouchableOpacity onPress={() => handleEnquiry()} className="flex-1 flex flex-row items-center justify-center bg-yellow-800 py-3 rounded-full shadow-md shadow-zinc-400">
+                    <TouchableOpacity onPress={() => handleEnquiry()} className="flex-1 flex flex-row items-center justify-center bg-primary-300 py-3 rounded-full shadow-md shadow-zinc-400">
                         <Text className="text-white text-lg text-center font-rubik-bold">
                             Book Now
                         </Text>

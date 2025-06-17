@@ -29,7 +29,7 @@
     "android": {
       "package": "com.vaibhav.properties",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/investorIcon.png",
+        "foregroundImage": "./assets/images/vplogo.jpg",
         "backgroundColor": "#ffffff"
       },
       "runtimeVersion": "1.0.0",
@@ -42,7 +42,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/investorIcon.png",
+      "favicon": "./assets/images/vplogo.jpg",
       "config": {
         "react-native-maps": {
           "web": "google"
@@ -59,7 +59,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo.png",
+          "image": "./assets/images/vplogo.png",
           "resizeMode": "cover",
           "backgroundColor": "#ffffff",
           "enableFullScreenImage_legacy": true

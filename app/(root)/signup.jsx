@@ -1,8 +1,7 @@
-import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, ImageBackground, Alert } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
-import images from '@/constants/images';
 import { Link } from 'expo-router';
 import Constants from "expo-constants";
 import * as WebBrowser from 'expo-web-browser';
@@ -10,8 +9,11 @@ import * as Google from 'expo-auth-session/providers/google';
 import { useNavigation } from 'expo-router';
 import { makeRedirectUri } from 'expo-auth-session';
 import Toast, { BaseToast } from 'react-native-toast-message';
+import { Ionicons, Octicons } from '@expo/vector-icons';
+import images from '@/constants/images';
 
 WebBrowser.maybeCompleteAuthSession();
+
 const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,11 +22,10 @@ const Signup = () => {
   const [companyName, setCompanyName] = useState('');
   const [companyDocument, setCompanyDocument] = useState(null);
   const [isUser, setIsUser] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const ANDROID_CLIENT_ID = Constants.expoConfig?.extra?.ANDROID_CLIENT_ID || '';
   const WEB_CLIENT_ID = Constants.expoConfig?.extra?.WEB_CLIENT_ID || '';
   const navigation = useNavigation();
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: ANDROID_CLIENT_ID,
@@ -32,9 +33,10 @@ const Signup = () => {
     scopes: ['profile', 'email'],
     redirectUri: makeRedirectUri({
       native: 'com.investor.investorland:/oauth2redirect/google',
-      useProxy: Constants.appOwnership === 'expo', // Only use proxy in Expo Go
+      useProxy: Constants.appOwnership === 'expo',
     }),
   });
+
   useEffect(() => {
     if (response?.type === 'success') {
       const { id_token } = response.params;
@@ -44,40 +46,28 @@ const Signup = () => {
 
   const toastConfig = {
     success: (props) => (
-        <BaseToast
-            {...props}
-            style={{ borderLeftColor: "green" }}
-            text1Style={{
-                fontSize: 16,
-                fontWeight: "bold",
-            }}
-            text2Style={{
-                fontSize: 14,
-            }}
-        />
+      <BaseToast
+        {...props}
+        style={{ borderLeftColor: "green" }}
+        text1Style={{ fontSize: 16, fontWeight: "bold" }}
+        text2Style={{ fontSize: 14 }}
+      />
     ),
     error: (props) => (
-        <BaseToast
-            {...props}
-            style={{ borderLeftColor: "red" }}
-            text1Style={{
-                fontSize: 16,
-                fontWeight: "bold",
-            }}
-            text2Style={{
-                fontSize: 14,
-            }}
-        />
+      <BaseToast
+        {...props}
+        style={{ borderLeftColor: "red" }}
+        text1Style={{ fontSize: 16, fontWeight: "bold" }}
+        text2Style={{ fontSize: 14 }}
+      />
     ),
-};
+  };
 
   const handleGoogleSignIn = async (idToken) => {
     try {
       const response = await fetch('https://investorlands.com/api/googleRegister', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id_token: idToken,
           user_type: isUser ? 'user' : 'agent',
@@ -143,9 +133,7 @@ const Signup = () => {
       try {
         const response = await fetch('https://investorlands.com/api/register-user', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          headers: { 'Content-Type': 'multipart/form-data' },
           body: formData,
         });
 
@@ -159,7 +147,6 @@ const Signup = () => {
           setPassword('');
           setCompanyName('');
           setCompanyDocument(null);
-
           setTimeout(() => {
             navigation.navigate('signin');
           }, 2000);
@@ -176,89 +163,120 @@ const Signup = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <Image source={images.appfavicon} className="w-full h-20" resizeMode="contain" />
-        <View className='pt-5'>
-          <Text className='font-rubik-bold text-center'>Join Us and Explore New Opportunities</Text>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <ImageBackground
+        source={images.loginbanner}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Toast config={toastConfig} position="bottom" />
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Create your account</Text>
+          <Text style={styles.subtitle}>Join Us and Explore New Opportunities</Text>
 
-        <View className="flex-row justify-around mt-3">
-          <TouchableOpacity onPress={() => setIsUser(true)}>
-            <View className={`px-10 py-2 rounded-2xl ${isUser ? 'bg-yellow-800' : 'bg-white border'}`}>
-              <Text className={`${isUser ? 'text-white' : 'text-black'} font-rubik-bold`} >User</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setIsUser(false)}>
-            <View className={`px-10 py-2 rounded-2xl ${!isUser ? 'bg-yellow-800' : 'bg-white border'}`}>
-              <Text className={`${!isUser ? 'text-white' : 'text-black'} font-rubik-bold`}>Agent</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity onPress={() => setIsUser(true)}>
+              <View style={[styles.toggleButton, isUser ? styles.toggleButtonActive : {}]}>
+                <Text style={[styles.toggleText, isUser ? styles.toggleTextActive : {}]}>User</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIsUser(false)}>
+              <View style={[styles.toggleButton, !isUser ? styles.toggleButtonActive : {}]}>
+                <Text style={[styles.toggleText, !isUser ? styles.toggleTextActive : {}]}>Agent</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
 
-        <View className="px-10">
-          <Text className="text-lg font-regular text-gray-700 text-center mt-3">
-            Register As {isUser ? 'User' : 'Agent'}
-          </Text>
-
-          <Text style={styles.label}>Username</Text>
-          <TextInput style={styles.input} placeholder="Username" onChangeText={setUsername} />
-
-          <Text style={styles.label}>Mobile No.</Text>
-          <TextInput style={styles.input} placeholder="Mobile" onChangeText={setMobile} />
-
-          <Text style={styles.label}>Email</Text>
-          <TextInput style={styles.input} placeholder="Email" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
-
-          <Text style={styles.label}>Password</Text>
-          <TextInput style={styles.input} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
-
-          {!isUser && (
+          {isUser ? null : (
             <>
-              <Text style={styles.label}>Company Name</Text>
-              <TextInput style={styles.input} value={companyName} onChangeText={setCompanyName} placeholder="Enter company name" />
-
-              <Text style={styles.label}>Company Documents</Text>
-              <Text>{companyDocument ? companyDocument.name : "No document selected"}</Text>
-              <TouchableOpacity onPress={pickDocument} style={styles.dropbox}>
-                <Text style={styles.downloadText}>Add Company Document</Text>
-              </TouchableOpacity>
+              <View style={styles.inputContainer}>
+                <Ionicons name="business-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { paddingLeft: 10 }]}
+                  placeholder="Company Name"
+                  value={companyName}
+                  onChangeText={setCompanyName}
+                />
+              </View>
+              <View style={styles.inputContainer}>
+                <Ionicons name="document-text-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                <Text style={[styles.input, {  paddingTop: 13, color: '#555' }]}>
+                  {companyDocument ? companyDocument.name : "Company Document"}
+                </Text>
+                <TouchableOpacity onPress={pickDocument} style={styles.uploadButton}>
+                  <Text style={styles.uploadText}>Upload</Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
 
-          <TouchableOpacity
-            onPress={handleRegister}
-            className="bg-yellow-700 rounded-2xl py-4 mt-5 items-center"
-          >
-            <Text className="text-lg font-rubik text-white">
-              {isUser ? 'Register Now' : 'Sign Up as Agent'}
-            </Text>
+          <View style={styles.inputContainer}>
+            <Ionicons name="person-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Full name"
+              value={username}
+              onChangeText={setUsername}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Octicons name="device-mobile" size={20} color="#1F4C6B" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Mobile No."
+              keyboardType="number"
+              value={mobile}
+              onChangeText={setMobile}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Ionicons name="mail-outline" size={20} color="#1F4C6B" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#1F4C6B" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+            />
+          </View>
+
+
+
+          <View style={styles.optionsContainer}>
+            <TouchableOpacity onPress={() => Alert.alert('Terms of Service', 'Placeholder for Terms of Service')}>
+              <Text style={styles.termsText}>Terms of service</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Text style={styles.showPassword}>{showPassword ? 'Hide password' : 'Show password'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity onPress={handleRegister} style={styles.registerButton}>
+            <Text style={styles.registerButtonText}>Register</Text>
           </TouchableOpacity>
 
-          {/* <Text style={styles.orText}>Or with</Text>
-
-          <TouchableOpacity onPress={() => promptAsync()} style={styles.googleButton}>
-            <View style={styles.googleContent}>
-              <Image source={icons.google} style={styles.googleIcon} resizeMode="contain" />
-              <Text style={styles.googleText}>Register with Google</Text>
-            </View>
-          </TouchableOpacity> */}
-
-          <Link href="/signin" style={{ margin: 20, alignItems: 'center' }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontFamily: 'Rubik-Regular',
-                color: '#00000',
-                textAlign: 'center',
-              }}
-            >
-              Already have an account? <Text style={styles.highlight}>Login now!</Text>
-            </Text>
-          </Link>
         </View>
-        <Toast config={toastConfig} position="bottom" />
       </ScrollView>
+      <Link href="/signin" style={styles.loginLink}>
+        <Text style={styles.loginText}>
+          Already have an account? <Text style={styles.loginHighlight}>Login now!</Text>
+        </Text>
+      </Link>
     </SafeAreaView>
   );
 };
@@ -266,33 +284,28 @@ const Signup = () => {
 export default Signup;
 
 const styles = StyleSheet.create({
-  label: {
-    fontSize: 16,
-    marginVertical: 5,
-  },
-  input: {
-    height: 45,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 5,
-    fontFamily: 'Rubik-Regular',
-  },
-  dropbox: {
-    backgroundColor: '#e0e0e0',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  downloadText: {
-    color: '#8a4c00',
-  },
-  highlight: { color: '#854d0e' },
-  orText: { fontSize: 14, fontFamily: 'Rubik-Regular', color: '#555', textAlign: 'center', marginTop: 30 },
-  googleButton: { backgroundColor: 'lightgrey', borderRadius: 50, paddingVertical: 15, marginTop: 20, alignItems: 'center', width: '100%' },
-  googleContent: { flexDirection: 'row', alignItems: 'center' },
-  googleIcon: { width: 20, height: 20 },
-  googleText: { fontSize: 18, fontFamily: 'Rubik-Medium', color: '#333', marginLeft: 10 },
+  container: { flex: 1, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' },
+  scrollContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
+  backgroundImage: { width: '100%', height: 150 },
+  formContainer: { paddingHorizontal: 40, width: '100%', alignItems: 'center' },
+  title: { fontSize: 24, fontFamily: 'Rubik-Bold', color: '#1F4C6B', textAlign: 'center', marginTop: 20 },
+  subtitle: { fontSize: 16, fontFamily: 'Rubik-Regular', color: '#555', textAlign: 'center', marginVertical: 10 },
+  toggleContainer: { flexDirection: 'row', justifyContent: 'center', marginVertical: 10 },
+  toggleButton: { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20, borderWidth: 1, borderColor: '#ccc', marginHorizontal: 5 },
+  toggleButtonActive: { backgroundColor: '#1F4C6B' },
+  toggleText: { fontSize: 16, fontFamily: 'Rubik-Medium', color: '#555' },
+  toggleTextActive: { color: 'white' },
+  inputContainer: { flexDirection: 'row', padding: 10, alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 10, marginBottom: 10, width: '100%' },
+  inputIcon: { marginLeft: 10 },
+  input: { flex: 1, height: 45, paddingHorizontal: 10, fontFamily: 'Rubik-Regular' },
+  uploadButton: { padding: 10 },
+  uploadText: { color: '#1e40af', fontFamily: 'Rubik-Medium' },
+  optionsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 10 },
+  termsText: { color: '#1e40af', fontFamily: 'Rubik-Regular' },
+  showPassword: { color: '#1e40af', fontFamily: 'Rubik-Regular' },
+  registerButton: { backgroundColor: '#8BC83F', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10, width: '100%' },
+  registerButtonText: { fontSize: 18, fontFamily: 'Rubik-Medium', color: 'white' },
+  loginLink: { marginBlock: 20, alignItems: 'center' },
+  loginText: { fontSize: 16, fontFamily: 'Rubik-Regular', color: '#000' },
+  loginHighlight: { color: '#1e40af', fontFamily: 'Rubik-Bold' },
 });
