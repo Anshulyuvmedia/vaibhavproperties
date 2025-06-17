@@ -1,22 +1,26 @@
-import { StyleSheet, View, FlatList, Image } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import React, { useRef, useState, useEffect, memo } from 'react';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import axios from 'axios';
 import { HorizontalCard } from '@/components/Cards';
 import Constants from 'expo-constants';
 import debounce from 'lodash.debounce';
+import * as Location from 'expo-location';
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 // Define parseCoordinates outside Mapview
 const parseCoordinates = (maplocations) => {
     try {
         const location = JSON.parse(maplocations);
-        return {
-            latitude: parseFloat(location.Latitude),
-            longitude: parseFloat(location.Longitude),
-        };
+        const latitude = parseFloat(location.Latitude);
+        const longitude = parseFloat(location.Longitude);
+        if (isNaN(latitude) || isNaN(longitude)) {
+            throw new Error('Invalid coordinates');
+        }
+        return { latitude, longitude };
     } catch (error) {
         console.error('Error parsing maplocations:', error);
-        return { latitude: 26.4499, longitude: 74.6399 };
+        return { latitude: 26.4499, longitude: 74.6399 }; // Default coordinates (Ajmer)
     }
 };
 
@@ -39,48 +43,336 @@ const Mapview = () => {
     const GOOGLE_MAPS_API_KEY = Constants.expoConfig.extra.GOOGLE_MAPS_API_KEY;
     const mapRef = useRef(null);
     const flatListRef = useRef(null);
-    const [listingData, setListingData] = useState(null);
+    const [listingData, setListingData] = useState([]);
+    const [filteredData, setFilteredData] = useState([]);
+    const [visibleMarkers, setVisibleMarkers] = useState([]);
     const [selectedPropertyId, setSelectedPropertyId] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [region, setRegion] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [recentSearches, setRecentSearches] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [citySuggestions, setCitySuggestions] = useState([]);
+    const [selectedCity, setSelectedCity] = useState('Ajmer'); // Default to Ajmer
+    const [currentLocationName, setCurrentLocationName] = useState('Ajmer'); // For displaying current city/location
 
-    // Fetch property data
-    const fetchListingData = async (mapRegion) => {
+    // Fetch filtered data based on city
+    const fetchFilterData = async (city) => {
         setLoading(true);
+        setListingData([]);
+        setFilteredData([]);
+        setVisibleMarkers([]);
+        setError(null);
+
+        const params = { city };
+        console.log("fetchFilterData params:", params);
         try {
-            const response = await axios.get('https://investorlands.com/api/property-listings', {
-                params: {
-                    latitude: mapRegion?.latitude,
-                    longitude: mapRegion?.longitude,
-                    latitudeDelta: mapRegion?.latitudeDelta,
-                    longitudeDelta: mapRegion?.longitudeDelta,
-                    limit: 50,
-                },
+            const queryParams = new URLSearchParams();
+            if (params.city) queryParams.append("filtercity", params.city);
+
+            const apiUrl = `https://investorlands.com/api/filterlistings?${queryParams.toString()}`;
+            console.log("Sending API request to:", apiUrl);
+
+            const response = await axios({
+                method: "post",
+                url: apiUrl,
             });
-            if (response.data.data) {
-                setListingData(response.data.data);
-                if (!region && response.data.data.length > 0) {
-                    const { latitude, longitude } = parseCoordinates(response.data.data[0].maplocations);
-                    setRegion({
+
+            console.log("fetchFilterData response:", response.data);
+
+            if (response.data && Array.isArray(response.data.data)) {
+                const data = response.data.data;
+                setListingData(data);
+                setFilteredData(data);
+
+                const limitedMarkers = data.slice(0, 50).map(property => ({
+                    ...property,
+                    coordinates: parseCoordinates(property.maplocations)
+                }));
+                setVisibleMarkers(limitedMarkers);
+
+                if (data.length > 0) {
+                    const { latitude, longitude } = parseCoordinates(data[0].maplocations);
+                    const newRegion = {
                         latitude,
                         longitude,
-                        latitudeDelta: 0.05,
-                        longitudeDelta: 0.05,
-                    });
+                        latitudeDelta: 0.5,
+                        longitudeDelta: 0.5,
+                    };
+                    setRegion(newRegion);
+                    mapRef.current?.animateToRegion(newRegion, 500);
                 }
             } else {
-                console.error('Unexpected API response format:', response.data);
+                console.error("Unexpected API response format in fetchFilterData:", response.data);
+                setListingData([]);
+                setFilteredData([]);
+                setVisibleMarkers([]);
+                setError("No properties found for the selected city.");
             }
         } catch (error) {
-            console.error('Error fetching user data:', error);
+            console.error("Error fetching filtered listings:", error.response?.data || error.message);
+            setListingData([]);
+            setFilteredData([]);
+            setVisibleMarkers([]);
+            if (error.response?.status === 404) {
+                setError("No properties found for the selected city.");
+            } else if (error.response?.status === 500) {
+                setError("Server error. Please try again later.");
+            } else if (error.message.includes("Network Error")) {
+                setError("Network error. Please check your internet connection.");
+            } else {
+                setError("An unexpected error occurred. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
     };
 
+    // Fetch property data (used for "Nearby You" and initial load)
+    const fetchListingData = async (mapRegion) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await axios.get('https://investorlands.com/api/property-listings', {
+                params: {
+                    latitude: mapRegion?.latitude || 26.4499,
+                    longitude: mapRegion?.longitude || 74.6399,
+                    latitudeDelta: mapRegion?.latitudeDelta || 0.5,
+                    longitudeDelta: mapRegion?.longitudeDelta || 0.5,
+                    limit: 50,
+                },
+            });
+
+            console.log("fetchListingData response:", response.data);
+
+            if (response.data && response.data.data && Array.isArray(response.data.data.data)) {
+                const data = response.data.data.data;
+                setListingData(data);
+                setFilteredData(data);
+
+                const limitedMarkers = data.slice(0, 50).map(property => ({
+                    ...property,
+                    coordinates: parseCoordinates(property.maplocations)
+                }));
+                setVisibleMarkers(limitedMarkers);
+
+                if (!region && data.length > 0) {
+                    const { latitude, longitude } = parseCoordinates(data[0].maplocations);
+                    setRegion({
+                        latitude,
+                        longitude,
+                        latitudeDelta: 0.5,
+                        longitudeDelta: 0.5,
+                    });
+                }
+            } else {
+                console.error('Unexpected API response format in fetchListingData:', response.data);
+                setListingData([]);
+                setFilteredData([]);
+                setVisibleMarkers([]);
+                setError("No properties found nearby.");
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            setListingData([]);
+            setFilteredData([]);
+            setVisibleMarkers([]);
+            if (error.message.includes("Network Error")) {
+                setError("Network error. Please check your internet connection.");
+            } else {
+                setError("An unexpected error occurred. Please try again.");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Initial load with Ajmer coordinates
     useEffect(() => {
-        fetchListingData();
+        const ajmerRegion = {
+            latitude: 26.4499,
+            longitude: 74.6399,
+            latitudeDelta: 0.5,
+            longitudeDelta: 0.5,
+        };
+        setRegion(ajmerRegion);
+        fetchListingData(ajmerRegion);
     }, []);
+
+    // Request location permissions and get current location
+    const getCurrentLocation = async () => {
+        try {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                setError('Location permission denied. Please enable location access.');
+                return;
+            }
+
+            let location = await Location.getCurrentPositionAsync({});
+            const { latitude, longitude } = location.coords;
+
+            const newRegion = {
+                latitude,
+                longitude,
+                latitudeDelta: 0.5,
+                longitudeDelta: 0.5,
+            };
+            setRegion(newRegion);
+            setSelectedCity(null);
+            mapRef.current?.animateToRegion(newRegion, 500);
+
+            const geocode = await axios.get(
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
+            );
+            if (geocode.data.status === 'OK') {
+                const addressComponents = geocode.data.results[0].address_components;
+                const cityComponent = addressComponents.find(comp => comp.types.includes('locality'));
+                const city = cityComponent ? cityComponent.long_name : 'Unknown Location';
+                setCurrentLocationName(city);
+            } else {
+                setCurrentLocationName('Unknown Location');
+            }
+
+            fetchListingData(newRegion);
+        } catch (error) {
+            console.error('Error getting location:', error);
+            setError("Unable to get your location. Please try again.");
+        }
+    };
+
+    // Fetch city suggestions from Google Places API
+    const fetchCitySuggestions = async (query) => {
+        if (!query || query.trim() === '') {
+            setCitySuggestions([]);
+            return;
+        }
+
+        try {
+            const response = await axios.get(
+                'https://maps.googleapis.com/maps/api/place/autocomplete/json',
+                {
+                    params: {
+                        input: query,
+                        types: '(cities)',
+                        key: GOOGLE_MAPS_API_KEY,
+                    },
+                }
+            );
+
+            if (response.data.status === 'OK') {
+                setCitySuggestions(response.data.predictions || []);
+            } else if (response.data.status === 'REQUEST_DENIED') {
+                setError("Google Places API request denied. Please check your API key.");
+                setCitySuggestions([]);
+            } else {
+                console.error('Google Places API error:', response.data.status);
+                setCitySuggestions([]);
+            }
+        } catch (error) {
+            console.error('Error fetching city suggestions:', error);
+            setCitySuggestions([]);
+            setError("Unable to fetch city suggestions. Please try again.");
+        }
+    };
+
+    const debouncedFetchCitySuggestions = debounce(fetchCitySuggestions, 300);
+
+    const getCityDetails = async (placeId) => {
+        try {
+            const response = await axios.get(
+                'https://maps.googleapis.com/maps/api/place/details/json',
+                {
+                    params: {
+                        place_id: placeId,
+                        fields: 'geometry,formatted_address',
+                        key: GOOGLE_MAPS_API_KEY,
+                    },
+                }
+            );
+
+            if (response.data.status === 'OK') {
+                const { lat, lng } = response.data.result.geometry.location;
+                const addressComponents = response.data.result.formatted_address.split(', ');
+                const city = addressComponents[0];
+                const newRegion = {
+                    latitude: lat,
+                    longitude: lng,
+                    latitudeDelta: 0.5,
+                    longitudeDelta: 0.5,
+                };
+                setSelectedCity(city);
+                setCurrentLocationName(city);
+                setRegion(newRegion);
+                mapRef.current?.animateToRegion(newRegion, 500);
+                fetchFilterData(city);
+            } else {
+                console.error('Google Places Details API error:', response.data.status);
+                setError("Unable to fetch city details. Please try again.");
+            }
+        } catch (error) {
+            console.error('Error fetching city coordinates:', error);
+            setError("Unable to fetch city details. Please try again.");
+        }
+    };
+
+    const handleSearch = (query) => {
+        setSearchQuery(query);
+        debouncedFetchCitySuggestions(query);
+
+        if (query.trim() === '') {
+            setSelectedCity(null);
+            setCurrentLocationName('Ajmer');
+            setFilteredData(listingData || []);
+            setVisibleMarkers(listingData.slice(0, 50).map(property => ({
+                ...property,
+                coordinates: parseCoordinates(property.maplocations)
+            })));
+            setShowSuggestions(true);
+            setError(null);
+            const ajmerRegion = {
+                latitude: 26.4499,
+                longitude: 74.6399,
+                latitudeDelta: 0.5,
+                longitudeDelta: 0.5,
+            };
+            setRegion(ajmerRegion);
+            fetchListingData(ajmerRegion);
+            return;
+        }
+
+        if (!selectedCity) {
+            const filtered = Array.isArray(listingData) ? listingData.filter((property) =>
+                property.property_name?.toLowerCase().includes(query.toLowerCase()) ||
+                property.category?.toLowerCase().includes(query.toLowerCase())
+            ) : [];
+            setFilteredData(filtered);
+            setVisibleMarkers(filtered.slice(0, 50).map(property => ({
+                ...property,
+                coordinates: parseCoordinates(property.maplocations)
+            })));
+        }
+        setShowSuggestions(true);
+
+        if (query && !recentSearches.includes(query)) {
+            setRecentSearches([query, ...recentSearches].slice(0, 5));
+        }
+    };
+
+    const handleSuggestionPress = (suggestion, isCity = false) => {
+        setSearchQuery(suggestion.description || suggestion);
+        if (isCity) {
+            getCityDetails(suggestion.place_id);
+        } else {
+            setSelectedCity(null);
+            handleSearch(suggestion);
+        }
+        setShowSuggestions(false);
+    };
+
+    const clearRecentSearches = () => {
+        setRecentSearches([]);
+    };
 
     const handleMarkerPress = (property) => {
         setSelectedPropertyId(property.id);
@@ -94,23 +386,42 @@ const Mapview = () => {
             },
             500
         );
-        const index = listingData?.data.findIndex((p) => p.id === property.id);
+        const index = listingData.findIndex((p) => p.id === property.id);
         if (index !== -1) {
             flatListRef.current?.scrollToIndex({ index, animated: true });
         }
     };
 
-    const handleCardPress = debounce((propertyId) => {
-        const property = listingData?.data.find((p) => p.id === propertyId);
+    const handleCardPress = debounce(async (propertyId) => {
+        const property = listingData.find((p) => p.id === propertyId);
         if (property) {
             setSelectedPropertyId(propertyId);
             const { latitude, longitude } = parseCoordinates(property.maplocations);
+
+            // Reverse geocode to get the city name of the property
+            try {
+                const geocode = await axios.get(
+                    `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
+                );
+                if (geocode.data.status === 'OK') {
+                    const addressComponents = geocode.data.results[0].address_components;
+                    const cityComponent = addressComponents.find(comp => comp.types.includes('locality'));
+                    const city = cityComponent ? cityComponent.long_name : 'Unknown Location';
+                    setCurrentLocationName(city);
+                } else {
+                    setCurrentLocationName('Unknown Location');
+                }
+            } catch (error) {
+                console.error('Error reverse geocoding property location:', error);
+                setCurrentLocationName('Unknown Location');
+            }
+
             mapRef.current?.animateToRegion(
                 {
                     latitude,
                     longitude,
-                    latitudeDelta: 0.02,
-                    longitudeDelta: 0.02,
+                    latitudeDelta: 0.5,
+                    longitudeDelta: 0.5,
                 },
                 500
             );
@@ -119,25 +430,107 @@ const Mapview = () => {
 
     const handleRegionChange = (newRegion) => {
         setRegion(newRegion);
-        // Optionally refetch data based on new region
-        // fetchListingData(newRegion);
     };
 
-    const visibleMarkers = listingData?.data?.filter((property) => {
-        if (!region) return true;
-        const { latitude, longitude } = parseCoordinates(property.maplocations);
-        const latDelta = region.latitudeDelta / 2;
-        const lngDelta = region.longitudeDelta / 2;
-        return (
-            latitude >= region.latitude - latDelta &&
-            latitude <= region.latitude + latDelta &&
-            longitude >= region.longitude - lngDelta &&
-            longitude <= region.longitude + lngDelta
-        );
-    });
+    const updateVisibleMarkers = () => {
+        if (!Array.isArray(filteredData) || !region) {
+            setVisibleMarkers([]);
+            return;
+        }
+
+        const markersInRegion = filteredData.filter((property) => {
+            const { latitude, longitude } = parseCoordinates(property.maplocations);
+            const latDelta = region.latitudeDelta / 2;
+            const lngDelta = region.longitudeDelta / 2;
+            return (
+                latitude >= region.latitude - latDelta &&
+                latitude <= region.latitude + latDelta &&
+                longitude >= region.longitude - lngDelta &&
+                longitude <= region.longitude + lngDelta
+            );
+        });
+
+        setVisibleMarkers(markersInRegion.slice(0, 50).map(property => ({
+            ...property,
+            coordinates: parseCoordinates(property.maplocations)
+        })));
+    };
+
+    useEffect(() => {
+        updateVisibleMarkers();
+    }, [filteredData, region]);
 
     return (
         <View style={styles.container}>
+            <View style={styles.searchContainer}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search House, Apartment, etc"
+                    placeholderTextColor="#888"
+                    value={searchQuery}
+                    onChangeText={handleSearch}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                />
+                <TouchableOpacity style={styles.searchIcon}>
+                    <Ionicons name="search-outline" size={20} color="#1F2937" />
+                </TouchableOpacity>
+            </View>
+
+            {showSuggestions && (
+                <View style={styles.suggestionsContainer}>
+                    {citySuggestions.length > 0 && (
+                        <>
+                            <Text style={styles.suggestionsTitle}>Cities</Text>
+                            {citySuggestions.map((suggestion, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.suggestionItem}
+                                    onPress={() => handleSuggestionPress(suggestion, true)}
+                                >
+                                    <Text style={styles.suggestionText}>{suggestion.description}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </>
+                    )}
+
+                    {recentSearches.length > 0 && (
+                        <>
+                            <View style={styles.suggestionsHeader}>
+                                <Text style={styles.suggestionsTitle}>Recent Search</Text>
+                                <TouchableOpacity onPress={clearRecentSearches}>
+                                    <Text style={styles.clearText}>Clear</Text>
+                                </TouchableOpacity>
+                            </View>
+                            {recentSearches.map((suggestion, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.suggestionItem}
+                                    onPress={() => handleSuggestionPress(suggestion)}
+                                >
+                                    <Text style={styles.suggestionText}>{suggestion}</Text>
+                                    <TouchableOpacity onPress={() => setRecentSearches(recentSearches.filter((_, i) => i !== index))}>
+                                        <Text style={styles.removeSuggestion}>✖</Text>
+                                    </TouchableOpacity>
+                                </TouchableOpacity>
+                            ))}
+                        </>
+                    )}
+                </View>
+            )}
+
+            <View style={styles.locationContainer}>
+                <Ionicons name="location-outline" size={16} color="#fff" />
+                <Text style={styles.locationText}>{currentLocationName}</Text>
+            </View>
+
+            {loading && (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#234F68" />
+                    <Text style={styles.loadingText}>Loading properties...</Text>
+                </View>
+            )}
+
             <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
@@ -145,13 +538,13 @@ const Mapview = () => {
                 initialRegion={region || {
                     latitude: 26.4499,
                     longitude: 74.6399,
-                    latitudeDelta: 0.05,
-                    longitudeDelta: 0.05,
+                    latitudeDelta: 0.5,
+                    longitudeDelta: 0.5,
                 }}
                 onRegionChangeComplete={handleRegionChange}
                 compassEnabled={true}
             >
-                {visibleMarkers?.map((property) => (
+                {visibleMarkers.map((property) => (
                     <CustomMarker
                         key={property.id}
                         property={property}
@@ -160,9 +553,31 @@ const Mapview = () => {
                     />
                 ))}
             </MapView>
+
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.nearbyButton} onPress={getCurrentLocation}>
+                    <Text style={styles.nearbyButtonText}>Nearby You</Text>
+                </TouchableOpacity>
+            </View>
+
+            {error && !loading && (
+                <View style={styles.errorContainer}>
+                    <View style={styles.noResultsContainer}>
+                        <Text style={styles.noResultsText}>{error}</Text>
+                    </View>
+                </View>
+            )}
+            {!error && !loading && visibleMarkers.length === 0 && filteredData.length === 0 && (
+                <View style={styles.errorContainer}>
+                    <View style={styles.noResultsContainer}>
+                        <Text style={styles.noResultsText}>Can't find real estate nearby you</Text>
+                    </View>
+                </View>
+            )}
+
             <FlatList
                 ref={flatListRef}
-                data={listingData?.data || []}
+                data={filteredData || []}
                 renderItem={({ item }) => (
                     <HorizontalCard item={item} onPress={() => handleCardPress(item.id)} />
                 )}
@@ -174,6 +589,7 @@ const Mapview = () => {
                 style={styles.cardList}
                 initialNumToRender={10}
                 maxToRenderPerBatch={5}
+                windowSize={5}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
                         flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
@@ -194,31 +610,153 @@ const styles = StyleSheet.create({
     map: {
         flex: 1,
     },
+    searchContainer: {
+        position: 'absolute',
+        top: 20,
+        left: 16,
+        right: 16,
+        zIndex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        paddingHorizontal: 15,
+        paddingVertical: 20,
+        shadowColor: 'green',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#333',
+    },
+    searchIcon: {
+        marginLeft: 10,
+    },
+    suggestionsContainer: {
+        position: 'absolute',
+        top: 70,
+        left: 16,
+        right: 16,
+        zIndex: 1,
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        padding: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
+    },
+    suggestionsHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+        marginTop: 10,
+    },
+    suggestionsTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    clearText: {
+        fontSize: 14,
+        color: '#007AFF',
+    },
+    suggestionItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    suggestionText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    removeSuggestion: {
+        fontSize: 16,
+        color: '#888',
+    },
+    buttonContainer: {
+        position: 'absolute',
+        top: 90,
+        right: 10,
+        zIndex: 1,
+        alignItems: 'center',
+    },
+    errorContainer: {
+        position: 'absolute',
+        bottom: 100,
+        left: 10,
+        right: 10,
+        zIndex: 1,
+        alignItems: 'center',
+    },
+    nearbyButton: {
+        backgroundColor: '#234F68',
+        borderRadius: 25,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    nearbyButtonText: {
+        color: '#fff',
+        fontSize: 14,
+    },
+    noResultsContainer: {
+        backgroundColor: '#234F68',
+        borderRadius: 25,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+    },
+    noResultsText: {
+        color: '#fff',
+        fontSize: 16,
+        textAlign: 'center',
+    },
     cardList: {
         position: 'absolute',
         bottom: 90,
         left: 0,
         right: 0,
     },
-    marker: {
-        width: 38,
-        height: 38,
-        borderRadius: 100,
-        borderWidth: 2,
-        borderColor: '#666876',
-        overflow: 'hidden',
-        backgroundColor: '#ffffff',
+    loadingContainer: {
+        position: 'absolute',
+        top: '50%',
+        left: 0,
+        right: 0,
+        zIndex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    markerSelected: {
-        borderColor: 'red',
-        borderWidth: 3,
-        shadowColor: '#3B82F6',
-        shadowOpacity: 0.5,
-        shadowRadius: 5,
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#234F68',
     },
-    markerImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 100,
+    locationContainer: {
+        position: 'absolute',
+        top: 90,
+        left: 16,
+        zIndex: 1,
+        backgroundColor: '#234F68',
+        borderRadius: 20,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    locationText: {
+        color: '#fff',
+        fontSize: 14,
+        marginLeft: 5,
     },
 });
