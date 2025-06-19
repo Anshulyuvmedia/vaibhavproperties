@@ -15,7 +15,7 @@ const agents = [
 
 const AgentScroll = () => {
     const renderAgent = ({ item }) => (
-        <View className="items-center mx-3">
+        <View className="items-center me-3">
             {/* Agent Profile Picture */}
             <Image
                 source={{ uri: item.image }}
@@ -32,7 +32,7 @@ const AgentScroll = () => {
     return (
         <View className="my-5">
             {/* Header Section */}
-            <View className="flex-row items-center justify-between mb-4 px-4">
+            <View className="flex-row items-center justify-between mb-4">
                 <Text className="text-xl font-rubik-bold text-black-300">
                     Top Estate Agent
                 </Text>
@@ -50,7 +50,6 @@ const AgentScroll = () => {
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerClassName="px-4"
             />
         </View>
     );

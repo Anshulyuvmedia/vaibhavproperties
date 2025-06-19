@@ -58,7 +58,7 @@ const Filters = () => {
             <TouchableOpacity
                 key="all"
                 onPress={() => handleCategoryPress('All')}
-                className={`flex items-start mr-2 px-5  py-3  rounded-xl ${selectedCategory === 'All' ? 'bg-primary-300' : 'bg-primary-100'
+                className={`flex items-start mr-2 px-5  py-3  rounded-3xl ${selectedCategory === 'All' ? 'bg-primary-300' : 'bg-primary-100'
                     }`}
             >
                 <Text className={`text-sm font-rubik ${selectedCategory === 'All' ? 'text-white  ' : 'text-black-300'}`}>

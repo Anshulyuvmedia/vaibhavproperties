@@ -162,7 +162,9 @@ const Index = () => {
                         </View>
 
                         <Search />
+                        <View className='my-3'>
                         <Filters />
+                        </View>
                         <HomeCarousel />
 
 

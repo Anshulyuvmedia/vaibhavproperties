@@ -1,4 +1,4 @@
-import { StyleSheet, View, FlatList, TextInput, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, TouchableOpacity, Text, ActivityIndicator, Pressable } from 'react-native';
 import React, { useRef, useState, useEffect, memo } from 'react';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import axios from 'axios';
@@ -51,11 +51,12 @@ const Mapview = () => {
     const [error, setError] = useState(null);
     const [region, setRegion] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [recentSearches, setRecentSearches] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [citySuggestions, setCitySuggestions] = useState([]);
-    const [selectedCity, setSelectedCity] = useState('Ajmer'); // Default to Ajmer
-    const [currentLocationName, setCurrentLocationName] = useState('Ajmer'); // For displaying current city/location
+    const [selectedCity, setSelectedCity] = useState('Ajmer');
+    const [currentLocationName, setCurrentLocationName] = useState('Ajmer');
+    const [page, setPage] = useState(1); // Pagination page
+    const [hasMore, setHasMore] = useState(true); // Track if more data is available
 
     // Fetch filtered data based on city
     const fetchFilterData = async (city) => {
@@ -64,27 +65,30 @@ const Mapview = () => {
         setFilteredData([]);
         setVisibleMarkers([]);
         setError(null);
+        setPage(1);
+        setHasMore(true);
 
         const params = { city };
-        console.log("fetchFilterData params:", params);
+        // console.log("fetchFilterData params:", params);
         try {
             const queryParams = new URLSearchParams();
             if (params.city) queryParams.append("filtercity", params.city);
 
             const apiUrl = `https://investorlands.com/api/filterlistings?${queryParams.toString()}`;
-            console.log("Sending API request to:", apiUrl);
+            // console.log("Sending API request to:", apiUrl);
 
             const response = await axios({
                 method: "post",
                 url: apiUrl,
             });
 
-            console.log("fetchFilterData response:", response.data);
+            // console.log("fetchFilterData response:", response.data);
 
             if (response.data && Array.isArray(response.data.data)) {
                 const data = response.data.data;
                 setListingData(data);
-                setFilteredData(data);
+                setFilteredData(data.slice(0, 8)); // Limit to 8 items initially
+                setHasMore(data.length > 8);
 
                 const limitedMarkers = data.slice(0, 50).map(property => ({
                     ...property,
@@ -129,8 +133,8 @@ const Mapview = () => {
         }
     };
 
-    // Fetch property data (used for "Nearby You" and initial load)
-    const fetchListingData = async (mapRegion) => {
+    // Fetch property data with pagination
+    const fetchListingData = async (mapRegion, pageNum = 1) => {
         setLoading(true);
         setError(null);
         try {
@@ -140,16 +144,23 @@ const Mapview = () => {
                     longitude: mapRegion?.longitude || 74.6399,
                     latitudeDelta: mapRegion?.latitudeDelta || 0.5,
                     longitudeDelta: mapRegion?.longitudeDelta || 0.5,
-                    limit: 50,
+                    limit: 8, // Fetch 8 items per page
+                    page: pageNum,
                 },
             });
 
-            console.log("fetchListingData response:", response.data);
+            // console.log("fetchListingData response:", response.data);
 
             if (response.data && response.data.data && Array.isArray(response.data.data.data)) {
                 const data = response.data.data.data;
-                setListingData(data);
-                setFilteredData(data);
+                if (pageNum === 1) {
+                    setListingData(data);
+                    setFilteredData(data); // Initial set of 8 items
+                } else {
+                    setListingData(prev => [...prev, ...data]);
+                    setFilteredData(prev => [...prev, ...data]); // Append new items
+                }
+                setHasMore(data.length === 8); // If less than 8, assume no more data
 
                 const limitedMarkers = data.slice(0, 50).map(property => ({
                     ...property,
@@ -172,6 +183,7 @@ const Mapview = () => {
                 setFilteredData([]);
                 setVisibleMarkers([]);
                 setError("No properties found nearby.");
+                setHasMore(false);
             }
         } catch (error) {
             console.error('Error fetching user data:', error);
@@ -197,7 +209,7 @@ const Mapview = () => {
             longitudeDelta: 0.5,
         };
         setRegion(ajmerRegion);
-        fetchListingData(ajmerRegion);
+        fetchListingData(ajmerRegion, 1);
     }, []);
 
     // Request location permissions and get current location
@@ -234,7 +246,7 @@ const Mapview = () => {
                 setCurrentLocationName('Unknown Location');
             }
 
-            fetchListingData(newRegion);
+            fetchListingData(newRegion, 1);
         } catch (error) {
             console.error('Error getting location:', error);
             setError("Unable to get your location. Please try again.");
@@ -323,7 +335,7 @@ const Mapview = () => {
         if (query.trim() === '') {
             setSelectedCity(null);
             setCurrentLocationName('Ajmer');
-            setFilteredData(listingData || []);
+            setFilteredData(listingData.slice(0, 8) || []);
             setVisibleMarkers(listingData.slice(0, 50).map(property => ({
                 ...property,
                 coordinates: parseCoordinates(property.maplocations)
@@ -337,7 +349,7 @@ const Mapview = () => {
                 longitudeDelta: 0.5,
             };
             setRegion(ajmerRegion);
-            fetchListingData(ajmerRegion);
+            fetchListingData(ajmerRegion, 1);
             return;
         }
 
@@ -346,17 +358,13 @@ const Mapview = () => {
                 property.property_name?.toLowerCase().includes(query.toLowerCase()) ||
                 property.category?.toLowerCase().includes(query.toLowerCase())
             ) : [];
-            setFilteredData(filtered);
+            setFilteredData(filtered.slice(0, 8));
             setVisibleMarkers(filtered.slice(0, 50).map(property => ({
                 ...property,
                 coordinates: parseCoordinates(property.maplocations)
             })));
         }
         setShowSuggestions(true);
-
-        if (query && !recentSearches.includes(query)) {
-            setRecentSearches([query, ...recentSearches].slice(0, 5));
-        }
     };
 
     const handleSuggestionPress = (suggestion, isCity = false) => {
@@ -368,10 +376,6 @@ const Mapview = () => {
             handleSearch(suggestion);
         }
         setShowSuggestions(false);
-    };
-
-    const clearRecentSearches = () => {
-        setRecentSearches([]);
     };
 
     const handleMarkerPress = (property) => {
@@ -398,7 +402,6 @@ const Mapview = () => {
             setSelectedPropertyId(propertyId);
             const { latitude, longitude } = parseCoordinates(property.maplocations);
 
-            // Reverse geocode to get the city name of the property
             try {
                 const geocode = await axios.get(
                     `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
@@ -456,16 +459,45 @@ const Mapview = () => {
         })));
     };
 
+    const fetchMoreData = () => {
+        if (loading || !hasMore) return;
+        setLoading(true);
+        const nextPage = page + 1;
+        fetchListingData(region, nextPage).then(() => {
+            setPage(nextPage);
+        });
+    };
+
     useEffect(() => {
         updateVisibleMarkers();
     }, [filteredData, region]);
 
     return (
-        <View style={styles.container}>
+        <Pressable style={styles.container} onPress={() => setShowSuggestions(false)}>
+            {loading && (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#234F68" />
+                    <Text style={styles.loadingText}>Loading properties...</Text>
+                </View>
+            )}
+
+            <View style={styles.locationContainer}>
+                <Ionicons name="location-outline" size={16} color="#fff" />
+                <Text style={styles.locationText}>{currentLocationName}</Text>
+            </View>
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.nearbyButton} onPress={getCurrentLocation}>
+                    <View style={styles.propertyCount}>
+                        <Text style={styles.propertyCountText}>{filteredData.length}</Text>
+                    </View>
+                    <Text style={styles.nearbyButtonText}>Nearby You</Text>
+                </TouchableOpacity>
+            </View>
+
             <View style={styles.searchContainer}>
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Search House, Apartment, etc"
+                    placeholder="Search property in your city..."
                     placeholderTextColor="#888"
                     value={searchQuery}
                     onChangeText={handleSearch}
@@ -493,42 +525,12 @@ const Mapview = () => {
                             ))}
                         </>
                     )}
-
-                    {recentSearches.length > 0 && (
-                        <>
-                            <View style={styles.suggestionsHeader}>
-                                <Text style={styles.suggestionsTitle}>Recent Search</Text>
-                                <TouchableOpacity onPress={clearRecentSearches}>
-                                    <Text style={styles.clearText}>Clear</Text>
-                                </TouchableOpacity>
-                            </View>
-                            {recentSearches.map((suggestion, index) => (
-                                <TouchableOpacity
-                                    key={index}
-                                    style={styles.suggestionItem}
-                                    onPress={() => handleSuggestionPress(suggestion)}
-                                >
-                                    <Text style={styles.suggestionText}>{suggestion}</Text>
-                                    <TouchableOpacity onPress={() => setRecentSearches(recentSearches.filter((_, i) => i !== index))}>
-                                        <Text style={styles.removeSuggestion}>✖</Text>
-                                    </TouchableOpacity>
-                                </TouchableOpacity>
-                            ))}
-                        </>
-                    )}
                 </View>
             )}
 
-            <View style={styles.locationContainer}>
-                <Ionicons name="location-outline" size={16} color="#fff" />
-                <Text style={styles.locationText}>{currentLocationName}</Text>
-            </View>
-
-            {loading && (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#234F68" />
-                    <Text style={styles.loadingText}>Loading properties...</Text>
-                </View>
+            {/* Overlay to fade background when search is focused */}
+            {showSuggestions && (
+                <View style={styles.overlay} />
             )}
 
             <MapView
@@ -553,12 +555,6 @@ const Mapview = () => {
                     />
                 ))}
             </MapView>
-
-            <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.nearbyButton} onPress={getCurrentLocation}>
-                    <Text style={styles.nearbyButtonText}>Nearby You</Text>
-                </TouchableOpacity>
-            </View>
 
             {error && !loading && (
                 <View style={styles.errorContainer}>
@@ -587,16 +583,23 @@ const Mapview = () => {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 20, paddingHorizontal: 16 }}
                 style={styles.cardList}
-                initialNumToRender={10}
-                maxToRenderPerBatch={5}
-                windowSize={5}
+                initialNumToRender={8}
+                maxToRenderPerBatch={8}
+                windowSize={8}
+                onEndReached={fetchMoreData}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={() => hasMore && !loading ? (
+                    <TouchableOpacity style={styles.viewMoreButton} onPress={fetchMoreData}>
+                        <Text style={styles.viewMoreText}>View More</Text>
+                    </TouchableOpacity>
+                ) : null}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
                         flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
                     }, 500);
                 }}
             />
-        </View>
+        </Pressable>
     );
 };
 
@@ -612,10 +615,10 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         position: 'absolute',
-        top: 20,
-        left: 16,
-        right: 16,
-        zIndex: 1,
+        top: 60,
+        left: 15,
+        right: 15,
+        zIndex: 2,
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#fff',
@@ -638,34 +641,23 @@ const styles = StyleSheet.create({
     },
     suggestionsContainer: {
         position: 'absolute',
-        top: 70,
+        top: 130,
         left: 16,
         right: 16,
-        zIndex: 1,
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        padding: 10,
+        zIndex: 2,
+        backgroundColor: '#e0e6e9',
+        borderRadius: 25,
+        padding: 20,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 5,
         elevation: 3,
     },
-    suggestionsHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
-        marginTop: 10,
-    },
     suggestionsTitle: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333',
-    },
-    clearText: {
-        fontSize: 14,
-        color: '#007AFF',
     },
     suggestionItem: {
         flexDirection: 'row',
@@ -673,22 +665,29 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#e0e6e9',
     },
     suggestionText: {
         fontSize: 16,
         color: '#333',
     },
-    removeSuggestion: {
-        fontSize: 16,
-        color: '#888',
-    },
     buttonContainer: {
         position: 'absolute',
-        top: 90,
+        top: 10,
         right: 10,
         zIndex: 1,
+        flexDirection: 'row',
         alignItems: 'center',
+    },
+    propertyCount: {
+        backgroundColor: 'lightgreen',
+        borderRadius: 10,
+        paddingInline: 7,
+        marginRight: 7,
+    },
+    propertyCountText: {
+        color: '#000',
+        fontSize: 14,
     },
     errorContainer: {
         position: 'absolute',
@@ -702,10 +701,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#234F68',
         borderRadius: 25,
         paddingVertical: 10,
-        paddingHorizontal: 20,
+        paddingHorizontal: 10,
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 10,
     },
     nearbyButtonText: {
         color: '#fff',
@@ -744,12 +742,12 @@ const styles = StyleSheet.create({
     },
     locationContainer: {
         position: 'absolute',
-        top: 90,
+        top: 10,
         left: 16,
         zIndex: 1,
         backgroundColor: '#234F68',
         borderRadius: 20,
-        paddingVertical: 8,
+        paddingVertical: 10,
         paddingHorizontal: 12,
         flexDirection: 'row',
         alignItems: 'center',
@@ -758,5 +756,27 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         marginLeft: 5,
+    },
+    overlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1,
+    },
+    viewMoreButton: {
+        backgroundColor: '#234F68',
+        borderRadius: 25,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        marginHorizontal: 16,
+        marginBottom: 10,
+    },
+    viewMoreText: {
+        color: '#fff',
+        fontSize: 14,
     },
 });
