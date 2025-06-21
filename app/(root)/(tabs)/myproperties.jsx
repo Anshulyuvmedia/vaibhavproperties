@@ -1,29 +1,45 @@
 import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+// Helper to format price in Indian Rupees
+const formatINR = (amount) => {
+  if (!amount) return '₹0';
+  const num = Number(amount);
+  if (num >= 1e7) {
+    return '₹' + (num / 1e7).toFixed(2).replace(/\.00$/, '') + ' Cr';
+  } else if (num >= 1e5) {
+    return '₹' + (num / 1e5).toFixed(2).replace(/\.00$/, '') + ' Lakh';
+  }
+  return '₹' + num.toLocaleString('en-IN');
+};
 
 const Myproperties = () => {
   const [userPropertyData, setUserPropertyData] = useState([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
   const handleCardPress = (id) => router.push(`/properties/${id}`);
   const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
+  const handleAddProperty = () => router.push('/addproperty'); // Navigate to add property screen
 
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
       try {
         const parsedPropertyData = JSON.parse(await AsyncStorage.getItem('userData'));
-
-        // Fetch user properties from API
+        if (!parsedPropertyData?.id) {
+          console.error('User data or ID missing');
+          return;
+        }
         const response = await axios.get(`https://investorlands.com/api/viewuserlistings?id=${parsedPropertyData.id}`);
-        // console.log('API Response:', response.data);
-
         if (response.data && response.data.properties) {
           const formattedData = response.data.properties.map((item) => ({
             id: item.id,
@@ -35,11 +51,10 @@ const Myproperties = () => {
             thumbnail: item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.startsWith('http')
               ? item.thumbnail
               : item.thumbnail
-              ? `https://investorlands.com/assets/images/Listings/${item.thumbnail}`
-              : 'https://investorlands.com/assets/images/default-thumbnail.jpg', // Fallback default image
-            city: item.city, // Limit to 10 words
+                ? `https://investorlands.com/assets/images/Listings/${item.thumbnail}`
+                : 'https://investorlands.com/assets/images/default-thumbnail.jpg',
+            city: item.city,
           }));
-        
           setUserPropertyData(formattedData);
         } else {
           console.error('Unexpected API response format:', response.data);
@@ -55,62 +70,270 @@ const Myproperties = () => {
   }, []);
 
   return (
-    <SafeAreaView className="bg-white h-full px-4">
-      <View className="flex-row items-center ml-2 justify-between">
-        <TouchableOpacity onPress={() => router.back()} className="flex-row bg-gray-300 rounded-full w-11 h-11 items-center justify-center">
-          <Image source={icons.backArrow} className="w-5 h-5" />
-        </TouchableOpacity>
-        <Text className="text-lg mr-2 text-center font-rubik text-gray-700">My Investments</Text>
-        <TouchableOpacity onPress={() => router.push('/notifications')}>
-          <Image source={icons.bell} className='size-6' />
-        </TouchableOpacity>
-      </View>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Image source={icons.backArrow} style={styles.backIcon} />
+          </TouchableOpacity>
+          <Text style={styles.title}>My Properties</Text>
+          <TouchableOpacity onPress={() => router.push('/notifications')}>
+            <Image source={icons.bell} style={styles.bellIcon} />
+          </TouchableOpacity>
+        </View>
 
-      <View className="mt-3 mb-12">
-        {loading ? (
-          <View>
-            <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 300 }} />
-            <Text className="text-center text-gray-500 mt-10">Loading properties...</Text>
-          </View>
-        ) : userPropertyData.length === 0 ? (
-          <Text className="text-center text-gray-500 mt-10">No properties found.</Text>
-        ) : (
-          <FlatList
-            data={userPropertyData}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity className="flex-row my-2 p-3 rounded-lg border border-gray-100 bg-blue-50 shadow" onPress={() => handleCardPress(item.id)}>
-                {/* Property Image */}
-                <View className="w-24 h-24 overflow-hidden rounded-lg border border-gray-300">
-                  <Image source={item.thumbnail ? { uri: item.thumbnail } : images.newYork} className="w-full h-full object-cover" />
-                </View>
-
-                {/* Property Details */}
-                <View className="ml-4 flex-1">
-                  <View className="flex-row justify-between mt-2">
-                    <Text className="text-md font-rubik text-gray-900">{item.property_name}</Text>
-                    <Text className={`inline-flex items-center rounded-md capitalize px-2 py-1 text-xs font-rubik border  ${item.status === 'published' ? ' bg-green-50  text-green-700  border-green-500 ' : 'bg-red-50  text-red-700 border-red-600/20'}`}>{item.status === 'published' ? 'Published' : 'Under Review'}</Text>
+        {/* Content */}
+        <View style={styles.content}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#4A90E2" />
+              <Text style={styles.loadingText}>Loading properties...</Text>
+            </View>
+          ) : userPropertyData.length === 0 ? (
+            <View style={styles.noDataContainer}>
+              <TouchableOpacity onPress={handleAddProperty}>
+                <Image source={icons.noProperties} style={styles.noDataIcon} />
+              </TouchableOpacity>
+              <Text style={styles.noDataTitle}>No Properties Listed Yet</Text>
+              <Text style={styles.noDataMessage}>
+                It looks like you haven’t added any properties. Start by adding your first property to get started!
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={userPropertyData}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => handleCardPress(item.id)}
+                  style={styles.card}
+                >
+                  {/* Image Section */}
+                  <View style={styles.imageContainer}>
+                    <Image
+                      source={{ uri: item.thumbnail || 'https://investorlands.com/assets/images/default-thumbnail.jpg' }}
+                      style={styles.propertyImage}
+                    />
+                    {/* Heart Icon (placeholder, replace with actual icon if available) */}
+                    <View style={styles.heartIconContainer}>
+                      <Image source={icons.heart} style={styles.heartIcon} />
+                    </View>
+                    {/* Category Badge */}
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.categoryText}>{item.category}</Text>
+                    </View>
                   </View>
-                  <Text className="text-sm font-semibold text-gray-700">{item.address}</Text>
-                  <Text className="text-sm text-gray-500 mt-1">{item.city}</Text>
-                  <View className="flex-row justify-between mt-2">
-                    <Text className="text-sm font-semibold text-gray-700">{item.category}</Text>
-                    {/* <Text className="text-sm font-semibold text-gray-700">₹{item.price}</Text> */}
-                    <TouchableOpacity onPress={() => handleEditPress(item.id)}>
-                      <Text className="inline-flex items-center rounded-md capitalize px-2 py-1 text-xs font-rubik border border-red-600 bg-gray-50 text-red-600">Edit</Text>
+
+                  {/* Text Content Section */}
+                  <View style={styles.textContent}>
+                    <Text style={styles.propertyName}>{item.property_name}</Text>
+                    <View style={styles.locationRow}>
+                      <Image source={icons.location} style={styles.locationIcon} />
+                      <Text style={styles.locationText}>{item.city}, {item.address}</Text>
+                    </View>
+                    <Text style={styles.priceText}>{formatINR(item.price)}</Text>
+                    {/* Edit Button */}
+                    <TouchableOpacity style={styles.editButton} onPress={() => handleEditPress(item.id)}>
+                      <Text style={styles.editText}>Edit Property</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-        )}
-      </View>
-    </SafeAreaView>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 };
 
 export default Myproperties;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingHorizontal: scale(10),
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: verticalScale(12),
+  },
+  backButton: {
+    backgroundColor: '#f4f2f7',
+    borderRadius: moderateScale(20),
+    width: moderateScale(40),
+    height: moderateScale(40),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backIcon: {
+    width: moderateScale(20),
+    height: moderateScale(20),
+  },
+  title: {
+    fontSize: moderateScale(18),
+    fontWeight: '600',
+    color: '#2D3748',
+  },
+  bellIcon: {
+    width: moderateScale(24),
+    height: moderateScale(24),
+  },
+  content: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: moderateScale(14),
+    color: '#718096',
+    marginTop: verticalScale(8),
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scale(20),
+  },
+  noDataIcon: {
+    width: scale(120),
+    height: scale(120),
+  },
+  noDataTitle: {
+    fontSize: moderateScale(18),
+    fontWeight: '600',
+    color: '#2D3748',
+    textAlign: 'center',
+    marginBottom: verticalScale(8),
+  },
+  noDataMessage: {
+    fontSize: moderateScale(14),
+    color: '#718096',
+    textAlign: 'center',
+    marginBottom: verticalScale(16),
+  },
+  addButton: {
+    backgroundColor: '#8bc83f',
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: scale(20),
+    borderRadius: moderateScale(20),
+  },
+  addButtonText: {
+    fontSize: moderateScale(14),
+    fontWeight: '500',
+    color: '#000',
+  },
+  listContent: {
+    paddingBottom: verticalScale(20),
+  },
+  card: {
+    width: '100%',
+    height: verticalScale(120),
+    borderRadius: moderateScale(30),
+    backgroundColor: '#f5f4f8',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    marginBottom: verticalScale(12),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: moderateScale(4),
+    elevation: 3,
+  },
+  imageContainer: {
+    width: scale(150),
+    height: '100%',
+    position: 'relative',
+    padding: moderateScale(8),
+  },
+  propertyImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: moderateScale(30),
+    resizeMode: 'cover',
+  },
+  heartIconContainer: {
+    position: 'absolute',
+    top: verticalScale(16),
+    left: scale(16),
+    backgroundColor: '#8BC83F',
+    borderRadius: moderateScale(20),
+    padding: moderateScale(6),
+  },
+  heartIcon: {
+    width: moderateScale(20),
+    height: moderateScale(20),
+    tintColor: '#FFFFFF',
+  },
+  categoryBadge: {
+    position: 'absolute',
+    bottom: verticalScale(16),
+    left: scale(16),
+    backgroundColor: 'rgba(35,79,104,0.9)',
+    borderRadius: moderateScale(10),
+    paddingHorizontal: scale(16),
+    paddingVertical: verticalScale(4),
+  },
+  categoryText: {
+    fontSize: moderateScale(12),
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  textContent: {
+    flex: 1,
+    padding: moderateScale(8),
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  propertyName: {
+    fontSize: moderateScale(16),
+    fontWeight: '500',
+    color: '#4A5568',
+    marginBottom: verticalScale(4),
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(4),
+  },
+  locationIcon: {
+    width: moderateScale(16),
+    height: moderateScale(16),
+    tintColor: '#234F68',
+    marginRight: scale(4),
+  },
+  locationText: {
+    fontSize: moderateScale(12),
+    color: '#234F68',
+    fontWeight: '400',
+  },
+  priceText: {
+    fontSize: moderateScale(14),
+    fontWeight: '500',
+    color: '#4A5568',
+    marginBottom: verticalScale(8),
+  },
+  editButton: {
+    backgroundColor: '#8bc83f',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: verticalScale(25),
+    borderRadius: moderateScale(15),
+  },
+  editText: {
+    fontSize: moderateScale(14),
+    fontWeight: '400',
+    color: '#FFFFFF',
+    paddingHorizontal: scale(10),
+  },
+});

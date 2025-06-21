@@ -35,10 +35,12 @@ import addproperty from "@/assets/icons/addproperty.png";
 import videofile from "@/assets/icons/facebook.png";
 import addicon from "@/assets/icons/plus.png";
 import checkmark from "@/assets/icons/check-mark.png";
+import noProperties from "@/assets/icons/noProperties.png";
 
 export default {
   google,
   home,
+  noProperties,
   checkmark,
   addicon,
   search,

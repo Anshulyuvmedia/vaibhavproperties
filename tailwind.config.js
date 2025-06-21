@@ -15,10 +15,10 @@ module.exports = {
       },
       colors: {
         primary: {
-          100: "#f4f2f7",
-          200: "#234F681A",
-          300: "#234F68",
-          400: "#8bc83f",
+          100: "#f4f2f7", // light gray
+          200: "#234F681A", // transparent teal
+          300: "#234F68", // dark teal
+          400: "#8bc83f", // green
         },
         accent: {
           100: "#FBFBFD",
