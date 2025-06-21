@@ -69,7 +69,7 @@ const Myproperties = () => {
       <View className="mt-3 mb-12">
         {loading ? (
           <View>
-            <ActivityIndicator size="large" color="#8a4c00" style={{ marginTop: 300 }} />
+            <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 300 }} />
             <Text className="text-center text-gray-500 mt-10">Loading properties...</Text>
           </View>
         ) : userPropertyData.length === 0 ? (

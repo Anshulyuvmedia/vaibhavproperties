@@ -6,7 +6,7 @@ const ContentAndListingGuideLines = () => {
     return (
         <View style={styles.container}>
             <WebView 
-                source={{ uri: 'https://investorlands.com/content-and-listing-guidelines' }} 
+                source={{ uri: '' }} 
                 style={styles.webview} 
                 startInLoadingState={true}
                 renderLoading={() => (

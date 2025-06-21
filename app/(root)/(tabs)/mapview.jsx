@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import debounce from 'lodash.debounce';
 import * as Location from 'expo-location';
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Link, useRouter } from 'expo-router';
 
 // Define parseCoordinates outside Mapview
 const parseCoordinates = (maplocations) => {
@@ -42,6 +43,7 @@ const CustomMarker = memo(({ property, isSelected, onPress }) => {
 const Mapview = () => {
     const GOOGLE_MAPS_API_KEY = Constants.expoConfig.extra.GOOGLE_MAPS_API_KEY;
     const mapRef = useRef(null);
+    const router = useRouter();
     const flatListRef = useRef(null);
     const [listingData, setListingData] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
@@ -57,6 +59,7 @@ const Mapview = () => {
     const [currentLocationName, setCurrentLocationName] = useState('Ajmer');
     const [page, setPage] = useState(1); // Pagination page
     const [hasMore, setHasMore] = useState(true); // Track if more data is available
+    const viewProperty = (id) => router.push(`/properties/${id}`);
 
     // Fetch filtered data based on city
     const fetchFilterData = async (city) => {
@@ -575,7 +578,7 @@ const Mapview = () => {
                 ref={flatListRef}
                 data={filteredData || []}
                 renderItem={({ item }) => (
-                    <HorizontalCard item={item} onPress={() => handleCardPress(item.id)} />
+                    <HorizontalCard item={item} map={'true'} onPress={() => handleCardPress(item.id)} onView={() => viewProperty(item.id)} />
                 )}
                 keyExtractor={(item) => item.id.toString()}
                 horizontal

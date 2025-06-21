@@ -5,7 +5,7 @@ import icons from '@/constants/icons'
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 
-const FeaturedCard = ({ item, onPress }) => {
+const FeaturedCard = ({ item, onPress, map }) => {
   return (
     <View className=''>
       <TouchableOpacity onPress={onPress} className='flex flex-col items-start w-60 h-80 relative'>
@@ -79,7 +79,7 @@ const Card = ({ item, onPress }) => {
 
 export { Card };
 
-const HorizontalCard = ({ item, onPress }) => {
+const HorizontalCard = ({ item, onPress, onView, map }) => {
   // Helper to format price in Indian Rupees
   const formatINR = (amount) => {
     if (!amount) return '₹0';
@@ -116,19 +116,19 @@ const HorizontalCard = ({ item, onPress }) => {
         </View>
       </View>
       {/* Text Content Section */}
-      <View className="flex-1 p-2 justify-center">
+      <View className="flex-1 p-2 justify-center items-start">
         {/* Property Name */}
         <Text className="text-lg font-rubik-medium text-black-300 ">
           {item.property_name}
         </Text>
 
         {/* Rating */}
-        <View className="flex-row items-center mt-1">
+        {/* <View className="flex-row items-center mt-1">
           <Ionicons name="star" size={16} color="#FFD700" />
           <Text className="text-sm font-rubik text-black ml-1">
             {item.rating || '4.9'}
           </Text>
-        </View>
+        </View> */}
 
         {/* Location */}
         <View className="flex-row items-center mt-1">
@@ -142,6 +142,13 @@ const HorizontalCard = ({ item, onPress }) => {
         <Text className="text-base font-rubik text-black-300 mt-2">
           {formatINR(item.price || 290)}
         </Text>
+        {map && (
+          <TouchableOpacity onPress={onView} className='mt-2 py-1 px-3 bg-primary-400 rounded-full items-center'>
+            <Text className='font-rubik text-white'>
+              View Property
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
 

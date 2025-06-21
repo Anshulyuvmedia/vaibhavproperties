@@ -6,7 +6,7 @@ const DataRetentionAndDeletionPolicy = () => {
     return (
         <View style={styles.container}>
             <WebView 
-                source={{ uri: 'https://investorlands.com/data-retention-and-deletion-policy' }} 
+                source={{ uri: '' }} 
                 style={styles.webview} 
                 startInLoadingState={true}
                 renderLoading={() => (

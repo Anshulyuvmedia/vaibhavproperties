@@ -1,12 +1,12 @@
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import images from '@/constants/images';
-import icons from '@/constants/icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { settings } from '@/constants/data';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { MaterialIcons } from '@expo/vector-icons';
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+import images from '@/constants/images';
 
 const Dashboard = () => {
   const [userData, setUserData] = useState(null);
@@ -14,46 +14,40 @@ const Dashboard = () => {
   const router = useRouter();
   const [image, setImage] = useState(images.avatar);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      setLoading(true);
-      try {
-        const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
-        if (!parsedUserData || !parsedUserData.id) {
-          await AsyncStorage.removeItem('userData');
-          router.push('/signin');
-          return;
-        }
-        // Fetch user data from API
-        const response = await axios.get(`https://investorlands.com/api/userprofile?id=${parsedUserData.id}`);
-        // console.log('API Response:', response.data);
-
-        if (response.data && response.data.data) {
-          const apiData = response.data.data;
-          setUserData(apiData);
-
-          // Set Profile Image, ensuring fallback to default avatar
-          if (apiData.profile_photo_path) {
-            setImage(
-              apiData.profile_photo_path.startsWith('http')
-                ? apiData.profile_photo_path
-                : `https://investorlands.com/assets/images/Users/${apiData.profile_photo_path}`
-            );
-          } else {
-            setImage(images.avatar);
-          }
-        } else {
-          console.error('Unexpected API response format:', response.data);
-          setImage(images.avatar);
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        setImage(images.avatar);
-      } finally {
-        setLoading(false);
+  const fetchUserData = async () => {
+    setLoading(true);
+    try {
+      const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
+      if (!parsedUserData || !parsedUserData.id) {
+        await AsyncStorage.removeItem('userData');
+        router.push('/signin');
+        return;
       }
-    };
+      const response = await axios.get(`https://investorlands.com/api/userprofile?id=${parsedUserData.id}`);
 
+      if (response.data && response.data.data) {
+        const apiData = response.data.data;
+        setUserData(apiData);
+        setImage(
+          apiData.profile_photo_path
+            ? apiData.profile_photo_path.startsWith('http')
+              ? apiData.profile_photo_path
+              : `https://investorlands.com/assets/images/Users/${apiData.profile_photo_path}`
+            : images.avatar
+        );
+      } else {
+        console.error('Unexpected API response format:', response.data);
+        setImage(images.avatar);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setImage(images.avatar);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUserData();
   }, []);
 
@@ -67,88 +61,250 @@ const Dashboard = () => {
     }
   };
 
+  React.useLayoutEffect(() => {
+    if (userData?.name) {
+      router.setParams?.({ title: userData.name + "'s Dashboard" });
+    } else {
+      router.setParams?.({ title: 'Dashboard' });
+    }
+  }, [userData?.name]);
+
   const links = [
-    { path: '/privacypolicy', label: 'Privacy Policy' },
-    { path: '/termsandconditions', label: 'Terms and Conditions' },
-    { path: '/userandagentagreement', label: 'User and Agent Agreement' },
-    { path: '/cookiespolicy', label: 'Cookies Policy' },
-    { path: '/contentandlistingguidelines', label: 'Content and Listing Guidelines' },
-    { path: '/dataretentionanddeletionpolicy', label: 'Data Retention and Deletion Policy' },
+    { path: '/privacypolicy', label: 'Privacy Policy', icon: 'policy' },
+    { path: '/termsandconditions', label: 'Terms and Conditions', icon: 'description' },
+    { path: '/userandagentagreement', label: 'User and Agent Agreement', icon: 'handshake' },
+    { path: '/cookiespolicy', label: 'Cookies Policy', icon: 'cookie' },
+    { path: '/contentandlistingguidelines', label: 'Content and Listing Guidelines', icon: 'list' },
+    { path: '/dataretentionanddeletionpolicy', label: 'Data Retention and Deletion Policy', icon: 'delete' },
   ];
 
+  const MenuItem = ({ icon, title, onPress, textColor = '#4B5563' }) => (
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.menuItem}
+      activeOpacity={0.7}
+    >
+      <MaterialIcons name={icon} size={moderateScale(18, 0.3)} color={textColor} />
+      <Text style={[styles.menuText, { color: textColor }]}>{title}</Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="pb-32 px-7">
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {loading ? (
-          <ActivityIndicator size="large" color="#8a4c00" style={{ marginTop: 50 }} />
+          <ActivityIndicator
+            size="large"
+            color="#234F68"
+            style={{ marginTop: verticalScale(150) }}
+          />
         ) : (
           <View>
-            <View className="flex flex-row items-center justify-between my-5">
-              <Text className="text-xl font-rubik-bold upper">Dashboard</Text>
-
-              <TouchableOpacity onPress={() => router.back()} className="flex-row bg-gray-300 rounded-full w-11 h-11 items-center justify-center">
-                <Image source={icons.backArrow} className="w-5 h-5" />
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerText}>Dashboard</Text>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons name="arrow-back" size={moderateScale(20, 0.3)} color="#4B5563" />
               </TouchableOpacity>
             </View>
 
-            <View className="flex flex-row items-center ml-2 justify-start shadow bg-white rounded-2xl p-5">
-              <Image
-                source={typeof image === 'string' ? { uri: image } : image}
-                className="size-12 rounded-full"
-              />
-              <View className="flex flex-col items-start ml-2 justify-center">
-                <Text className="text-2xl font-rubik-bold mt-2 text-yellow-800 capitalize">
-                  {userData?.name || 'User'}
-                </Text>
-                {userData && (
-                  <View>
-                    <Text className="text-black">Email: {userData.email || 'N/A'}</Text>
-                    <Text className="text-black">Mobile: {userData.mobile || 'N/A'}</Text>
-                    <Text className="text-black capitalize">Role: {userData.user_type || 'N/A'}</Text>
+            {/* User Profile Card */}
+            <View style={styles.profileCard}>
+              <View style={styles.profileContent}>
+                <Image
+                  source={typeof image === 'string' ? { uri: image } : image}
+                  style={styles.profileImage}
+                />
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileName}>
+                    {userData?.name || 'User'}
+                  </Text>
+                  <Text style={styles.profileDetail}>Email: {userData?.email || 'N/A'}</Text>
+                  <View style={styles.profileDetailsRow}>
+                    <View>
+                      <Text style={styles.profileDetail}>Mobile: {userData?.mobile || 'N/A'}</Text>
+                      <Text style={styles.profileDetail}>Role: {userData?.user_type || 'N/A'}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => router.push('/dashboard/editprofile')}
+                      style={styles.editButton}
+                    >
+                      <Text style={styles.editButtonText}>Edit Profile</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
+                </View>
               </View>
             </View>
 
-            <View className="flex flex-col mt-10 border-t pt-5 border-primary-200">
-              <TouchableOpacity onPress={() => router.push('/dashboard/editprofile')} className="flex flex-row items-center py-3">
-                <Image source={icons.person} className="size-6" />
-                <Text className="text-lg font-rubik-medium text-black-300 ml-3">Edit Profile</Text>
-              </TouchableOpacity>
+            {/* Settings Section */}
+            <View style={styles.section}>
+              <MenuItem
+                icon="notifications"
+                title="Notifications"
+                onPress={() => router.push('/notifications')}
+              />
+              <MenuItem
+                icon="home"
+                title="My Properties"
+                onPress={() => router.push('/myproperties')}
+              />
             </View>
 
-            <View className="flex flex-col mt-5 border-t pt-5 border-primary-200">
-              {settings.slice(1).map((item, index) => (
-                <TouchableOpacity key={index} onPress={() => router.push(item.onPress)} className="flex flex-row items-center py-3">
-                  <Image source={item.icon} className="size-6" />
-                  <Text className="text-lg font-rubik-medium text-black-300 ml-3">{item.title}</Text>
-                </TouchableOpacity>
-              ))}
+            {/* Logout Section */}
+            <View style={styles.section}>
+              <MenuItem
+                icon="logout"
+                title="Logout"
+                onPress={handleLogout}
+                textColor="#F75555"
+              />
             </View>
 
-            <View className="flex flex-col mt-5 border-t pt-5 border-primary-200">
-              <TouchableOpacity onPress={handleLogout} className="flex flex-row items-center py-3">
-                <Image source={icons.logout} className="size-6" />
-                <Text className="text-lg font-rubik-medium text-danger ml-3">Logout</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex flex-col mt-10 border-t border-primary-200 pt-5">
-              {links.map(({ path, label }, index) => (
-                <TouchableOpacity
+            {/* Policies Section (Commented Out) */}
+            {/* <View style={styles.policyCard}>
+              <Text style={styles.sectionTitle}>Policies</Text>
+              {links.map(({ path, label, icon }, index) => (
+                <MenuItem
                   key={index}
+                  icon={icon}
+                  title={label}
                   onPress={() => router.push(path)}
-                  className="flex flex-row items-center py-3"
-                >
-                  <Text className="text-sm font-rubik text-gray-500 ml-3">{label}</Text>
-                </TouchableOpacity>
+                  textColor="#6B7280"
+                />
               ))}
-            </View>
+            </View> */}
           </View>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB', // bg-gray-50
+  },
+  scrollContent: {
+    paddingBottom: verticalScale(60),
+    paddingHorizontal: scale(12),
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: verticalScale(12),
+  },
+  headerText: {
+    fontSize: moderateScale(20, 0.3),
+    fontFamily: 'Rubik-Bold',
+    color: '#234F68', // primary-300
+  },
+  backButton: {
+    backgroundColor: '#E5E7EB', // primary-100
+    borderRadius: moderateScale(999, 0.3),
+    padding: moderateScale(6, 0.3),
+  },
+  profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: moderateScale(12, 0.3),
+    padding: moderateScale(12, 0.3),
+    marginBottom: verticalScale(12),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: moderateScale(3, 0.3),
+    elevation: 2,
+  },
+  profileContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileImage: {
+    width: scale(48),
+    height: scale(48),
+    borderRadius: moderateScale(24, 0.3),
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB', // gray-200
+  },
+  profileInfo: {
+    marginLeft: scale(12),
+    flex: 1,
+  },
+  profileName: {
+    fontSize: moderateScale(16, 0.3),
+    fontFamily: 'Rubik-Bold',
+    color: '#1F2937', // gray-800
+    textTransform: 'capitalize',
+  },
+  profileDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: verticalScale(3),
+  },
+  profileDetail: {
+    fontSize: moderateScale(12, 0.3),
+    color: '#6B7280', // gray-600
+    textTransform: 'capitalize',
+  },
+  editButton: {
+    backgroundColor: '#E5E7EB', // primary-200
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(6),
+    borderRadius: moderateScale(6, 0.3),
+  },
+  editButtonText: {
+    fontSize: moderateScale(12, 0.3),
+    fontFamily: 'Rubik-Medium',
+    color: '#234F68', // primary-300
+  },
+  section: {
+    marginBottom: verticalScale(12),
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: verticalScale(10),
+    paddingHorizontal: scale(12),
+    backgroundColor: '#FFFFFF',
+    borderRadius: moderateScale(10, 0.3),
+    marginBottom: verticalScale(6),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: moderateScale(3, 0.3),
+    elevation: 2,
+  },
+  menuText: {
+    marginLeft: scale(10),
+    fontSize: moderateScale(14, 0.3),
+    fontFamily: 'Rubik-Medium',
+  },
+  policyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: moderateScale(12, 0.3),
+    padding: moderateScale(12, 0.3),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: moderateScale(3, 0.3),
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: moderateScale(16, 0.3),
+    fontFamily: 'Rubik-Bold',
+    color: '#1F2937', // gray-800
+    marginBottom: verticalScale(8),
+    paddingHorizontal: scale(6),
+  },
+});
 
 export default Dashboard;

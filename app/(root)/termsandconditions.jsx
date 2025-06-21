@@ -6,7 +6,7 @@ const TermsAndConditions = () => {
     return (
         <View style={styles.container}>
             <WebView 
-                source={{ uri: 'https://investorlands.com/terms-and-conditions' }} 
+                source={{ uri: '' }} 
                 style={styles.webview} 
                 startInLoadingState={true}
                 renderLoading={() => (

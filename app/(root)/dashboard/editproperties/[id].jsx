@@ -816,13 +816,13 @@ const Editproperty = () => {
 
     if (loading) {
         return (
-            <ActivityIndicator size="large" color="#8a4c00" style={{ marginTop: 400 }} />
+            <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />
         );
     }
 
     if (!propertyData) {
         return (
-            <ActivityIndicator size="large" color="#8a4c00" style={{ marginTop: 400 }} />
+            <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />
         );
     }
 

@@ -69,24 +69,24 @@ export const categories = [
 
 export const settings = [
   {
-    title: "Profile",
-    icon: icons.person,
+    title: "Edit Profile",
+    iconName: 'person',
     onPress: '/dashboard/editprofile',
   },
   {
     title: "Notifications",
-    icon: icons.bell,
+    iconName: 'bell',
     onPress: '/notifications',
 
   },
   {
-    title: "My Investments",
-    icon: icons.shield,
+    title: "My Properties",
+    iconName: 'shield',
     onPress: '/myproperties',
   },
   {
-    title: "Add New Investment",
-    icon: icons.addproperty,
+    title: "Add New Property",
+    iconName: 'addproperty',
     onPress: '/addproperty',
   },
 

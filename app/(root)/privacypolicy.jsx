@@ -6,7 +6,7 @@ const PrivacyPolicy = () => {
     return (
         <View style={styles.container}>
             <WebView 
-                source={{ uri: 'https://investorlands.com/privacy-policy' }} 
+                source={{ uri: '' }} 
                 style={styles.webview} 
                 startInLoadingState={true}
                 renderLoading={() => (

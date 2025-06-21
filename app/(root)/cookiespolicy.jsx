@@ -6,7 +6,7 @@ const CookiesPolicy = () => {
     return (
         <View style={styles.container}>
             <WebView 
-                source={{ uri: 'https://investorlands.com/cookies-policy' }} 
+                source={{ uri: '' }} 
                 style={styles.webview} 
                 startInLoadingState={true}
                 renderLoading={() => (

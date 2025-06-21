@@ -73,7 +73,7 @@ const TabsLayout = () => {
                     height: 70 + insets.bottom,
                     paddingBottom: insets.bottom,
                     paddingTop: 20,
-                    borderRadius: 12,
+                    borderRadius: 25,
                     marginHorizontal: 10,
                     marginBottom: 12,
                 },
