@@ -16,6 +16,7 @@ import 'react-native-get-random-values';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import Toast, { BaseToast } from 'react-native-toast-message';
+import { Ionicons, MaterialCommunityIcons, Feather, AntDesign, MaterialIcons } from '@expo/vector-icons';
 
 const Editproperty = () => {
     const { id } = useLocalSearchParams();
@@ -66,9 +67,9 @@ const Editproperty = () => {
     const buttonNextTextStyle = {
         paddingInline: 20,
         paddingBlock: 5,
-        borderRadius: 10,
-        backgroundColor: 'lightgreen',
-        color: 'black',
+        borderRadius: 15,
+        backgroundColor: '#8bc83f',
+        color: 'white',
     };
     const categories = [
         { label: 'Apartment', value: 'Apartment' },
@@ -833,7 +834,7 @@ const Editproperty = () => {
                     <Image source={icons.backArrow} style={{ width: 20, height: 20 }} />
                 </TouchableOpacity>
                 <Text style={{ fontSize: 16, marginRight: 10, textAlign: 'center', fontFamily: 'Rubik-Medium', color: '#4A4A4A' }}>
-                    Edit My Property
+                    Edit Property
                 </Text>
                 <TouchableOpacity onPress={() => router.push('/notifications')}>
                     <Image source={icons.bell} className='size-6' />
@@ -856,15 +857,16 @@ const Editproperty = () => {
                         <View style={styles.stepContent}>
 
                             {/* enter property name */}
-                            <Text style={styles.label}>Property Name</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter property name"
-                                value={step1Data.property_name}
-                                onChangeText={text => setStep1Data({ ...step1Data, property_name: text })}
-                            />
-
-
+                            <Text style={styles.label}>Property Title</Text>
+                            <View style={styles.inputContainer}>
+                                <AntDesign name="home" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Enter property name"
+                                    value={step1Data.property_name}
+                                    onChangeText={text => setStep1Data({ ...step1Data, property_name: text })}
+                                />
+                            </View>
 
                             {/* enter description */}
                             <Text style={styles.label}>Property Description</Text>
@@ -880,31 +882,43 @@ const Editproperty = () => {
                             <Text style={styles.label}>Property Thumbnail</Text>
                             <View className="flex flex-row">
                                 <TouchableOpacity onPress={pickMainImage} style={styles.dropbox}>
-                                    <Text style={{ textAlign: 'center' }}>Pick an image from gallery</Text>
+                                    <Feather name="upload-cloud" size={24} color="#234F68" style={styles.inputIcon} />
+                                    <Text style={{ marginStart: '10' }}>Upload Thumbnail</Text>
                                 </TouchableOpacity>
                                 {mainImage && <Image source={{ uri: mainImage }} style={styles.image} />}
                             </View>
 
                             {/* select category */}
                             <Text style={styles.label}>Select category</Text>
-                            <View style={styles.pickerContainer}>
-                                <RNPickerSelect
-                                    onValueChange={(value) => setSelectedCategory(value)}
-                                    items={categories}
-                                    value={selectedCategory}
-                                    style={pickerSelectStyles}
-                                    placeholder={{ label: 'Choose an option...', value: null }}
-                                />
+                            <View style={styles.categoryContainer}>
+                                {categories.map((category) => (
+                                    <TouchableOpacity
+                                        key={category.value}
+                                        style={[
+                                            styles.categoryButton,
+                                            selectedCategory === category.value && styles.categoryButtonSelected,
+                                        ]}
+                                        onPress={() => setSelectedCategory(category.value)}
+                                    >
+                                        <Text style={[
+                                            styles.categoryText,
+                                            selectedCategory === category.value && styles.categoryTextSelected,
+                                        ]}>{category.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
                             </View>
 
                             {/* enter near by location */}
-                            <Text style={styles.label}>Near By Location</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter near by location"
-                                value={step1Data.nearbylocation}
-                                onChangeText={text => setStep1Data({ ...step1Data, nearbylocation: text })}
-                            />
+                            <Text style={styles.label}>Near By Locations</Text>
+                            <View style={styles.inputContainer}>
+                                <Ionicons name="trail-sign-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Enter near by locations..."
+                                    value={step1Data.nearbylocation}
+                                    onChangeText={text => setStep1Data({ ...step1Data, nearbylocation: text })}
+                                />
+                            </View>
 
 
                         </View>
@@ -923,62 +937,64 @@ const Editproperty = () => {
                         <View style={styles.stepContent}>
                             {/* enter rental income */}
                             <Text style={styles.label}>Approx Rental Income</Text>
-                            <TextInput
-                                style={styles.input}
-                                keyboardType="numeric"
-                                placeholder="Enter approx rental income"
-                                value={step2Data.approxrentalincome}
-                                onChangeText={text => {
-                                    const numericText = text.replace(/[^0-9]/g, '');
-                                    setStep2Data(prevState => ({ ...prevState, approxrentalincome: numericText }));
-                                }}
-                            />
-
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    style={styles.input}
+                                    keyboardType="numeric"
+                                    placeholder="Enter approx rental income"
+                                    value={step2Data.approxrentalincome}
+                                    onChangeText={text => {
+                                        const numericText = text.replace(/[^0-9]/g, '');
+                                        setStep2Data(prevState => ({ ...prevState, approxrentalincome: numericText }));
+                                    }}
+                                />
+                            </View>
 
                             <Text style={styles.label}>Current Property Price</Text>
-                            <TextInput
-                                style={styles.input}
-                                keyboardType="numeric"
-                                placeholder="Enter current price"
-                                value={step2Data.price}
-                                onChangeText={text => {
-                                    const numericText = text.replace(/[^0-9]/g, '');
-                                    setStep2Data(prevState => ({ ...prevState, price: numericText }));
-                                }}
-                            />
-
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    style={styles.input}
+                                    keyboardType="numeric"
+                                    placeholder="Enter current price"
+                                    value={step2Data.price}
+                                    onChangeText={text => {
+                                        const numericText = text.replace(/[^0-9]/g, '');
+                                        setStep2Data(prevState => ({ ...prevState, price: numericText }));
+                                    }}
+                                />
+                            </View>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <View style={{ flex: 1, marginRight: 10 }}>
-
                                     {/* enter property price */}
                                     <Text style={styles.label}>Historical Price</Text>
-
-                                    {/* Enter Price */}
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Historical Price"
-                                        value={historyPrice}
-                                        keyboardType="numeric"
-                                        onChangeText={(text) => {
-                                            const numericText = text.replace(/[^0-9]/g, '');
-                                            setHistoryPrice(numericText);
-                                        }}
-                                    />
+                                    <View style={styles.inputContainer}>
+                                        {/* Enter Price */}
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Historical Price"
+                                            value={historyPrice}
+                                            keyboardType="numeric"
+                                            onChangeText={(text) => {
+                                                const numericText = text.replace(/[^0-9]/g, '');
+                                                setHistoryPrice(numericText);
+                                            }}
+                                        />
+                                    </View>
                                 </View>
-
                                 <View style={{ flex: 1 }}>
 
                                     {/* Select Date */}
                                     <Text style={styles.label}>Historical Date</Text>
-                                    <TouchableOpacity onPress={() => setShow(true)}>
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="DD-MM-YYYY"
-                                            value={selectedDate}
-                                            editable={false}
-                                        />
-                                    </TouchableOpacity>
-
+                                    <View style={styles.inputContainer}>
+                                        <TouchableOpacity onPress={() => setShow(true)}>
+                                            <TextInput
+                                                style={styles.input}
+                                                placeholder="DD-MM-YYYY"
+                                                value={selectedDate}
+                                                editable={false}
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
                                     {show && (
                                         <DateTimePicker
                                             value={new Date()}
@@ -1053,13 +1069,16 @@ const Editproperty = () => {
                             </View>
                             <View className='flex flex-row align-center'>
                                 <View className='flex-grow'>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Enter to Add Amenities"
-                                        value={amenity}
-                                        onChangeText={setAmenity}
-                                        onSubmitEditing={handleAddAmenity} // Adds item on Enter key press
-                                    />
+                                    <View style={styles.inputContainer}>
+                                        <MaterialIcons name="pool" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Enter to Add Amenities"
+                                            value={amenity}
+                                            onChangeText={setAmenity}
+                                            onSubmitEditing={handleAddAmenity} // Adds item on Enter key press
+                                        />
+                                    </View>
                                 </View>
                                 <TouchableOpacity onPress={() => handleAddAmenity()}>
                                     <Image
@@ -1093,19 +1112,28 @@ const Editproperty = () => {
                                 {/* enter squre foot area */}
                                 <View style={{ flex: 1, marginRight: 5 }}>
                                     <Text style={styles.label}>Square Foot</Text>
-                                    <TextInput style={styles.input} placeholder="Square Foot" keyboardType="numeric" value={step3Data.sqfoot} onChangeText={text => setStep3Data({ ...step3Data, sqfoot: text })} />
+                                    <View style={styles.inputContainer}>
+                                        <MaterialIcons name="zoom-out-map" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput style={styles.input} placeholder="Square Foot" keyboardType="numeric" value={step3Data.sqfoot} onChangeText={text => setStep3Data({ ...step3Data, sqfoot: text })} />
+                                    </View>
                                 </View>
 
                                 {/* enter number of bathrooms */}
                                 <View style={{ flex: 1, marginLeft: 5 }}>
                                     <Text style={styles.label}>Bathroom</Text>
-                                    <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
+                                    <View style={styles.inputContainer}>
+                                        <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
+                                    </View>
                                 </View>
                                 {/* enter number of bathrooms */}
 
                                 <View style={{ flex: 1, marginLeft: 5 }}>
                                     <Text style={styles.label}>Bedroom</Text>
-                                    <TextInput style={styles.input} placeholder="bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
+                                    <View style={styles.inputContainer}>
+                                        <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput style={styles.input} placeholder="bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
+                                    </View>
                                 </View>
                             </View>
 
@@ -1113,13 +1141,19 @@ const Editproperty = () => {
                                 {/* enter number of floors */}
                                 <View style={{ flex: 1, marginRight: 5 }}>
                                     <Text style={styles.label}>Floor</Text>
-                                    <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
+                                    <View style={styles.inputContainer}>
+                                        <MaterialCommunityIcons name="floor-plan" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
+                                    </View>
                                 </View>
 
                                 {/* enter property city */}
                                 <View style={{ flex: 1, marginLeft: 5 }}>
                                     <Text style={styles.label}>City</Text>
-                                    <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
+                                    <View style={styles.inputContainer}>
+                                        <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
+                                    </View>
                                 </View>
                             </View>
 
@@ -1142,7 +1176,7 @@ const Editproperty = () => {
                                     debounce={400} // Reduce API calls
                                 />
                             </View>
-                            <View style={{ backgroundColor: '#edf5ff', padding: 5, borderRadius: 10 }}>
+                            <View style={{ backgroundColor: '#f3f4f6', padding: 5, borderRadius: 10 }}>
                                 <Text style={styles.label}>Location: {fullAddress}</Text>
                             </View>
                             <Text style={{ marginVertical: 10, fontWeight: "bold" }}>Pin Location on Map</Text>
@@ -1342,14 +1376,23 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontWeight: 'bold',
     },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f3f4f6',
+        borderRadius: 15,
+        marginBlock: 10,
+        padding: 10,
+    },
+    inputIcon: {
+        // marginLeft: 10,
+    },
     input: {
-        width: '100%',
-        height: 50,
-        backgroundColor: '#edf5ff',
-        borderRadius: 10,
-        paddingHorizontal: 15,
-        marginBottom: 10,
-        marginTop: 10
+        flex: 1,
+        height: 45,
+        paddingHorizontal: 10,
+        fontFamily: 'Rubik-Regular',
+        color: '#000',
     },
     amenityItem: {
         flexDirection: 'row',  // Ensure row layout
@@ -1359,7 +1402,7 @@ const styles = StyleSheet.create({
         borderRadius: 50,
         marginRight: 5,
         marginBottom: 5,
-        backgroundColor: '#edf5ff',
+        backgroundColor: '#f3f4f6',
         borderColor: 'green',
         borderWidth: 1,
     },
@@ -1382,9 +1425,9 @@ const styles = StyleSheet.create({
     mapTextInput: {
         width: '100%',
         height: 50,
-        borderColor: "#edf5ff",
+        borderColor: "#f3f4f6",
         borderWidth: 1,
-        backgroundColor: "#edf5ff",
+        backgroundColor: "#f3f4f6",
         borderRadius: 10,
         paddingHorizontal: 10,
     },
@@ -1403,10 +1446,10 @@ const styles = StyleSheet.create({
         height: 110,
         fontSize: 14,
         marginTop: 20,
-        borderRadius: 10,
-        color: '#333',
+        borderRadius: 15,
+        color: '#000',
         padding: 15,
-        backgroundColor: '#edf5ff',
+        backgroundColor: '#f3f4f6',
     },
     image: {
         width: 100,
@@ -1429,13 +1472,14 @@ const styles = StyleSheet.create({
         padding: 5,
         borderStyle: 'dashed',
         borderWidth: 2,
-        borderColor: '#edf5ff',
-        backgroundColor: '#edf5ff',
+        borderColor: '#f3f4f6',
+        backgroundColor: '#f3f4f6',
         borderRadius: 10,
         marginTop: 10,
         marginRight: 10,
         justifyContent: 'center',
-        alignContent: 'center',
+        flexDirection: 'row',
+        alignItems: 'center',
         flex: 1,
     },
     map: {
@@ -1444,25 +1488,52 @@ const styles = StyleSheet.create({
         marginTop: 10
     },
     addButton: {
-        backgroundColor: '#D3D3D3', padding: 10, marginTop: 10, borderRadius: 5
+        backgroundColor: '#234F68', padding: 10, marginTop: 10, borderRadius: 5
     },
-    addButtonText: { color: 'black', textAlign: 'center', fontWeight: 'bold' },
+    addButtonText: { color: 'white', textAlign: 'center', fontWeight: 'bold' },
     tableRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 10 },
     tableCell: { flex: 1, textAlign: 'center', borderEnd: 1, borderColor: '#c7c7c7', fontWeight: 600, },
     pickerContainer: {
         borderRadius: 10, // Apply borderRadius here
         overflow: 'hidden',
-        backgroundColor: '#edf5ff',
+        backgroundColor: '#f3f4f6',
         marginTop: 10,
         // marginBottom: 20,
     },
-
+    categoryContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'flex-start',
+        marginVertical: 10,
+        paddingHorizontal: 5,
+    },
+    categoryButton: {
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 20,
+        backgroundColor: '#f3f4f6',
+        margin: 5,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    categoryButtonSelected: {
+        backgroundColor: '#1F4C6B',
+        borderColor: '#1F4C6B',
+    },
+    categoryText: {
+        fontSize: 14,
+        color: '#000',
+        textAlign: 'center',
+    },
+    categoryTextSelected: {
+        color: '#fff',
+    },
 });
 const pickerSelectStyles = StyleSheet.create({
     inputIOS: {
         fontSize: 16,
         paddingHorizontal: 10,
-        backgroundColor: '#edf5ff',
+        backgroundColor: '#f3f4f6',
         borderRadius: 20,
         color: 'black',
         paddingRight: 30,
@@ -1470,7 +1541,7 @@ const pickerSelectStyles = StyleSheet.create({
     inputAndroid: {
         fontSize: 16,
         paddingHorizontal: 10,
-        backgroundColor: '#edf5ff',
+        backgroundColor: '#f3f4f6',
         borderRadius: 20,
         color: 'black',
         paddingRight: 30,

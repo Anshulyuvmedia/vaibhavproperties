@@ -60,13 +60,15 @@ const Explore = () => {
 
   const renderEmptyComponent = () => (
     <View className="flex-1 justify-center items-center mt-20">
-      <View className="bg-green-500/20 rounded-full p-4 mb-4">
-        <Ionicons name="alert-circle-outline" size={40} color="#34C759" />
-      </View>
-      <Text className="text-lg font-rubik-bold text-black-300 text-center">
-        Sorry, we can't find the real estate you're looking for
+      <Image source={icons.noResultFound} className='size-40' />
+
+      <Text className="text-2xl font-rubik-bold text-black-300 text-center">
+        Search <Text className='text-primary-300'>not found</Text>
       </Text>
-      <Text className="text-sm font-rubik text-black-100 text-center mt-2">
+      <Text className="text-base font-rubik text-black-100 text-center mt-2">
+        Sorry, we can't find the real estate you're looking for.
+      </Text>
+      <Text className="text-base font-rubik text-black-100 text-center mt-2">
         Maybe a little spelling mistake?
       </Text>
     </View>
@@ -92,7 +94,7 @@ const Explore = () => {
                 <Image source={icons.backArrow} className="size-5" />
               </TouchableOpacity>
               <Text className="text-base mr-2 text-center font-rubik-medium text-black-300">
-                Search result
+                Search results
               </Text>
               <TouchableOpacity onPress={() => router.push('/notifications')}>
                 <Image source={icons.bell} className="size-6" />
@@ -104,7 +106,7 @@ const Explore = () => {
 
             <View className="my-5">
               <Text className="text-xl font-rubik-bold text-black-300">
-                {listingData.length > 0 ? `Found ${listingData.length} estates` : 'Search results'}
+                Found <Text className='text-primary-300'>{listingData.length}</Text> estates
               </Text>
             </View>
           </View>

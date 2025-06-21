@@ -220,7 +220,7 @@ const Search = () => {
                                     key={cat.id || `category-${index}`}
                                     onPress={() => handlePropertyTypeToggle(label)}
                                     className={`me-2 px-5 py-4 rounded-xl ${isSelected
-                                            ? "bg-[#3B82F6] border-[#3B82F6]"
+                                            ? "bg-[#8bc83f] border-[#8bc83f]"
                                             : "bg-[#f4f2f7] border-[#D1D5DB]"
                                         }`}
                                 >

@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
-import images from '@/constants/images';
 import icons from '@/constants/icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 

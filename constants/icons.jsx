@@ -36,11 +36,17 @@ import videofile from "@/assets/icons/facebook.png";
 import addicon from "@/assets/icons/plus.png";
 import checkmark from "@/assets/icons/check-mark.png";
 import noProperties from "@/assets/icons/noProperties.png";
+import noResultFound from "@/assets/icons/noResultFound.png";
+import alertSuccess from "@/assets/icons/alertSuccess.png";
+import alertWarning from "@/assets/icons/alertWarning.png";
 
 export default {
   google,
   home,
   noProperties,
+  noResultFound,
+  alertWarning,
+  alertSuccess,
   checkmark,
   addicon,
   search,

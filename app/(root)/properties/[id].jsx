@@ -1,4 +1,4 @@
-import { FlatList, Image, ScrollView, Text, StyleSheet, TouchableOpacity, View, Dimensions, Platform, ActivityIndicator, Share, Modal } from "react-native";
+import { FlatList, Image, ScrollView, Text, StyleSheet, TouchableOpacity, View, Dimensions, Platform, ActivityIndicator, Share, Modal, TextInput } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import icons from "@/constants/icons";
 import images from "@/constants/images";
@@ -16,6 +16,7 @@ import Toast, { BaseToast } from "react-native-toast-message";
 import { FontAwesome5, Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { Video } from "expo-av";
+import RBSheet from "react-native-raw-bottom-sheet";
 
 const PropertyDetails = () => {
     const propertyId = useLocalSearchParams().id;
@@ -34,8 +35,11 @@ const PropertyDetails = () => {
     const [isPdf, setIsPdf] = useState(false);
     const [isLightboxVisible, setIsLightboxVisible] = useState(false);
     const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
+    const [bidAmount, setBidAmount] = useState("");
+    const [bidError, setBidError] = useState("");
     const videoRef = useRef(null);
     const lightboxRef = useRef(null);
+    const rbSheetRef = useRef(null);
 
     const [coordinates, setCoordinates] = useState({
         latitude: "",
@@ -91,13 +95,14 @@ const PropertyDetails = () => {
         });
     };
 
-    const handleEnquiry = async () => {
+    const handleEnquiry = async (bidAmount = null) => {
         try {
             setLoading(true);
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
             const userId = parsedUserData?.id;
             if (!userId) {
                 console.error("User ID not found in stored userData.");
+                Toast.show({ type: "error", text1: "Error", text2: "User not logged in." });
                 return;
             }
             const enquiryData = {
@@ -109,10 +114,12 @@ const PropertyDetails = () => {
                 propertyid: propertyId,
                 userid: parsedUserData.id,
                 state: propertyData.city || "",
+                bidamount: bidAmount || null,
             };
             const response = await axios.post("https://investorlands.com/api/sendenquiry", enquiryData);
             if (response.status === 200 && !response.data.error) {
                 Toast.show({ type: "success", text1: "Success", text2: "Enquiry submitted successfully!" });
+                if (bidAmount) rbSheetRef.current.close();
             } else {
                 Toast.show({ type: "error", text1: "Error", text2: "Failed to submit enquiry. Please try again." });
             }
@@ -153,7 +160,6 @@ const PropertyDetails = () => {
                 );
                 let galleryImages = [];
                 try {
-                    // console.log("Raw gallery data:", apiData.gallery);
                     if (apiData.gallery && typeof apiData.gallery === "string" && apiData.gallery.trim()) {
                         const parsedGallery = JSON.parse(apiData.gallery);
                         galleryImages = Array.isArray(parsedGallery)
@@ -168,7 +174,6 @@ const PropertyDetails = () => {
                     galleryImages = [];
                 }
                 setPropertyGallery(galleryImages);
-                // console.log("Processed gallery images:", galleryImages);
                 let parsedVideos = [];
                 try {
                     parsedVideos = apiData.videos ? (typeof apiData.videos === "string" ? JSON.parse(apiData.videos) : []) : [];
@@ -269,6 +274,28 @@ const PropertyDetails = () => {
         }
         console.warn("Invalid index in getMediaAtIndex:", index, "Total media:", totalMedia);
         return null;
+    };
+
+    const validateBidAmount = () => {
+        const currentPrice = Number(propertyData?.price) || 0;
+        const bid = Number(bidAmount);
+        if (!bidAmount || isNaN(bid)) {
+            setBidError("Please enter a valid bid amount.");
+            return false;
+        }
+        if (bid <= currentPrice) {
+            setBidError(`Bid amount must be greater than ${formatINR(currentPrice)}.`);
+            return false;
+        }
+        setBidError("");
+        return true;
+    };
+
+    const handleBidSubmit = () => {
+        if (validateBidAmount()) {
+            handleEnquiry(bidAmount);
+            setBidAmount("");
+        }
     };
 
     if (loading) return <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />;
@@ -433,7 +460,6 @@ const PropertyDetails = () => {
                             </View>
                         </View>
                     )}
-                    
                     <View className="flex flex-row items-center justify-between mt-4 bg-primary-100 rounded-3xl p-3 py-5">
                         <View className="flex flex-row items-center">
                             <Image source={images.appfavicon} className="size-14 rounded-full" />
@@ -534,7 +560,6 @@ const PropertyDetails = () => {
                 <View
                     ref={lightboxRef}
                     className="flex-1 bg-black/80 justify-center items-center"
-                    
                 >
                     <TouchableOpacity className="absolute top-10 right-10 z-50" onPress={closeLightbox}>
                         <Ionicons name="close" size={30} color="white" />
@@ -548,7 +573,7 @@ const PropertyDetails = () => {
                     {getMediaAtIndex(selectedMediaIndex) ? (
                         <>
                             {typeof getMediaAtIndex(selectedMediaIndex) === "string" &&
-                            (getMediaAtIndex(selectedMediaIndex).endsWith(".mp4") || getMediaAtIndex(selectedMediaIndex).endsWith(".mov")) ? (
+                                (getMediaAtIndex(selectedMediaIndex).endsWith(".mp4") || getMediaAtIndex(selectedMediaIndex).endsWith(".mov")) ? (
                                 <Video
                                     ref={videoRef}
                                     source={{ uri: getMediaAtIndex(selectedMediaIndex) }}
@@ -585,13 +610,64 @@ const PropertyDetails = () => {
                         </Text>
                     </View>
                     <TouchableOpacity
-                        onPress={() => handleEnquiry()}
+                        onPress={() => rbSheetRef.current.open()}
                         className="flex-1 flex flex-row items-center justify-center bg-primary-400 py-5 rounded-2xl shadow-md shadow-zinc-400"
                     >
                         <Text className="text-white text-lg text-center font-rubik-bold">Bid Now</Text>
                     </TouchableOpacity>
                 </View>
             </View>
+            {/* RBSheet for Bidding */}
+            <RBSheet
+                ref={rbSheetRef}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                height={windowHeight * 0.4}
+                customStyles={{
+                    container: {
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        padding: 20,
+                        backgroundColor: "white",
+                    },
+                    draggableIcon: {
+                        backgroundColor: "#8bc83f",
+                    },
+                }}
+            >
+                <View className="flex-1">
+                    <Text className="text-black-300 text-xl font-rubik-bold mb-4">Place Your Bid</Text>
+                    <View className="mb-4">
+                        <Text className="text-black-200 text-sm font-rubik-medium">Current Price</Text>
+                        <Text className="text-primary-300 text-lg font-rubik-bold">{formatINR(propertyData.price)}</Text>
+                    </View>
+                    <View className="mb-4">
+                        <Text className="text-black-200 text-sm font-rubik-medium">Your Bid Amount</Text>
+                        <TextInput
+                            value={bidAmount}
+                            onChangeText={(text) => {
+                                setBidAmount(text);
+                                setBidError("");
+                            }}
+                            placeholder="Enter bid amount"
+                            keyboardType="numeric"
+                            className="border border-primary-200 rounded-lg p-3 mt-2 text-black-300 text-base font-rubik"
+                        />
+                        {bidError ? <Text className="text-red-500 text-sm mt-1">{bidError}</Text> : null}
+                    </View>
+                    <TouchableOpacity
+                        onPress={handleBidSubmit}
+                        disabled={loading}
+                        className={`flex flex-row items-center justify-center bg-primary-400 py-4 rounded-2xl ${loading ? "opacity-50" : ""}`}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <Text className="text-white text-lg text-center font-rubik-bold">Submit Bid</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </RBSheet>
         </View>
     );
 };
