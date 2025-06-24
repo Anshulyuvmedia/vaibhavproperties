@@ -39,10 +39,12 @@ import noProperties from "@/assets/icons/noProperties.png";
 import noResultFound from "@/assets/icons/noResultFound.png";
 import alertSuccess from "@/assets/icons/alertSuccess.png";
 import alertWarning from "@/assets/icons/alertWarning.png";
+import alertDanger from "@/assets/icons/alertDanger.png";
 
 export default {
   google,
   home,
+  alertDanger,
   noProperties,
   noResultFound,
   alertWarning,

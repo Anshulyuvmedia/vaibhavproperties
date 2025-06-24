@@ -1,11 +1,11 @@
 import { Image, StyleSheet, Text, ScrollView, TouchableOpacity, View, TextInput, FlatList, Platform, ActivityIndicator } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import icons from '@/constants/icons';
 import { ProgressSteps, ProgressStep } from 'react-native-progress-steps';
 import * as ImagePicker from 'expo-image-picker';
 import RNPickerSelect from 'react-native-picker-select';
-import { Link, router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,19 +15,19 @@ import Constants from "expo-constants";
 import 'react-native-get-random-values';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
-import Toast, { BaseToast } from 'react-native-toast-message';
-import { Ionicons, MaterialCommunityIcons, Feather, AntDesign, MaterialIcons } from '@expo/vector-icons';
+import RBSheet from 'react-native-raw-bottom-sheet';
+import { Ionicons, MaterialCommunityIcons, Feather, AntDesign, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 
 const Editproperty = () => {
     const { id } = useLocalSearchParams();
+    const navigation = useNavigation();
 
     const GOOGLE_MAPS_API_KEY = Constants.expoConfig.extra.GOOGLE_MAPS_API_KEY;
-    const [step1Data, setStep1Data] = useState({ property_name: '', description: '', nearbylocation: '', });
+    const [step1Data, setStep1Data] = useState({ property_name: '', description: '', nearbylocation: '' });
     const [step2Data, setStep2Data] = useState({ approxrentalincome: '', historydate: [], price: '' });
     const [step3Data, setStep3Data] = useState({ sqfoot: '', bathroom: '', floor: '', city: '', officeaddress: '', bedroom: '' });
     const [isValid, setIsValid] = useState(false);
-    const navigation = useNavigation();
-
+    const [loading, setLoading] = useState(false);
     const [propertyData, setPropertyData] = useState([]);
     const [propertyDocuments, setPropertyDocuments] = useState([]);
     const [masterPlanDoc, setMasterPlanDoc] = useState([]);
@@ -35,13 +35,13 @@ const Editproperty = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedStatus, setSelectedStatus] = useState("unpublished");
     const [mainImage, setMainImage] = useState(null);
-
-    const [videos, setVideos] = useState([]);
-    const [galleryImages, setGalleryImages] = useState([]);
-
-    const [loading, setLoading] = useState(false);
     const [amenity, setAmenity] = useState([]);
     const [amenities, setAmenities] = useState([]);
+    const [successVisible, setSuccessVisible] = useState(false);
+    const [errorVisible, setErrorVisible] = useState(false);
+    const [historyPrice, setHistoryPrice] = useState('');
+    const [selectedDate, setSelectedDate] = useState('');
+    const [show, setShow] = useState(false);
     const [region, setRegion] = useState({
         latitude: 20.5937,
         longitude: 78.9629,
@@ -53,21 +53,24 @@ const Editproperty = () => {
         longitude: "",
     });
     const [fullAddress, setFullAddress] = useState("");
+    const [errorField, setErrorField] = useState(null);
+    const [videos, setVideos] = useState([]);
+    const [galleryImages, setGalleryImages] = useState([]);
+    // Use useRef for RBSheet
+    const successSheetRef = useRef(null);
+    const errorSheetRef = useRef(null);
 
-    const [show, setShow] = useState(false);
-    const [selectedDate, setSelectedDate] = useState('');
-    const [historyPrice, setHistoryPrice] = useState('');
     const buttonPreviousTextStyle = {
         paddingInline: 20,
         paddingBlock: 5,
-        borderRadius: 10,
-        backgroundColor: '#ff938f',
-        color: 'black',
+        borderRadius: 25,
+        backgroundColor: '#234F68',
+        color: 'white',
     };
     const buttonNextTextStyle = {
         paddingInline: 20,
         paddingBlock: 5,
-        borderRadius: 15,
+        borderRadius: 25,
         backgroundColor: '#8bc83f',
         color: 'white',
     };
@@ -82,42 +85,13 @@ const Editproperty = () => {
     const status = [
         { label: 'Unpublished', value: 'unpublished' },
     ];
-    const toastConfig = {
-        success: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "green" }}
-                text1Style={{
-                    fontSize: 16,
-                    fontWeight: "bold",
-                }}
-                text2Style={{
-                    fontSize: 14,
-                }}
-            />
-        ),
-        error: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "red" }}
-                text1Style={{
-                    fontSize: 16,
-                    fontWeight: "bold",
-                }}
-                text2Style={{
-                    fontSize: 14,
-                }}
-            />
-        ),
-    };
 
-    const [visibleData, setVisibleData] = useState([]);
+    const [visibleData, setVisibleData] = useState(step2Data.historydate.slice(0, 10));
     const [currentIndex, setCurrentIndex] = useState(10);
 
-    // Update visibleData when historydate updates
     useEffect(() => {
         if (step2Data.historydate.length > 0) {
-            setVisibleData(step2Data.historydate.slice(0, 10));
+            setVisibleData(step2Data.historydate.slice(0, currentIndex));
         }
     }, [step2Data.historydate]);
 
@@ -127,13 +101,19 @@ const Editproperty = () => {
         setCurrentIndex(nextIndex);
     };
 
-
     const validateStep = (step) => {
         if (step === 1) {
-            return step1Data?.property_name && step1Data?.description && step1Data?.nearbylocation;
+            if (!step1Data.property_name) { setErrorField('Property Title'); setErrorVisible(true); return false; }
+            if (!step1Data.description) { setErrorField('Property Description'); setErrorVisible(true); return false; }
+            if (!step1Data.nearbylocation) { setErrorField('Near By Locations'); setErrorVisible(true); return false; }
+            return true;
         }
         if (step === 2) {
-            return step3Data?.sqfoot && step3Data?.bathroom && step3Data?.floor && step3Data?.city;
+            if (!step3Data.sqfoot) { setErrorField('Square Foot'); setErrorVisible(true); return false; }
+            if (!step3Data.bathroom) { setErrorField('Bathroom'); setErrorVisible(true); return false; }
+            if (!step3Data.floor) { setErrorField('Floor'); setErrorVisible(true); return false; }
+            if (!step3Data.city) { setErrorField('City'); setErrorVisible(true); return false; }
+            return true;
         }
         return true;
     };
@@ -141,11 +121,6 @@ const Editproperty = () => {
     const onNextStep = (step) => {
         if (!validateStep(step)) {
             setErrors(true);
-            Toast.show({
-                type: 'error',
-                text1: 'Validation Error',
-                text2: "Please fill all required fields.",
-            });
         } else {
             setErrors(false);
         }
@@ -154,14 +129,27 @@ const Editproperty = () => {
     const requestPermissions = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: "Sorry, we need camera roll permissions to make this work!",
-            });
+            setErrorField('Permissions');
+            setErrorVisible(true);
             return false;
         }
         return true;
+    };
+
+    const updateFullAddress = async (latitude, longitude) => {
+        try {
+            const response = await axios.get(
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
+            );
+            if (response.data.results && response.data.results.length > 0) {
+                setFullAddress(response.data.results[0].formatted_address);
+            } else {
+                setFullAddress("Address not found");
+            }
+        } catch (error) {
+            console.error("Error fetching address:", error);
+            setFullAddress("Unable to retrieve address");
+        }
     };
 
     const handleAddAmenity = () => {
@@ -185,34 +173,29 @@ const Editproperty = () => {
         }
     };
 
-
-    // Handle Date Change
     const handleDateChange = (event, date) => {
         setShow(false);
         if (date) {
-            const formattedDate = date.toLocaleDateString("en-GB"); // Convert to YYYY-MM-DD
+            const formattedDate = date.toLocaleDateString("en-GB");
             setSelectedDate(formattedDate);
         }
     };
 
-    // Add Price History Entry
     const formatDate = (dateString) => {
-        const [day, month, year] = dateString.split("/");  // Split DD/MM/YYYY
-        return `${year}-${month}-${day}`;  // Convert to YYYY-MM-DD
+        const [day, month, year] = dateString.split("/");
+        return `${year}-${month}-${day}`;
     };
 
     const addPriceHistory = () => {
         if (selectedDate && historyPrice) {
             const newHistoryEntry = {
-                dateValue: formatDate(selectedDate),  // Convert date format
+                dateValue: formatDate(selectedDate),
                 priceValue: historyPrice
             };
-
             setStep2Data((prevData) => {
-                const updatedHistory = [newHistoryEntry, ...prevData.historydate]; // Add new entry at the top
+                const updatedHistory = [newHistoryEntry, ...prevData.historydate];
                 return { ...prevData, historydate: updatedHistory };
             });
-
             setSelectedDate('');
             setHistoryPrice('');
         }
@@ -223,39 +206,20 @@ const Editproperty = () => {
             const updatedHistory = prevData.historydate.filter((_, i) => i !== index);
             return { ...prevData, historydate: updatedHistory };
         });
-
-        // Update visible data after removal
         setVisibleData((prevData) => prevData.filter((_, i) => i !== index));
     };
 
     const pickGalleryImages = async () => {
         if (!(await requestPermissions())) return;
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsMultipleSelection: true,
+            quality: 0.5,
+        });
 
-        try {
-            let result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsMultipleSelection: true,
-                quality: 0.5,
-            });
-
-            // console.log("🚀 Image Picker Result:", result); // Debugging log
-
-            if (!result.canceled && result.assets?.length) {
-                // Extract only the URI (ensuring no extra object nesting)
-                const selectedImages = result.assets.map(image => image.uri);
-
-                // console.log("✅ Processed Image URIs:", selectedImages);
-
-                // Ensure state only stores an array of URIs (not objects)
-                setGalleryImages(prevImages => [
-                    ...prevImages,
-                    ...selectedImages,
-                ]);
-            } else {
-                console.warn("⚠️ No images selected.");
-            }
-        } catch (error) {
-            console.error("❌ Error picking images:", error);
+        if (!result.canceled && result.assets?.length) {
+            const selectedImages = result.assets.map(image => image.uri);
+            setGalleryImages(prevImages => [...prevImages, ...selectedImages]);
         }
     };
 
@@ -266,20 +230,14 @@ const Editproperty = () => {
         });
 
         if (!result.canceled) {
-            // console.log("Selected Videos:", result.assets);
-
-            const defaultThumbnail =
-                typeof icons.videofile === "number" // If it's a local import
-                    ? Image.resolveAssetSource(icons.videofile).uri
-                    : icons.videofile; // If it's a URL or valid string
-
+            const defaultThumbnail = typeof icons.videofile === "number"
+                ? Image.resolveAssetSource(icons.videofile).uri
+                : icons.videofile;
             const selectedVideos = result.assets.map(video => ({
                 id: video.uri,
                 uri: video.uri,
-                thumbnailImages: defaultThumbnail, // ✅ Make sure this is correct
+                thumbnailImages: defaultThumbnail,
             }));
-
-            // console.log("Processed Videos:", selectedVideos);
             setVideos(prevVideos => [...new Set([...prevVideos, ...selectedVideos])]);
         }
     };
@@ -287,42 +245,37 @@ const Editproperty = () => {
     const pickDocument = async () => {
         let result = await DocumentPicker.getDocumentAsync({
             type: 'application/pdf',
-            multiple: true, // Enable multiple selection
+            multiple: true,
         });
 
-        if (result.canceled) return;
-
-        const selectedDocuments = Array.isArray(result.assets) ? result.assets : [result];
-
-        const newDocuments = selectedDocuments.map(doc => ({
-            uri: doc.uri,
-            name: doc.name || 'Unnamed Document',
-            thumbnail: 'https://cdn-icons-png.flaticon.com/512/337/337946.png', // PDF icon
-        }));
-
-        setPropertyDocuments(prevDocs => [...prevDocs, ...newDocuments]);
+        if (!result.canceled) {
+            const selectedDocuments = Array.isArray(result.assets) ? result.assets : [result];
+            const newDocuments = selectedDocuments.map(doc => ({
+                uri: doc.uri,
+                name: doc.name || 'Unnamed Document',
+                thumbnail: 'https://cdn-icons-png.flaticon.com/512/337/337946.png',
+            }));
+            setPropertyDocuments(prevDocs => [...prevDocs, ...newDocuments]);
+        }
     };
 
     const pickMasterPlan = async () => {
         let result = await DocumentPicker.getDocumentAsync({
-            type: ['application/pdf', 'image/*'], // Allow PDFs and images
+            type: ['application/pdf', 'image/*'],
             multiple: true,
         });
 
-        if (result.canceled) return;
-
-        const selectedDocuments = Array.isArray(result.assets) ? result.assets : [result];
-
-        const newDocuments = selectedDocuments.map(doc => ({
-            uri: doc.uri,
-            name: doc.name || 'Unnamed Document',
-            thumbnail: doc.mimeType.startsWith('image') ? doc.uri : 'https://cdn-icons-png.flaticon.com/512/337/337946.png', // Image preview or PDF icon
-        }));
-
-        setMasterPlanDoc(prevDocs => [...prevDocs, ...newDocuments]);
+        if (!result.canceled) {
+            const selectedDocuments = Array.isArray(result.assets) ? result.assets : [result];
+            const newDocuments = selectedDocuments.map(doc => ({
+                uri: doc.uri,
+                name: doc.name || 'Unnamed Document',
+                thumbnail: doc.mimeType.startsWith('image') ? doc.uri : 'https://cdn-icons-png.flaticon.com/512/337/337946.png',
+            }));
+            setMasterPlanDoc(prevDocs => [...prevDocs, ...newDocuments]);
+        }
     };
 
-    // Function to handle location selection from Google Places
     const handlePlaceSelect = (data, details = null) => {
         if (details?.geometry?.location) {
             const { lat, lng } = details.geometry.location;
@@ -333,19 +286,15 @@ const Editproperty = () => {
                 latitudeDelta: 0.015,
                 longitudeDelta: 0.0121,
             });
-
-            // Store selected coordinates
             setCoordinates({
-                latitude: parseFloat(lat) ?? 0,  // Ensure it's a number
+                latitude: parseFloat(lat) ?? 0,
                 longitude: parseFloat(lng) ?? 0,
             });
-
         }
     };
 
     const removeGalleryImage = async (index, imageUri) => {
         setGalleryImages(prevImages => prevImages.filter((_, i) => i !== index));
-
         if (imageUri.startsWith("http")) {
             try {
                 await axios.post("https://investorlands.com/api/deletefile", {
@@ -353,7 +302,6 @@ const Editproperty = () => {
                     file_type: "gallery",
                     file_path: imageUri.replace("https://investorlands.com/", ""),
                 });
-                Toast.show({ type: "success", text1: "Image deleted successfully." });
             } catch (error) {
                 console.error("Failed to delete image:", error);
             }
@@ -361,38 +309,22 @@ const Editproperty = () => {
     };
 
     const removeVideo = async (index, videoUri) => {
-        console.log("Removing video at index:", index, "Video URI:", videoUri);
-
-        // Update UI first
         setVideos(prevVideos => prevVideos.filter((_, i) => i !== index));
-
         if (videoUri.startsWith("http")) {
             try {
-                const response = await axios.post("https://investorlands.com/api/deletefile", {
+                await axios.post("https://investorlands.com/api/deletefile", {
                     property_id: propertyData.id,
                     file_type: "video",
                     file_path: videoUri.replace("https://investorlands.com/", ""),
                 });
-
-                console.log("Server Response:", response.data);
-
-                if (response.data.error) {
-                    console.error("Error from API:", response.data.message);
-                    Toast.show({ type: "error", text1: response.data.message });
-                } else {
-                    console.log("Deleted video successfully:", videoUri);
-                    Toast.show({ type: "success", text1: "Video deleted successfully." });
-                }
             } catch (error) {
-                console.error("Failed to delete video:", error.response ? error.response.data : error.message);
+                console.error("Failed to delete video:", error);
             }
         }
     };
 
-
     const removeDocument = async (index, docUri) => {
         setPropertyDocuments(prevDocs => prevDocs.filter((_, i) => i !== index));
-
         if (docUri.startsWith("http")) {
             try {
                 await axios.post("https://investorlands.com/api/deletefile", {
@@ -400,7 +332,6 @@ const Editproperty = () => {
                     file_type: "document",
                     file_path: docUri.replace("https://investorlands.com/", ""),
                 });
-                Toast.show({ type: "success", text1: "Document deleted successfully." });
             } catch (error) {
                 console.error("Failed to delete document:", error);
             }
@@ -409,7 +340,6 @@ const Editproperty = () => {
 
     const removeMasterPlan = async (index, docUri) => {
         setMasterPlanDoc(prevDocs => prevDocs.filter((_, i) => i !== index));
-
         if (docUri.startsWith("http")) {
             try {
                 await axios.post("https://investorlands.com/api/deletefile", {
@@ -417,14 +347,12 @@ const Editproperty = () => {
                     file_type: "masterplan",
                     file_path: docUri.replace("https://investorlands.com/", ""),
                 });
-                Toast.show({ type: "success", text1: "Master Plan Document deleted successfully." });
             } catch (error) {
                 console.error("Failed to delete master plan document:", error);
             }
         }
     };
 
-    // Function to handle manual selection on the map
     const handleMapPress = (e) => {
         if (!e?.nativeEvent?.coordinate) return;
         const { latitude, longitude } = e.nativeEvent.coordinate;
@@ -434,31 +362,22 @@ const Editproperty = () => {
             latitudeDelta: 0.015,
             longitudeDelta: 0.0121,
         });
-
-        // Store manual coordinates
         setCoordinates({
             latitude: parseFloat(latitude),
             longitude: parseFloat(longitude),
         });
-
     };
 
     const getUserData = async () => {
         try {
             const userData = await AsyncStorage.getItem('userData');
             const userToken = await AsyncStorage.getItem('userToken');
-
             return {
                 userData: userData ? JSON.parse(userData) : null,
                 userToken: userToken ? userToken : null
             };
         } catch (error) {
             console.error("Error fetching user data:", error);
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: "Could not retrieve user data.",
-            });
             return null;
         }
     };
@@ -466,16 +385,15 @@ const Editproperty = () => {
     const handleSubmit = async () => {
         setLoading(true);
         try {
+            console.log('Starting handleSubmit, successSheetRef:', successSheetRef.current);
             const { userData, userToken } = await getUserData();
             if (!userData || !userToken) {
                 throw new Error("User is not authenticated. Token missing.");
             }
-            const propertyId = propertyData?.id ?? id; // Ensure property ID is used
-            const { id, user_type } = userData;
+            const propertyId = propertyData?.id ?? id;
+            const { id: userId, user_type } = userData;
 
             const formData = new FormData();
-
-            // ✅ Append Step 1, 2, and 3 Data
             [step1Data, step2Data, step3Data].forEach(data => {
                 Object.entries(data).forEach(([key, value]) => {
                     if (value !== null && value !== undefined) {
@@ -484,22 +402,18 @@ const Editproperty = () => {
                 });
             });
 
-            // ✅ Append additional fields
             formData.append("bedroom", step3Data?.bedroom ?? "");
             formData.append("category", selectedCategory ?? "");
             formData.append("status", selectedStatus ?? "");
-            formData.append("roleid", id ?? "");
+            formData.append("roleid", userId ?? "");
             formData.append("usertype", user_type ?? "");
             formData.append("amenities", JSON.stringify(amenities));
             formData.append("historydate", step2Data?.historydate ? JSON.stringify(step2Data.historydate) : "[]");
-
-            // ✅ Append Location Data
             formData.append("location", JSON.stringify({
                 Latitude: coordinates.latitude,
                 Longitude: coordinates.longitude,
             }));
 
-            // ✅ Append Thumbnail Image
             if (mainImage && !mainImage.startsWith("http")) {
                 const fileType = mainImage.split('.').pop();
                 formData.append("thumbnailImages", {
@@ -509,7 +423,6 @@ const Editproperty = () => {
                 });
             }
 
-            // ✅ Append Gallery Images
             galleryImages.forEach((imageUri, index) => {
                 if (!imageUri.startsWith("http")) {
                     const fileType = imageUri.split('.').pop();
@@ -521,7 +434,6 @@ const Editproperty = () => {
                 }
             });
 
-            // ✅ Append Videos
             videos.forEach((video, index) => {
                 if (video?.uri && !video.uri.startsWith("http")) {
                     const fileType = video.uri.split('.').pop();
@@ -533,7 +445,6 @@ const Editproperty = () => {
                 }
             });
 
-            // ✅ Append Documents
             propertyDocuments.forEach((doc, index) => {
                 if (doc?.uri && !doc.uri.startsWith("http")) {
                     const fileType = doc.uri.split('.').pop();
@@ -545,7 +456,6 @@ const Editproperty = () => {
                 }
             });
 
-            // ✅ Append Master Plan Document
             masterPlanDoc.forEach((doc, index) => {
                 if (doc?.uri && !doc.uri.startsWith("http")) {
                     const fileType = doc.uri.split('.').pop()?.toLowerCase() || "pdf";
@@ -557,7 +467,6 @@ const Editproperty = () => {
                 }
             });
 
-            // ✅ File Data Object for Reference
             const fileData = {
                 galleryImages: galleryImages.filter(img => !img.startsWith("http")),
                 propertyvideos: videos.filter(vid => vid.uri && !vid.uri.startsWith("http")),
@@ -567,9 +476,6 @@ const Editproperty = () => {
             };
             formData.append("fileData", JSON.stringify(fileData));
 
-            // console.log("Uploading FormData:", formData);
-
-            // ✅ Send API Request
             const response = await axios.post(`https://investorlands.com/api/updatelisting/${propertyId}`, formData, {
                 headers: {
                     "Accept": "application/json",
@@ -578,40 +484,29 @@ const Editproperty = () => {
                 },
             });
 
-            // console.log("API Response:", response.data);
+            console.log('API response:', response.data);
             if (response.status === 200 && !response.data.error) {
-                Toast.show({
-                    type: "success",
-                    text1: "Success",
-                    text2: "Property updated successfully!",
-                });
+                console.log('Setting successVisible to true');
+                setSuccessVisible(true);
             } else {
-                console.error("❌ API Error:", response.data.message);
-                Toast.show({
-                    type: "error",
-                    text1: "Failed to update property.",
-                    text2: response.data.message || "An error occurred.",
-                });
+                console.log('Setting errorVisible to true, message:', response.data.message);
+                setErrorField(response.data.message || "Unknown error");
+                setErrorVisible(true);
             }
         } catch (error) {
-            console.error("❌ Error updating property:", error);
-            Toast.show({
-                type: "error",
-                text1: "Error",
-                text2: "Failed to update property. Please try again.",
-            });
+            console.error('handleSubmit error:', error);
+            setErrorField(error.message || "Failed to update property");
+            setErrorVisible(true);
         } finally {
+            console.log('Setting loading to false');
             setLoading(false);
         }
     };
 
-
-    // Fetch Property Data
     const fetchPropertyData = async () => {
         try {
             setLoading(true);
             const response = await axios.get(`https://investorlands.com/api/property-details/${id}`);
-            // console.log(response.data);
             if (response.data) {
                 const apiData = response.data.details;
                 setPropertyData(apiData);
@@ -641,36 +536,25 @@ const Editproperty = () => {
                 setSelectedStatus(apiData.status || '');
 
                 const fetchedAmenities = apiData.amenties || apiData.amenities || [];
-
-                // Ensure it's a proper array
                 let parsedAmenities = fetchedAmenities;
-
                 if (typeof fetchedAmenities === "string") {
                     try {
                         parsedAmenities = JSON.parse(fetchedAmenities);
                     } catch (error) {
                         console.error("Error parsing amenities:", error);
-                        parsedAmenities = []; // Default to empty array
+                        parsedAmenities = [];
                     }
                 }
-
                 if (Array.isArray(parsedAmenities)) {
-                    // console.log("Final Amenities from API:", parsedAmenities);
                     setAmenities([...parsedAmenities]);
-                } else {
-                    console.error("Invalid amenities format:", parsedAmenities);
                 }
 
-                // Extract map location and convert to numbers
                 if (apiData.maplocations) {
                     try {
                         const locationData = JSON.parse(apiData.maplocations);
-                        // console.log("locationData:", locationData);
                         const latitude = parseFloat(locationData.Latitude);
                         const longitude = parseFloat(locationData.Longitude);
-
                         if (latitude && longitude) {
-                            // Update state
                             setCoordinates({ latitude, longitude });
                             setRegion({
                                 latitude,
@@ -678,9 +562,6 @@ const Editproperty = () => {
                                 latitudeDelta: 0.015,
                                 longitudeDelta: 0.0121,
                             });
-
-                        } else {
-                            console.error("Invalid latitude or longitude values.");
                         }
                     } catch (error) {
                         console.error("Error parsing map locations:", error);
@@ -690,11 +571,9 @@ const Editproperty = () => {
                 if (apiData.gallery) {
                     try {
                         let galleryArray = typeof apiData.gallery === 'string' ? JSON.parse(apiData.gallery) : apiData.gallery;
-
                         const galleryImages = galleryArray.map(img =>
                             img.startsWith('http') ? img : `https://investorlands.com/${img}`
                         );
-
                         setGalleryImages(galleryImages);
                     } catch (error) {
                         console.error("Error processing gallery images:", error);
@@ -704,36 +583,30 @@ const Editproperty = () => {
                 if (apiData.videos) {
                     try {
                         let galleryVideos = typeof apiData.videos === 'string' ? JSON.parse(apiData.videos) : apiData.videos;
-
-                        const defaultThumbnail =
-                            typeof icons.videofile === "number"
-                                ? Image.resolveAssetSource(icons.videofile).uri
-                                : icons.videofile; // Fallback to a local or external thumbnail
-
+                        const defaultThumbnail = typeof icons.videofile === "number"
+                            ? Image.resolveAssetSource(icons.videofile).uri
+                            : icons.videofile;
                         const videoObjects = galleryVideos.map(video => ({
                             id: video,
                             uri: video.startsWith('http') ? video : `https://investorlands.com/${video}`,
-                            thumbnailImages: defaultThumbnail, // ✅ Assigning default thumbnail
+                            thumbnailImages: defaultThumbnail,
                         }));
-
                         setVideos(videoObjects);
                     } catch (error) {
                         console.error("Error processing videos:", error);
                     }
                 }
 
-
                 if (apiData.documents) {
                     try {
                         let propertyDocuments = typeof apiData.documents === 'string'
                             ? JSON.parse(apiData.documents)
                             : apiData.documents;
-
                         setPropertyDocuments(
                             propertyDocuments.map(uri => ({
                                 uri: uri.startsWith('http') ? uri : `https://investorlands.com/${uri}`,
                                 name: uri.split('/').pop() || 'Unnamed Document',
-                                thumbnail: 'https://cdn-icons-png.flaticon.com/512/337/337946.png', // Default PDF icon
+                                thumbnail: 'https://cdn-icons-png.flaticon.com/512/337/337946.png',
                             }))
                         );
                     } catch (error) {
@@ -741,20 +614,18 @@ const Editproperty = () => {
                     }
                 }
 
-
                 if (apiData.masterplandoc) {
                     try {
                         let masterPlanDocs = Array.isArray(apiData.masterplandoc)
                             ? apiData.masterplandoc
-                            : [apiData.masterplandoc]; // Convert single string to array
-
+                            : [apiData.masterplandoc];
                         setMasterPlanDoc(
                             masterPlanDocs.map(filePath => ({
                                 uri: filePath.startsWith('http') ? filePath : `https://investorlands.com/${filePath}`,
                                 name: filePath.split('/').pop() || 'Unnamed Document',
                                 thumbnail: filePath.endsWith('.pdf')
-                                    ? 'https://cdn-icons-png.flaticon.com/512/337/337946.png'  // PDF icon for PDFs
-                                    : `https://investorlands.com/${filePath}`, // Show image preview for images
+                                    ? 'https://cdn-icons-png.flaticon.com/512/337/337946.png'
+                                    : `https://investorlands.com/${filePath}`,
                             }))
                         );
                     } catch (error) {
@@ -762,10 +633,7 @@ const Editproperty = () => {
                     }
                 }
 
-                // Process API data
                 let priceHistoryData = apiData.pricehistory;
-
-                // Parse if it's a string
                 if (typeof priceHistoryData === "string") {
                     try {
                         priceHistoryData = JSON.parse(priceHistoryData);
@@ -774,12 +642,8 @@ const Editproperty = () => {
                         priceHistoryData = [];
                     }
                 }
-
-                // Ensure it's an array before updating state
                 if (Array.isArray(priceHistoryData)) {
-                    // Sort in descending order (most recent date first)
                     priceHistoryData.sort((a, b) => new Date(b.dateValue) - new Date(a.dateValue));
-
                     setStep2Data((prevData) => ({
                         ...prevData,
                         historydate: priceHistoryData.map(item => ({
@@ -787,12 +651,7 @@ const Editproperty = () => {
                             priceValue: item.priceValue.toString(),
                         })),
                     }));
-                } else {
-                    console.error("priceHistoryData is not an array:", priceHistoryData);
                 }
-
-
-
 
                 if (apiData.thumbnail) {
                     setMainImage(
@@ -809,6 +668,45 @@ const Editproperty = () => {
         }
     };
 
+    // Lifecycle and navigation debugging
+    useEffect(() => {
+        console.log('Editproperty component mounted');
+        console.log('Success RBSheet mounted, ref:', successSheetRef.current);
+        console.log('Error RBSheet mounted, ref:', errorSheetRef.current);
+        return () => {
+            console.log('Editproperty component unmounted');
+            console.log('Success RBSheet unmounted');
+            console.log('Error RBSheet unmounted');
+        };
+    }, []);
+
+    // Navigation state listener
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('state', (e) => {
+            console.log('Navigation state changed:', e.data);
+        });
+        return unsubscribe;
+    }, [navigation]);
+
+    // Open RBSheet when state changes
+    useEffect(() => {
+        if (successVisible && successSheetRef.current) {
+            console.log('Opening success sheet via useEffect, ref:', successSheetRef.current);
+            successSheetRef.current.open();
+        } else if (successVisible) {
+            console.log('Success sheet ref is null when trying to open via useEffect');
+        }
+    }, [successVisible]);
+
+    useEffect(() => {
+        if (errorVisible && errorSheetRef.current) {
+            console.log('Opening error sheet via useEffect, ref:', errorSheetRef.current);
+            errorSheetRef.current.open();
+        } else if (errorVisible) {
+            console.log('Error sheet ref is null when trying to open via useEffect');
+        }
+    }, [errorVisible]);
+
     useEffect(() => {
         if (id) {
             fetchPropertyData();
@@ -816,47 +714,91 @@ const Editproperty = () => {
     }, [id]);
 
     if (loading) {
-        return (
-            <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />
-        );
+        return <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />;
     }
 
     if (!propertyData) {
-        return (
-            <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />
-        );
+        return <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />;
     }
+
+    const formatINR = (amount) => {
+        if (!amount) return '₹0';
+        const num = Number(amount);
+        if (num >= 1e7) {
+            return '₹' + (num / 1e7).toFixed(2).replace(/\.00$/, '') + ' Cr';
+        } else if (num >= 1e5) {
+            return '₹' + (num / 1e5).toFixed(2).replace(/\.00$/, '') + ' Lakh';
+        }
+        return '₹' + num.toLocaleString('en-IN');
+    };
 
     return (
         <SafeAreaView style={{ backgroundColor: 'white', height: '100%', paddingHorizontal: 20 }}>
+            {/* Test button for debugging */}
+            <TouchableOpacity
+                style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 10, marginTop: 20 }}
+                onPress={() => {
+                    console.log('Test opening success sheet, ref:', successSheetRef.current);
+                    if (successSheetRef.current) {
+                        successSheetRef.current.open();
+                    } else {
+                        console.log('Success sheet ref is null');
+                    }
+                }}
+            >
+                <Text style={{ color: 'white', fontWeight: 'bold' }}>Test Success Sheet</Text>
+            </TouchableOpacity>
+
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', backgroundColor: '#E0E0E0', borderRadius: 50, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-                    <Image source={icons.backArrow} style={{ width: 20, height: 20 }} />
-                </TouchableOpacity>
-                <Text style={{ fontSize: 16, marginRight: 10, textAlign: 'center', fontFamily: 'Rubik-Medium', color: '#4A4A4A' }}>
+                <Text style={{ fontSize: 16, marginRight: 10, textAlign: 'center', fontFamily: 'Rubik-Medium', color: '#234F68' }}>
                     Edit Property
                 </Text>
-                <TouchableOpacity onPress={() => router.push('/notifications')}>
-                    <Image source={icons.bell} className='size-6' />
+                <TouchableOpacity
+                    onPress={() => {
+                        console.log('Back button pressed');
+                        router.back();
+                    }}
+                    style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 50, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                >
+                    <Image source={icons.backArrow} style={{ width: 20, height: 20 }} />
                 </TouchableOpacity>
             </View>
 
-            <View className="flex justify-between items-center pt-3 flex-row">
-                <Text className="font-rubik-bold text-lg">{step1Data.property_name}</Text>
-                <Text className={`inline-flex items-center rounded-md capitalize px-2 py-1 text-xs font-rubik-bold border ${selectedStatus === 'published' ? ' bg-green-50  text-green-700  border-green-600 ' : 'bg-red-50  text-red-700 border-red-600'}`}>{selectedStatus === 'published' ? 'Published' : 'Under Review'}</Text>
+            {/* Property Card */}
+            <View className="justify-between items-center mt-2 p-3 rounded-3xl flex-row bg-primary-100">
+                <View className='flex-row justify-between items-center'>
+                    {mainImage && <Image source={{ uri: mainImage }} style={styles.image} />}
+                    <View className='ms-2 flex-1'>
+                        <Text className="font-rubik-medium text-base">{step1Data.property_name}</Text>
+                        <View className="flex-row items-center mt-1">
+                            <Ionicons name="location-outline" size={16} color="#234F68" />
+                            <Text className="text-base font-rubik text-black ml-1">
+                                {step3Data.city}, {step3Data.officeaddress}
+                            </Text>
+                        </View>
+                        <View className="flex-row items-center justify-between mt-1">
+                            <Text className="text-base font-rubik text-black-300">
+                                {formatINR(step2Data.price)}
+                            </Text>
+                            <View className="bg-primary-300 rounded-3xl px-3">
+                                <Text className="text-base font-rubik text-white">
+                                    {selectedCategory}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                </View>
             </View>
-            <Toast config={toastConfig} position="top" />
 
             <View style={styles.container}>
                 <ProgressSteps>
-                    <ProgressStep label="General"
+                    <ProgressStep
+                        label="General"
                         nextBtnTextStyle={buttonNextTextStyle}
-                    // onNext={() => onNextStep(1)}
-                    // errors={errors}
+                        onNext={() => onNextStep(1)}
+                        errors={errors}
                     >
                         <View style={styles.stepContent}>
-
-                            {/* enter property name */}
                             <Text style={styles.label}>Property Title</Text>
                             <View style={styles.inputContainer}>
                                 <AntDesign name="home" size={24} color="#1F4C6B" style={styles.inputIcon} />
@@ -867,29 +809,31 @@ const Editproperty = () => {
                                     onChangeText={text => setStep1Data({ ...step1Data, property_name: text })}
                                 />
                             </View>
-
-                            {/* enter description */}
+                        </View>
+                        <View style={styles.stepContent}>
                             <Text style={styles.label}>Property Description</Text>
                             <TextInput
                                 style={styles.textarea}
                                 value={step1Data.description}
-                                onChangeText={text => setStep1Data({ ...step1Data, description: text })} maxLength={120}
-                                placeholder="Enter property description"
-                                multiline numberOfLines={5}
+                                onChangeText={text => setStep1Data({ ...step1Data, description: text })}
+                                maxLength={120}
+                                placeholder="Enter property description..."
+                                multiline
+                                numberOfLines={5}
                             />
-
-                            {/* enter thumbnail */}
+                        </View>
+                        <View style={styles.stepContent}>
                             <Text style={styles.label}>Property Thumbnail</Text>
-                            <View className="flex flex-row">
+                            <View className="flex-row items-center">
                                 <TouchableOpacity onPress={pickMainImage} style={styles.dropbox}>
-                                    <Feather name="upload-cloud" size={24} color="#234F68" style={styles.inputIcon} />
-                                    <Text style={{ marginStart: '10' }}>Upload Thumbnail</Text>
+                                    <Ionicons name="image-outline" size={24} color="#234F68" style={styles.inputIcon} />
+                                    <Text style={{ marginStart: 10 }}>Upload Thumbnail</Text>
                                 </TouchableOpacity>
                                 {mainImage && <Image source={{ uri: mainImage }} style={styles.image} />}
                             </View>
-
-                            {/* select category */}
-                            <Text style={styles.label}>Select category</Text>
+                        </View>
+                        <View style={styles.stepContent}>
+                            <Text style={styles.label}>Select Category</Text>
                             <View style={styles.categoryContainer}>
                                 {categories.map((category) => (
                                     <TouchableOpacity
@@ -907,8 +851,8 @@ const Editproperty = () => {
                                     </TouchableOpacity>
                                 ))}
                             </View>
-
-                            {/* enter near by location */}
+                        </View>
+                        <View style={styles.stepContent}>
                             <Text style={styles.label}>Near By Locations</Text>
                             <View style={styles.inputContainer}>
                                 <Ionicons name="trail-sign-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
@@ -919,25 +863,20 @@ const Editproperty = () => {
                                     onChangeText={text => setStep1Data({ ...step1Data, nearbylocation: text })}
                                 />
                             </View>
-
-
                         </View>
                     </ProgressStep>
 
-                    <ProgressStep label="Price"
+                    <ProgressStep
+                        label="Price"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                    // onNext={() => onNextStep(2)}
-                    // errors={errors}
+                        onNext={() => onNextStep(2)}
+                        errors={errors}
                     >
-                        <View>
-                            <Text style={{ textAlign: 'center', fontFamily: 'Rubik-Bold' }}>Pricing & Other Details</Text>
-                        </View>
-
                         <View style={styles.stepContent}>
-                            {/* enter rental income */}
                             <Text style={styles.label}>Approx Rental Income</Text>
                             <View style={styles.inputContainer}>
+                                <Ionicons name="pricetag-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     keyboardType="numeric"
@@ -949,9 +888,11 @@ const Editproperty = () => {
                                     }}
                                 />
                             </View>
-
+                        </View>
+                        <View style={styles.stepContent}>
                             <Text style={styles.label}>Current Property Price</Text>
                             <View style={styles.inputContainer}>
+                                <FontAwesome name="rupee" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     keyboardType="numeric"
@@ -963,18 +904,18 @@ const Editproperty = () => {
                                     }}
                                 />
                             </View>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        </View>
+                        <View style={styles.stepContent}>
+                            <View className='flex-row justify-between items-center'>
                                 <View style={{ flex: 1, marginRight: 10 }}>
-                                    {/* enter property price */}
                                     <Text style={styles.label}>Historical Price</Text>
                                     <View style={styles.inputContainer}>
-                                        {/* Enter Price */}
                                         <TextInput
                                             style={styles.input}
                                             placeholder="Historical Price"
                                             value={historyPrice}
                                             keyboardType="numeric"
-                                            onChangeText={(text) => {
+                                            onChangeText={text => {
                                                 const numericText = text.replace(/[^0-9]/g, '');
                                                 setHistoryPrice(numericText);
                                             }}
@@ -982,8 +923,6 @@ const Editproperty = () => {
                                     </View>
                                 </View>
                                 <View style={{ flex: 1 }}>
-
-                                    {/* Select Date */}
                                     <Text style={styles.label}>Historical Date</Text>
                                     <View style={styles.inputContainer}>
                                         <TouchableOpacity onPress={() => setShow(true)}>
@@ -1004,14 +943,10 @@ const Editproperty = () => {
                                         />
                                     )}
                                 </View>
+                                <TouchableOpacity onPress={addPriceHistory}>
+                                    <Image source={icons.addicon} style={styles.addBtn} />
+                                </TouchableOpacity>
                             </View>
-
-                            {/* Add to Price History */}
-                            <TouchableOpacity style={styles.addButton} onPress={addPriceHistory}>
-                                <Text style={styles.addButtonText}>Add to Table</Text>
-                            </TouchableOpacity>
-
-                            {/* Show Table */}
                             {step2Data.historydate.length > 0 && (
                                 <View style={{ flexGrow: 1, minHeight: 1, marginTop: 10 }}>
                                     <FlatList
@@ -1041,7 +976,6 @@ const Editproperty = () => {
                                             </View>
                                         )}
                                     />
-
                                     {currentIndex < step2Data.historydate.length && (
                                         <TouchableOpacity onPress={loadMore} style={styles.addButton}>
                                             <Text style={styles.addButtonText}>View More</Text>
@@ -1049,22 +983,18 @@ const Editproperty = () => {
                                     )}
                                 </View>
                             )}
-
                         </View>
                     </ProgressStep>
 
-                    <ProgressStep label="Details"
+                    <ProgressStep
+                        label="Details"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                    // onNext={() => onNextStep(3)}
-                    // errors={errors}
+                        onNext={() => onNextStep(3)}
+                        errors={errors}
                     >
-
                         <View style={styles.stepContent}>
-
-                            {/* enter amenities */}
                             <View className='flex flex-row items-center'>
-
                                 <Text style={styles.label}>Features & Amenities</Text>
                             </View>
                             <View className='flex flex-row align-center'>
@@ -1076,18 +1006,15 @@ const Editproperty = () => {
                                             placeholder="Enter to Add Amenities"
                                             value={amenity}
                                             onChangeText={setAmenity}
-                                            onSubmitEditing={handleAddAmenity} // Adds item on Enter key press
+                                            onSubmitEditing={handleAddAmenity}
                                         />
                                     </View>
                                 </View>
                                 <TouchableOpacity onPress={() => handleAddAmenity()}>
-                                    <Image
-                                        source={icons.addicon}
-                                        style={styles.addBtn}
-                                    />
+                                    <Image source={icons.addicon} style={styles.addBtn} />
                                 </TouchableOpacity>
                             </View>
-                            <View style={{ flexDirection: "row", alignItems: "center", minHeight: 50 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", }}>
                                 <FlatList
                                     data={amenities}
                                     keyExtractor={(item, index) => index.toString()}
@@ -1105,40 +1032,9 @@ const Editproperty = () => {
                                     )}
                                 />
                             </View>
-
-
-
+                        </View>
+                        <View style={styles.stepContent}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                {/* enter squre foot area */}
-                                <View style={{ flex: 1, marginRight: 5 }}>
-                                    <Text style={styles.label}>Square Foot</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialIcons name="zoom-out-map" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Square Foot" keyboardType="numeric" value={step3Data.sqfoot} onChangeText={text => setStep3Data({ ...step3Data, sqfoot: text })} />
-                                    </View>
-                                </View>
-
-                                {/* enter number of bathrooms */}
-                                <View style={{ flex: 1, marginLeft: 5 }}>
-                                    <Text style={styles.label}>Bathroom</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
-                                    </View>
-                                </View>
-                                {/* enter number of bathrooms */}
-
-                                <View style={{ flex: 1, marginLeft: 5 }}>
-                                    <Text style={styles.label}>Bedroom</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
-                                    </View>
-                                </View>
-                            </View>
-
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                {/* enter number of floors */}
                                 <View style={{ flex: 1, marginRight: 5 }}>
                                     <Text style={styles.label}>Floor</Text>
                                     <View style={styles.inputContainer}>
@@ -1146,8 +1042,31 @@ const Editproperty = () => {
                                         <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
                                     </View>
                                 </View>
-
-                                {/* enter property city */}
+                                <View style={{ flex: 1, marginRight: 5 }}>
+                                    <Text style={styles.label}>Bathroom</Text>
+                                    <View style={styles.inputContainer}>
+                                        <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
+                                    </View>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.label}>Bedroom</Text>
+                                    <View style={styles.inputContainer}>
+                                        <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput style={styles.input} placeholder="Bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
+                                    </View>
+                                </View>
+                            </View>
+                        </View>
+                        <View style={styles.stepContent}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <View style={{ flex: 1, marginRight: 5 }}>
+                                    <Text style={styles.label}>Square Foot</Text>
+                                    <View style={styles.inputContainer}>
+                                        <MaterialIcons name="zoom-out-map" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                        <TextInput style={styles.input} placeholder="Square Foot" keyboardType="numeric" value={step3Data.sqfoot} onChangeText={text => setStep3Data({ ...step3Data, sqfoot: text })} />
+                                    </View>
+                                </View>
                                 <View style={{ flex: 1, marginLeft: 5 }}>
                                     <Text style={styles.label}>City</Text>
                                     <View style={styles.inputContainer}>
@@ -1156,52 +1075,105 @@ const Editproperty = () => {
                                     </View>
                                 </View>
                             </View>
-
-                            {/* enter property address */}
+                        </View>
+                        <View style={styles.stepContent}>
                             <Text style={styles.label}>Property Address</Text>
-                            <TextInput style={styles.textarea} placeholder="Property Address" value={step3Data.officeaddress} onChangeText={text => setStep3Data({ ...step3Data, officeaddress: text })} multiline numberOfLines={5} maxLength={120} />
-
-                            <Text style={styles.label}>Pin Location in Map</Text>
-                            <View styles={styles.mapTextInput}>
+                            <TextInput
+                                style={styles.textarea}
+                                placeholder="Property Address"
+                                value={step3Data.officeaddress}
+                                onChangeText={text => setStep3Data({ ...step3Data, officeaddress: text })}
+                                multiline
+                                numberOfLines={5}
+                                maxLength={120}
+                            />
+                        </View>
+                        <View style={styles.stepContent}>
+                            <Text style={styles.label}>Find Location on Google Map</Text>
+                            <View style={styles.inputContainer}>
+                                <MaterialCommunityIcons name="map-marker-radius-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <GooglePlacesAutocomplete
-                                    placeholder="Search location"
+                                    placeholder="Locate your property"
                                     fetchDetails={true}
                                     onPress={handlePlaceSelect}
-                                    onFail={(error) => console.error(error)}
+                                    onFail={(error) => console.error("GooglePlacesAutocomplete Error:", error)}
                                     query={{
                                         key: GOOGLE_MAPS_API_KEY,
                                         language: "en",
                                     }}
-                                    styles={styles.mapTextInput}
-                                    debounce={400} // Reduce API calls
+                                    styles={{
+                                        textInput: styles.mapTextInput,
+                                        container: { flex: 1, backgroundColor: "#f3f4f6", borderRadius: 15 },
+                                        listView: { backgroundColor: "#fff", borderRadius: 10, marginTop: 5 },
+                                    }}
+                                    debounce={400}
                                 />
                             </View>
-                            <View style={{ backgroundColor: '#f3f4f6', padding: 5, borderRadius: 10 }}>
-                                <Text style={styles.label}>Location: {fullAddress}</Text>
+                            <View>
+                                <Text className='text-base'>Location: {fullAddress || "Not available"}</Text>
                             </View>
-                            <Text style={{ marginVertical: 10, fontWeight: "bold" }}>Pin Location on Map</Text>
+                            <Text style={{ marginTop: 10, fontWeight: "bold" }}>Pin Location on Map</Text>
+                            <Text style={{ fontSize: 12, color: '#888', marginBottom: 5 }}>
+                                Tap on the map or drag the marker to set the property location.
+                            </Text>
                             <View>
                                 <MapView
                                     style={{ height: 150, borderRadius: 10 }}
-                                    region={region}
-                                    initialRegion={region}
-                                    onPress={handleMapPress}
+                                    region={{
+                                        latitude: region.latitude || 20.5937,
+                                        longitude: region.longitude || 78.9629,
+                                        latitudeDelta: region.latitudeDelta || 0.015,
+                                        longitudeDelta: region.longitudeDelta || 0.0121,
+                                    }}
+                                    moveOnMarkerPress={false}
+                                    onPress={async (e) => {
+                                        const { latitude, longitude } = e.nativeEvent.coordinate;
+                                        setCoordinates({ latitude, longitude });
+                                        setRegion((prevRegion) => ({
+                                            ...prevRegion,
+                                            latitude,
+                                            longitude,
+                                        }));
+                                        await updateFullAddress(latitude, longitude);
+                                    }}
                                 >
-                                    {region && <Marker coordinate={{ latitude: parseFloat(coordinates.latitude), longitude: parseFloat(coordinates.longitude) }} />}
+                                    {(coordinates.latitude && coordinates.longitude) && (
+                                        <Marker
+                                            coordinate={{
+                                                latitude: parseFloat(coordinates.latitude),
+                                                longitude: parseFloat(coordinates.longitude),
+                                            }}
+                                            draggable
+                                            onDragEnd={async (e) => {
+                                                const { latitude, longitude } = e.nativeEvent.coordinate;
+                                                setCoordinates({ latitude, longitude });
+                                                setRegion((prevRegion) => ({
+                                                    ...prevRegion,
+                                                    latitude,
+                                                    longitude,
+                                                }));
+                                                await updateFullAddress(latitude, longitude);
+                                            }}
+                                        />
+                                    )}
                                 </MapView>
-                                <Text>Latitude: {region.latitude}</Text>
-                                <Text>Longitude: {region.longitude}</Text>
+                                <View className='flex-col bg-primary-100 rounded-lg mt-2 p-2'>
+                                    <Text className='font-rubik-medium'>Latitude: {coordinates.latitude || "Not set"}</Text>
+                                    <Text className='font-rubik-medium'>Longitude: {coordinates.longitude || "Not set"}</Text>
+                                </View>
                             </View>
-
                         </View>
                     </ProgressStep>
 
-                    <ProgressStep label="Documents"
+                    <ProgressStep
+                        label="Documents"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                        onSubmit={handleSubmit}>
-
-                        {/* Select Status */}
+                        onSubmit={() => {
+                            console.log('ProgressSteps onSubmit triggered');
+                            handleSubmit();
+                        }}
+                    >
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Select Status</Text>
                             <View style={styles.pickerContainer}>
@@ -1214,8 +1186,6 @@ const Editproperty = () => {
                                 />
                             </View>
                         </View>
-
-                        {/* Upload Gallery */}
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Property Gallery</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
@@ -1227,7 +1197,7 @@ const Editproperty = () => {
                                     renderItem={({ item, index }) => (
                                         <View style={styles.thumbnailBox} className="border border-gray-300">
                                             <Image source={{ uri: item }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik-bold">Image: {index + 1}</Text>
+                                            <Text className="text-center font-rubik">Image: {index + 1}</Text>
                                             <TouchableOpacity
                                                 onPress={() => removeGalleryImage(index, item)}
                                                 style={styles.deleteButton}>
@@ -1238,11 +1208,10 @@ const Editproperty = () => {
                                 />
                             </View>
                             <TouchableOpacity onPress={pickGalleryImages} style={styles.dropbox}>
-                                <Text style={{ textAlign: 'center' }}>Pick images from gallery</Text>
+                                <Ionicons name="images-outline" size={24} color="#234F68" style={styles.inputIcon} />
+                                <Text style={{ textAlign: 'center' }}>Pick property images</Text>
                             </TouchableOpacity>
                         </View>
-
-                        {/* Upload Video */}
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Upload Videos</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
@@ -1254,24 +1223,22 @@ const Editproperty = () => {
                                     renderItem={({ item, index }) => (
                                         <View style={styles.thumbnailBox} className="border border-gray-300">
                                             <Image source={{ uri: `${item.thumbnailImages}?update=${new Date().getTime()}` }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik-bold">Video {index + 1}</Text>
+                                            <Text className="text-center font-rubik">Video {index + 1}</Text>
                                             <TouchableOpacity
                                                 onPress={() => removeVideo(index, item.uri)}
                                                 style={styles.deleteButton}
                                             >
                                                 <Text className="text-white">X</Text>
                                             </TouchableOpacity>
-
                                         </View>
                                     )}
                                 />
                             </View>
                             <TouchableOpacity onPress={pickVideo} style={styles.dropbox}>
-                                <Text style={{ textAlign: 'center' }}>Pick videos from gallery</Text>
+                                <FontAwesome name="file-video-o" size={24} color="#234F68" style={styles.inputIcon} />
+                                <Text style={{ textAlign: 'center' }}>Pick property videos</Text>
                             </TouchableOpacity>
                         </View>
-
-                        {/* Upload Property Documents */}
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Upload Property Documents</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
@@ -1283,23 +1250,21 @@ const Editproperty = () => {
                                     renderItem={({ item, index }) => (
                                         <View style={styles.thumbnailBox} className="border border-gray-300">
                                             <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik-bold">Doc {index + 1}</Text>
+                                            <Text className="text-center font-rubik">Doc {index + 1}</Text>
                                             <TouchableOpacity
-                                                onPress={() => removeDocument(index, item.uri)}  // Pass the correct URI
+                                                onPress={() => removeDocument(index, item.uri)}
                                                 style={styles.deleteButton}>
                                                 <Text className="text-white">X</Text>
                                             </TouchableOpacity>
-
                                         </View>
                                     )}
                                 />
                             </View>
                             <TouchableOpacity onPress={pickDocument} style={styles.dropbox}>
-                                <Text style={{ textAlign: 'center' }}>Pick Doc from gallery</Text>
+                                <FontAwesome name="file-pdf-o" size={24} color="#234F68" style={styles.inputIcon} />
+                                <Text style={{ textAlign: 'center' }}>Pick property documents</Text>
                             </TouchableOpacity>
                         </View>
-
-                        {/* Upload Master Plan */}
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Upload Master Plan of Property</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
@@ -1311,23 +1276,22 @@ const Editproperty = () => {
                                     renderItem={({ item, index }) => (
                                         <View style={styles.thumbnailBox} className="border border-gray-300">
                                             <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik-bold">Plan {index + 1}</Text>
+                                            <Text className="text-center font-rubik">Plan {index + 1}</Text>
                                             <TouchableOpacity
-                                                onPress={() => removeMasterPlan(index, item.uri)}  // Pass the correct URI
+                                                onPress={() => removeMasterPlan(index, item.uri)}
                                                 style={styles.deleteButton}>
                                                 <Text className="text-white">X</Text>
                                             </TouchableOpacity>
-
                                         </View>
                                     )}
                                 />
                             </View>
                             <TouchableOpacity onPress={pickMasterPlan} style={styles.dropbox}>
-                                <Text style={{ textAlign: 'center' }}>Pick Master Plan from gallery</Text>
+                                <MaterialCommunityIcons name="floor-plan" size={24} color="#234F68" style={styles.inputIcon} />
+                                <Text style={{ textAlign: 'center' }}>Pick property Floor Plan</Text>
                             </TouchableOpacity>
                         </View>
                     </ProgressStep>
-
                 </ProgressSteps>
             </View>
             {loading && (
@@ -1335,21 +1299,124 @@ const Editproperty = () => {
                     <ActivityIndicator />
                 </View>
             )}
+
+            {/* Success RBSheet */}
+            <RBSheet
+                ref={successSheetRef}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                customStyles={{
+                    container: {
+                        backgroundColor: '#e6ffe6',
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        padding: 20,
+                    },
+                }}
+                height={200}
+                openDuration={250}
+            >
+                <View style={{ alignItems: 'center' }}>
+                    <Ionicons name="checkmark-circle" size={50} color="#28a745" />
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#28a745', marginTop: 10 }}>
+                        Success
+                    </Text>
+                    <Text style={{ fontSize: 16, textAlign: 'center', marginTop: 10 }}>
+                        Property updated successfully!
+                    </Text>
+                    <TouchableOpacity
+                        style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 10, marginTop: 20 }}
+                        onPress={() => {
+                            console.log('Closing success sheet');
+                            setSuccessVisible(false);
+                            if (successSheetRef.current) successSheetRef.current.close();
+                            // Optionally navigate: router.push('/some-route');
+                        }}
+                    >
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
+                    </TouchableOpacity>
+                </View>
+            </RBSheet>
+
+            {/* Error RBSheet */}
+            <RBSheet
+                ref={errorSheetRef}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                customStyles={{
+                    container: {
+                        backgroundColor: '#ffebee',
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        padding: 20,
+                    },
+                }}
+                height={errorField ? 300 : 200}
+                openDuration={250}
+            >
+                <View style={{ alignItems: 'center' }}>
+                    <Ionicons name="close-circle" size={50} color="#dc3545" />
+                    <Image source={icons.alertDanger} style={{ width: 20, height: 20 }} />
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#dc3545', marginTop: 10 }}>
+                        Error
+                    </Text>
+                    <Text style={{ fontSize: 16, textAlign: 'center', marginTop: 10 }}>
+                        {errorField && typeof errorField === 'string' && !errorField.includes('Failed')
+                            ? `Please fill the ${errorField} field.`
+                            : errorField || 'An error occurred. Please try again.'}
+                    </Text>
+                    {/* {errorField && typeof errorField === 'string' && !errorField.includes('Failed') && (
+                        <View style={[styles.inputContainer, { marginTop: 10, backgroundColor: '#fff' }]}>
+                            <TextInput
+                                style={styles.input}
+                                placeholder={`Enter ${errorField}`}
+                                value={step1Data[errorField.toLowerCase().replace(' ', '_')] ||
+                                    step2Data[errorField.toLowerCase().replace(' ', '_')] ||
+                                    step3Data[errorField.toLowerCase().replace(' ', '_')] || ''}
+                                onChangeText={text => {
+                                    if (step1Data.hasOwnProperty(errorField.toLowerCase().replace(' ', '_'))) {
+                                        setStep1Data({ ...step1Data, [errorField.toLowerCase().replace(' ', '_')]: text });
+                                    } else if (step2Data.hasOwnProperty(errorField.toLowerCase().replace(' ', '_'))) {
+                                        setStep2Data({ ...step2Data, [errorField.toLowerCase().replace(' ', '_')]: text });
+                                    } else if (step3Data.hasOwnProperty(errorField.toLowerCase().replace(' ', '_'))) {
+                                        setStep3Data({ ...step3Data, [errorField.toLowerCase().replace(' ', '_')]: text });
+                                    }
+                                    setErrorVisible(false);
+                                    if (errorSheetRef.current) errorSheetRef.current.close();
+                                }}
+                            />
+                        </View>
+                    )} */}
+                    <TouchableOpacity
+                        style={{ backgroundColor: '#dc3545', padding: 10, borderRadius: 10, marginTop: 10 }}
+                        onPress={() => {
+                            console.log('Closing error sheet');
+                            setErrorVisible(false);
+                            if (errorSheetRef.current) errorSheetRef.current.close();
+                        }}
+                    >
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
+                    </TouchableOpacity>
+                </View>
+            </RBSheet>
         </SafeAreaView>
-    )
-}
+    );
+};
 
-export default Editproperty
+export default Editproperty;
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 0,
-        paddingBottom: 0,
         backgroundColor: '#fff',
     },
     stepContent: {
-        paddingBottom: 20,
+        borderWidth: 1,
+        borderRadius: 20,
+        borderColor: '#f4f2f7',
+        padding: 10,
+        marginBottom: 10,
     },
     fileContainer: {
         padding: 5,
@@ -1384,9 +1451,7 @@ const styles = StyleSheet.create({
         marginBlock: 10,
         padding: 10,
     },
-    inputIcon: {
-        // marginLeft: 10,
-    },
+    inputIcon: { marginEnd: 10 },
     input: {
         flex: 1,
         height: 45,
@@ -1395,8 +1460,8 @@ const styles = StyleSheet.create({
         color: '#000',
     },
     amenityItem: {
-        flexDirection: 'row',  // Ensure row layout
-        alignItems: 'center',  // Align items properly
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 50,
@@ -1406,15 +1471,12 @@ const styles = StyleSheet.create({
         borderColor: 'green',
         borderWidth: 1,
     },
-
-
     removeBtn: {
         color: 'red',
         fontWeight: 'bold',
         fontSize: 12,
         marginEnd: 5,
         marginTop: 0,
-
     },
     addBtn: {
         width: 40,
@@ -1425,11 +1487,7 @@ const styles = StyleSheet.create({
     mapTextInput: {
         width: '100%',
         height: 50,
-        borderColor: "#f3f4f6",
-        borderWidth: 1,
         backgroundColor: "#f3f4f6",
-        borderRadius: 10,
-        paddingHorizontal: 10,
     },
     editor: {
         flex: 1,
@@ -1440,20 +1498,20 @@ const styles = StyleSheet.create({
         marginVertical: 5,
         backgroundColor: 'white',
     },
-
     textarea: {
-        textAlignVertical: 'top',  // hack android
+        textAlignVertical: 'top',
         height: 110,
         fontSize: 14,
-        marginTop: 20,
+        marginTop: 10,
+        paddingTop: 10,
         borderRadius: 15,
         color: '#000',
         padding: 15,
         backgroundColor: '#f3f4f6',
     },
     image: {
-        width: 100,
-        height: 100,
+        width: 75,
+        height: 75,
         borderRadius: 10,
     },
     thumbnail: {
@@ -1472,10 +1530,10 @@ const styles = StyleSheet.create({
         padding: 5,
         borderStyle: 'dashed',
         borderWidth: 2,
-        borderColor: '#f3f4f6',
+        borderColor: '#234F68',
         backgroundColor: '#f3f4f6',
         borderRadius: 10,
-        marginTop: 10,
+        marginTop: 5,
         marginRight: 10,
         justifyContent: 'center',
         flexDirection: 'row',
@@ -1488,17 +1546,33 @@ const styles = StyleSheet.create({
         marginTop: 10
     },
     addButton: {
-        backgroundColor: '#234F68', padding: 10, marginTop: 10, borderRadius: 5
+        backgroundColor: '#234F68',
+        padding: 10,
+        marginTop: 10,
+        borderRadius: 5
     },
-    addButtonText: { color: 'white', textAlign: 'center', fontWeight: 'bold' },
-    tableRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 10 },
-    tableCell: { flex: 1, textAlign: 'center', borderEnd: 1, borderColor: '#c7c7c7', fontWeight: 600, },
+    addButtonText: {
+        color: 'white',
+        textAlign: 'center',
+        fontWeight: 'bold'
+    },
+    tableRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        padding: 10
+    },
+    tableCell: {
+        flex: 1,
+        textAlign: 'center',
+        borderEnd: 1,
+        borderColor: '#c7c7c7',
+        fontWeight: 600,
+    },
     pickerContainer: {
-        borderRadius: 10, // Apply borderRadius here
+        borderRadius: 10,
         overflow: 'hidden',
         backgroundColor: '#f3f4f6',
         marginTop: 10,
-        // marginBottom: 20,
     },
     categoryContainer: {
         flexDirection: 'row',
@@ -1529,6 +1603,7 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
 });
+
 const pickerSelectStyles = StyleSheet.create({
     inputIOS: {
         fontSize: 16,

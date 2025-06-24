@@ -52,6 +52,7 @@ const PropertyDetails = () => {
         longitudeDelta: 0.0121,
     });
     const navigation = useNavigation();
+    const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
 
     const toastConfig = {
         success: (props) => (
@@ -548,11 +549,11 @@ const PropertyDetails = () => {
                             </View>
                         </View>
                     )}
-                    <View className="mt-4">
+                    {/* <View className="mt-4">
                         <View className="">
                             <MortgageCalculator />
                         </View>
-                    </View>
+                    </View> */}
                 </View>
             </ScrollView>
             {/* Lightbox Modal */}
@@ -609,12 +610,19 @@ const PropertyDetails = () => {
                             {formatINR(propertyData.price)}
                         </Text>
                     </View>
-                    <TouchableOpacity
-                        onPress={() => rbSheetRef.current.open()}
-                        className="flex-1 flex flex-row items-center justify-center bg-primary-400 py-5 rounded-2xl shadow-md shadow-zinc-400"
-                    >
-                        <Text className="text-white text-lg text-center font-rubik-bold">Bid Now</Text>
-                    </TouchableOpacity>
+
+                    {propertyData.roleid == loggedinUserId ? (
+                        <TouchableOpacity className="flex-1 flex-row items-center justify-center bg-primary-300 py-5 rounded-2xl shadow-md shadow-zinc-400" onPress={() => handleEditPress(propertyData.id)}>
+                            <Text className="text-white text-lg text-center font-rubik-bold">Edit Property</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            onPress={() => rbSheetRef.current.open()}
+                            className="flex-1 flex-row items-center justify-center bg-primary-400 py-5 rounded-2xl shadow-md shadow-zinc-400"
+                        >
+                            <Text className="text-white text-lg text-center font-rubik-bold">Bid Now</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
             {/* RBSheet for Bidding */}
@@ -664,6 +672,7 @@ const PropertyDetails = () => {
                             <ActivityIndicator color="white" />
                         ) : (
                             <Text className="text-white text-lg text-center font-rubik-bold">Submit Bid</Text>
+
                         )}
                     </TouchableOpacity>
                 </View>
