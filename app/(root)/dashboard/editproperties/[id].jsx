@@ -73,6 +73,7 @@ const Editproperty = () => {
         borderRadius: 25,
         backgroundColor: '#8bc83f',
         color: 'white',
+        marginStart: 50,
     };
     const categories = [
         { label: 'Apartment', value: 'Apartment' },
@@ -484,7 +485,7 @@ const Editproperty = () => {
                 },
             });
 
-            console.log('API response:', response.data);
+            // console.log('API response:', response.data);
             if (response.status === 200 && !response.data.error) {
                 console.log('Setting successVisible to true');
                 setSuccessVisible(true);
@@ -669,16 +670,16 @@ const Editproperty = () => {
     };
 
     // Lifecycle and navigation debugging
-    useEffect(() => {
-        console.log('Editproperty component mounted');
-        console.log('Success RBSheet mounted, ref:', successSheetRef.current);
-        console.log('Error RBSheet mounted, ref:', errorSheetRef.current);
-        return () => {
-            console.log('Editproperty component unmounted');
-            console.log('Success RBSheet unmounted');
-            console.log('Error RBSheet unmounted');
-        };
-    }, []);
+    // useEffect(() => {
+    //     console.log('Editproperty component mounted');
+    //     console.log('Success RBSheet mounted, ref:', successSheetRef.current);
+    //     console.log('Error RBSheet mounted, ref:', errorSheetRef.current);
+    //     return () => {
+    //         console.log('Editproperty component unmounted');
+    //         console.log('Success RBSheet unmounted');
+    //         console.log('Error RBSheet unmounted');
+    //     };
+    // }, []);
 
     // Navigation state listener
     useEffect(() => {
@@ -691,7 +692,7 @@ const Editproperty = () => {
     // Open RBSheet when state changes
     useEffect(() => {
         if (successVisible && successSheetRef.current) {
-            console.log('Opening success sheet via useEffect, ref:', successSheetRef.current);
+            // console.log('Opening success sheet via useEffect, ref:', successSheetRef.current);
             successSheetRef.current.open();
         } else if (successVisible) {
             console.log('Success sheet ref is null when trying to open via useEffect');
@@ -733,9 +734,9 @@ const Editproperty = () => {
     };
 
     return (
-        <SafeAreaView style={{ backgroundColor: 'white', height: '100%', paddingHorizontal: 20 }}>
+        <View style={{ backgroundColor: 'white', height: '100%', paddingHorizontal: 20 }}>
             {/* Test button for debugging */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
                 style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 10, marginTop: 20 }}
                 onPress={() => {
                     console.log('Test opening success sheet, ref:', successSheetRef.current);
@@ -747,10 +748,10 @@ const Editproperty = () => {
                 }}
             >
                 <Text style={{ color: 'white', fontWeight: 'bold' }}>Test Success Sheet</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 16, marginRight: 10, textAlign: 'center', fontFamily: 'Rubik-Medium', color: '#234F68' }}>
+                <Text style={{ fontSize: 18, marginRight: 10, textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#234F68' }}>
                     Edit Property
                 </Text>
                 <TouchableOpacity
@@ -795,8 +796,8 @@ const Editproperty = () => {
                     <ProgressStep
                         label="General"
                         nextBtnTextStyle={buttonNextTextStyle}
-                        onNext={() => onNextStep(1)}
-                        errors={errors}
+                        // onNext={() => onNextStep(1)}
+                        // errors={errors}
                     >
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Property Title</Text>
@@ -870,8 +871,8 @@ const Editproperty = () => {
                         label="Price"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                        onNext={() => onNextStep(2)}
-                        errors={errors}
+                        // onNext={() => onNextStep(2)}
+                        // errors={errors}
                     >
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Approx Rental Income</Text>
@@ -1307,17 +1308,18 @@ const Editproperty = () => {
                 closeOnPressMask={true}
                 customStyles={{
                     container: {
-                        backgroundColor: '#e6ffe6',
+                        backgroundColor: '#f4f2f7',
                         borderTopLeftRadius: 20,
                         borderTopRightRadius: 20,
                         padding: 20,
                     },
                 }}
-                height={200}
+                height={300}
                 openDuration={250}
             >
                 <View style={{ alignItems: 'center' }}>
-                    <Ionicons name="checkmark-circle" size={50} color="#28a745" />
+                    {/* <Ionicons name="checkmark-circle" size={50} color="#28a745" /> */}
+                    <Image source={icons.alertSuccess} style={{ width: 100, height: 100 }} />
                     <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#28a745', marginTop: 10 }}>
                         Success
                     </Text>
@@ -1327,7 +1329,7 @@ const Editproperty = () => {
                     <TouchableOpacity
                         style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 10, marginTop: 20 }}
                         onPress={() => {
-                            console.log('Closing success sheet');
+                            // console.log('Closing success sheet');
                             setSuccessVisible(false);
                             if (successSheetRef.current) successSheetRef.current.close();
                             // Optionally navigate: router.push('/some-route');
@@ -1345,7 +1347,7 @@ const Editproperty = () => {
                 closeOnPressMask={true}
                 customStyles={{
                     container: {
-                        backgroundColor: '#ffebee',
+                        backgroundColor: '#f4f2f7',
                         borderTopLeftRadius: 20,
                         borderTopRightRadius: 20,
                         padding: 20,
@@ -1355,8 +1357,8 @@ const Editproperty = () => {
                 openDuration={250}
             >
                 <View style={{ alignItems: 'center' }}>
-                    <Ionicons name="close-circle" size={50} color="#dc3545" />
-                    <Image source={icons.alertDanger} style={{ width: 20, height: 20 }} />
+                    {/* <Ionicons name="close-circle" size={50} color="#dc3545" /> */}
+                    <Image source={icons.alertDanger} style={{ width: 100, height: 100 }} />
                     <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#dc3545', marginTop: 10 }}>
                         Error
                     </Text>
@@ -1365,32 +1367,11 @@ const Editproperty = () => {
                             ? `Please fill the ${errorField} field.`
                             : errorField || 'An error occurred. Please try again.'}
                     </Text>
-                    {/* {errorField && typeof errorField === 'string' && !errorField.includes('Failed') && (
-                        <View style={[styles.inputContainer, { marginTop: 10, backgroundColor: '#fff' }]}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder={`Enter ${errorField}`}
-                                value={step1Data[errorField.toLowerCase().replace(' ', '_')] ||
-                                    step2Data[errorField.toLowerCase().replace(' ', '_')] ||
-                                    step3Data[errorField.toLowerCase().replace(' ', '_')] || ''}
-                                onChangeText={text => {
-                                    if (step1Data.hasOwnProperty(errorField.toLowerCase().replace(' ', '_'))) {
-                                        setStep1Data({ ...step1Data, [errorField.toLowerCase().replace(' ', '_')]: text });
-                                    } else if (step2Data.hasOwnProperty(errorField.toLowerCase().replace(' ', '_'))) {
-                                        setStep2Data({ ...step2Data, [errorField.toLowerCase().replace(' ', '_')]: text });
-                                    } else if (step3Data.hasOwnProperty(errorField.toLowerCase().replace(' ', '_'))) {
-                                        setStep3Data({ ...step3Data, [errorField.toLowerCase().replace(' ', '_')]: text });
-                                    }
-                                    setErrorVisible(false);
-                                    if (errorSheetRef.current) errorSheetRef.current.close();
-                                }}
-                            />
-                        </View>
-                    )} */}
+                    
                     <TouchableOpacity
                         style={{ backgroundColor: '#dc3545', padding: 10, borderRadius: 10, marginTop: 10 }}
                         onPress={() => {
-                            console.log('Closing error sheet');
+                            // console.log('Closing error sheet');
                             setErrorVisible(false);
                             if (errorSheetRef.current) errorSheetRef.current.close();
                         }}
@@ -1399,7 +1380,7 @@ const Editproperty = () => {
                     </TouchableOpacity>
                 </View>
             </RBSheet>
-        </SafeAreaView>
+        </View>
     );
 };
 

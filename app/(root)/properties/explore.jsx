@@ -1,13 +1,16 @@
-import { View, Text, Image, TouchableOpacity, FlatList } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Image, FlatList, Dimensions } from 'react-native';
 import { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import axios from 'axios';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import icons from '@/constants/icons';
 import Search from '@/components/Search';
 import Filters from '@/components/Filters';
 import { Card } from '@/components/Cards';
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+
+// Get screen width for dynamic card sizing
+const PADDING_HORIZONTAL = scale(15);
+const GAP = scale(10);
 
 const Explore = () => {
   const [listingData, setListingData] = useState([]);
@@ -33,7 +36,7 @@ const Explore = () => {
       if (params.sqftto) queryParams.append("sqftto", params.sqftto);
 
       const apiUrl = `https://investorlands.com/api/filterlistings?${queryParams.toString()}`;
-      console.log("Sending API request to:", apiUrl);
+      // console.log("Sending API request to:", apiUrl);
 
       const response = await axios({
         method: "post",
@@ -59,62 +62,142 @@ const Explore = () => {
   }, []);
 
   const renderEmptyComponent = () => (
-    <View className="flex-1 justify-center items-center mt-20">
-      <Image source={icons.noResultFound} className='size-40' />
-
-      <Text className="text-2xl font-rubik-bold text-black-300 text-center">
-        Search <Text className='text-primary-300'>not found</Text>
+    <View style={styles.emptyContainer}>
+      <Image source={icons.noResultFound} style={styles.emptyImage} />
+      <Text style={styles.emptyTitle}>
+        Search <Text style={styles.emptyHighlight}>not found</Text>
       </Text>
-      <Text className="text-base font-rubik text-black-100 text-center mt-2">
+      <Text style={styles.emptySubtitle}>
         Sorry, we can't find the real estate you're looking for.
       </Text>
-      <Text className="text-base font-rubik text-black-100 text-center mt-2">
+      <Text style={styles.emptySubtitle}>
         Maybe a little spelling mistake?
       </Text>
     </View>
   );
 
   return (
-    <SafeAreaView className="bg-white h-full">
+    <View style={styles.container}>
       <FlatList
         data={listingData}
         renderItem={({ item }) => <Card item={item} onPress={() => handleCardPress(item.id)} />}
         keyExtractor={(item) => item.id.toString()}
         numColumns={2}
-        contentContainerClassName="pb-32 px-5"
-        columnWrapperClassName="flex gap-5"
+        contentContainerStyle={styles.flatListContent}
+        columnWrapperStyle={styles.flatListColumnWrapper}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <View className="">
-            <View className="flex-row items-center ml-2 justify-between">
+          <View style={styles.header}>
+            <View style={styles.headerRow}>
               <TouchableOpacity
                 onPress={() => router.navigate('/')}
-                className="flex flex-row bg-primary-200 rounded-full size-11 items-center justify-center"
+                style={styles.backButton}
               >
-                <Image source={icons.backArrow} className="size-5" />
+                <Image source={icons.backArrow} style={styles.backIcon} />
               </TouchableOpacity>
-              <Text className="text-base mr-2 text-center font-rubik-medium text-black-300">
-                Search results
-              </Text>
+              <Text style={styles.headerTitle}>Search results</Text>
               <TouchableOpacity onPress={() => router.push('/notifications')}>
-                <Image source={icons.bell} className="size-6" />
+                <Image source={icons.bell} style={styles.bellIcon} />
               </TouchableOpacity>
             </View>
-
             <Search />
             <Filters />
-
-            <View className="my-5">
-              <Text className="text-xl font-rubik-bold text-black-300">
-                Found <Text className='text-primary-300'>{listingData.length}</Text> estates
+            <View style={styles.foundTextContainer}>
+              <Text style={styles.foundText}>
+                Found <Text style={styles.foundHighlight}>{listingData.length}</Text> estates
               </Text>
             </View>
           </View>
         }
         ListEmptyComponent={!loading && listingData.length === 0 ? renderEmptyComponent : null}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
 export default Explore;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    // padding: moderateScale(10),
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: verticalScale(10),
+  },
+  backButton: {
+    backgroundColor: '#E6F0FA',
+    borderRadius: 9999,
+    width: scale(44),
+    height: scale(44),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backIcon: {
+    width: scale(20),
+    height: scale(20),
+  },
+  headerTitle: {
+    fontSize: moderateScale(20),
+    fontFamily: 'Rubik-Bold',
+    color: '#234F68',
+    textAlign: 'center',
+    flex: 1,
+  },
+  bellIcon: {
+    width: scale(24),
+    height: scale(24),
+  },
+  foundTextContainer: {
+    marginTop: verticalScale(20),
+  },
+  foundText: {
+    fontSize: moderateScale(20),
+    fontFamily: 'Rubik-Bold',
+    color: '#4B5563',
+  },
+  foundHighlight: {
+    color: '#234F68',
+  },
+  flatListContent: {
+    paddingBottom: verticalScale(32),
+    paddingHorizontal: PADDING_HORIZONTAL,
+  },
+  flatListColumnWrapper: {
+    flexDirection: 'row',
+    gap: GAP,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: verticalScale(80),
+  },
+  emptyImage: {
+    width: scale(160),
+    height: scale(160),
+  },
+  emptyTitle: {
+    fontSize: moderateScale(24),
+    fontFamily: 'Rubik-Bold',
+    color: '#4B5563',
+    textAlign: 'center',
+    marginTop: verticalScale(10),
+  },
+  emptyHighlight: {
+    color: '#234F68',
+  },
+  emptySubtitle: {
+    fontSize: moderateScale(16),
+    fontFamily: 'Rubik-Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: verticalScale(5),
+  },
+});

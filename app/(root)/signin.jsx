@@ -10,12 +10,10 @@ import {
   TextInput,
   ImageBackground,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import images from '@/constants/images';
-import icons from '@/constants/icons';
 import * as WebBrowser from "expo-web-browser";
 import * as Google from 'expo-auth-session/providers/google';
 import * as Facebook from 'expo-auth-session/providers/facebook';
@@ -162,7 +160,7 @@ const Signin = () => {
   }, [facebookResponse]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Toast config={toastConfig} position="top" />
 
@@ -241,7 +239,7 @@ const Signin = () => {
             </Text>
           </Link>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,6 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator, ScrollView } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -127,7 +126,7 @@ const Notifications = () => {
     const refRBSheet = React.useRef();
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -161,6 +160,16 @@ const Notifications = () => {
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#234F68" />
+                </View>
+            ) : notificationData.length === 0 ? (
+                <View style={styles.noDataContainer}>
+
+                    <Image source={icons.alertDanger} style={styles.noDataIcon} />
+
+                    <Text style={styles.noDataTitle}>No Notification Yet</Text>
+                    <Text style={styles.noDataMessage}>
+                        You will receive all important notifications here meaning
+                    </Text>
                 </View>
             ) : (
                 <>
@@ -236,7 +245,7 @@ const Notifications = () => {
                     </>
                 )}
             </RBSheet>
-        </SafeAreaView>
+        </View>
     );
 };
 
@@ -250,10 +259,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginVertical: verticalScale(12),
+        marginBottom: verticalScale(12),
     },
     backButton: {
-        backgroundColor: '#E5E7EB',
+        backgroundColor: '#f4f2f7',
         borderRadius: moderateScale(20),
         width: moderateScale(40),
         height: moderateScale(40),
@@ -266,11 +275,11 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: moderateScale(18),
-        fontWeight: '600',
+        fontFamily: 'Rubik-Bold',
         color: '#234F68',
     },
     markAllButton: {
-        backgroundColor: '#E5E7EB',
+        backgroundColor: '#f4f2f7',
         borderRadius: moderateScale(20),
         paddingVertical: verticalScale(6),
         paddingHorizontal: scale(12),
@@ -286,7 +295,7 @@ const styles = StyleSheet.create({
     },
     filterButton: {
         flex: 1,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: '#f4f2f7',
         paddingVertical: verticalScale(8),
         borderRadius: moderateScale(20),
         alignItems: 'center',
@@ -313,15 +322,15 @@ const styles = StyleSheet.create({
     },
     card: {
         flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#f4f2f7',
         borderRadius: moderateScale(12),
         padding: moderateScale(12),
         marginBottom: verticalScale(8),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: moderateScale(3),
-        elevation: 2,
+        // shadowColor: '#000',
+        // shadowOffset: { width: 0, height: 1 },
+        // shadowOpacity: 0.1,
+        // shadowRadius: moderateScale(3),
+        // elevation: 2,
     },
     unreadCard: {
         borderWidth: 1,
@@ -407,6 +416,29 @@ const styles = StyleSheet.create({
         fontSize: moderateScale(14),
         color: '#FFFFFF',
         fontWeight: '500',
+    },
+    noDataContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: scale(20),
+    },
+    noDataIcon: {
+        width: scale(120),
+        height: scale(120),
+    },
+    noDataTitle: {
+        fontSize: moderateScale(18),
+        fontWeight: '600',
+        color: '#2D3748',
+        textAlign: 'center',
+        marginBottom: verticalScale(8),
+    },
+    noDataMessage: {
+        fontSize: moderateScale(14),
+        color: '#718096',
+        textAlign: 'center',
+        marginBottom: verticalScale(16),
     },
 });
 

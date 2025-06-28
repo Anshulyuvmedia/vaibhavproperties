@@ -96,7 +96,10 @@
       "GOOGLE_MAPS_API_KEY": "AIzaSyA_KLtDmYZB0Qy_b0f6LHJSlDV2wYYPf8s",
       "ANDROID_CLIENT_ID": "429638913170-5mhhuo7d8jcb3puni9ggephkqi601kab.apps.googleusercontent.com",
       "WEB_CLIENT_ID": "429638913170-oeb8ah87ve9hqgilbpnnvghburkd9f8h.apps.googleusercontent.com",
-      "IOS_CLIENT_ID": "429638913170-m3o3jo3tpf1gst47v76cmd0k7tq2qmp9.apps.googleusercontent.com"
+      "IOS_CLIENT_ID": "429638913170-m3o3jo3tpf1gst47v76cmd0k7tq2qmp9.apps.googleusercontent.com",
+      "eas": {
+        "projectId": "bcf8f9f4-049c-486c-8d90-b3e3cc8b6cf1"
+      }
     }
-    }
+  }
 }

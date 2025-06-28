@@ -1,9 +1,16 @@
-import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View, Image, Dimensions } from 'react-native'
 import React from 'react'
 import images from '@/constants/images'
 import icons from '@/constants/icons'
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 
+// Get screen width for dynamic card sizing
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const NUM_COLUMNS = 2;
+const PADDING_HORIZONTAL = scale(10);
+const GAP = scale(5);
+const CARD_WIDTH = (SCREEN_WIDTH - 3 * PADDING_HORIZONTAL - (NUM_COLUMNS - 1) * GAP) / NUM_COLUMNS;
 
 const FeaturedCard = ({ item, onPress, map }) => {
   return (
@@ -33,49 +40,57 @@ const FeaturedCard = ({ item, onPress, map }) => {
 export { FeaturedCard };
 
 const Card = ({ item, onPress }) => {
-  // Helper to format price in Indian Rupees with lakh/cr notation
   const formatINR = (amount) => {
     if (!amount) return '₹0';
     const num = Number(amount);
     if (num >= 1e7) {
       return '₹' + (num / 1e7).toFixed(2).replace(/\.00$/, '') + ' Cr';
     } else if (num >= 1e5) {
-      return '₹' + (num / 1e5).toFixed(2).replace(/\.00$/, '') + ' Lakh';
+      return '₹' + (num / 1e5).toFixed(1) + ' Lakh'; // Adjusted to 1 decimal
     }
     return '₹' + num.toLocaleString('en-IN');
   };
+
   return (
-    <TouchableOpacity onPress={onPress} className='flex-1/2 w-[180px] mt-4 p-3 rounded-[25px] bg-primary-100 relative'>
-      {/* Heart Icon with blurred background */}
-      <View className='flex flex-row items-center absolute p-2 top-5 right-5 bg-white/90 rounded-full z-50'>
+    <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
+      {/* Heart Icon */}
+      <View style={styles.heartContainer}>
         <TouchableOpacity>
-          {/* <Image source={icons.star} className='size-3.5' />
-        <Text className='text-xs font-rubik-bold text-yellow-800 ml-0.5'>4.4</Text> */}
-          <Image source={icons.heart} className='w-5 h-5' tintColor="#191d31" />
+          <Image
+            source={require('../assets/icons/heart.png')} // Update path
+            style={styles.heartIcon}
+          />
         </TouchableOpacity>
       </View>
-      {/* Price with blurred background */}
-      <View className='flex flex-row items-center absolute p-2  right-5 rounded-lg z-50' style={{ backgroundColor: 'rgba(35,79,104,0.9)', backdropFilter: 'blur(8px)', top: '110', }}>
-        <Text className="text-sm font-rubik text-white mt-1">
-          {formatINR(item.price || 290)}
-        </Text>
+
+      {/* Category Badge */}
+      <View style={styles.categoryBadge}>
+        <Text style={styles.categoryText}>{item.category}</Text>
       </View>
 
-      <Image source={{ uri: `https://investorlands.com/assets/images/Listings/${item.thumbnail}` }} className='w-full h-40 rounded-[15px]' />
+      {/* Thumbnail Image */}
+      <Image
+        source={{ uri: `https://investorlands.com/assets/images/Listings/${item.thumbnail}` }}
+        style={styles.thumbnail}
+      />
 
-      <View className='flex flex-col mt-3'>
-        <Text className='text-base font-rubik-bold text-black-300'>{item.property_name}</Text>
-        <View className='flex flex-row items-center justify-between '>
-          <Text className='text-base font-rubik text-primary-300'>{item.category}</Text>
-        </View>
-        <View className='flex-row items-end mt-2'>
-          <Ionicons name="location-outline" size={18} color="#234F68" style={styles.icon} />
-          <Text className='text-sm font-rubik text-black'>{item.city}, {item.address}</Text>
+      {/* Content */}
+      <View style={styles.content}>
+        <Text style={styles.propertyName} numberOfLines={1}>
+          {item.property_name}
+        </Text>
+        <Text style={styles.priceText}>{formatINR(item.price || 290)}</Text>
+        <View style={styles.locationRow}>
+          <Ionicons name="location-outline" size={moderateScale(16)} color="#234F68" />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {item.city}, {item.address}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
-  )
-}
+  );
+};
+
 
 export { Card };
 
@@ -158,6 +173,80 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
 export { HorizontalCard };
 
 const styles = StyleSheet.create({
+
+  cardContainer: {
+    width: CARD_WIDTH,
+    backgroundColor: '#f5f4f8',
+    borderRadius: moderateScale(20),
+    padding: moderateScale(5),
+    overflow: 'hidden',
+    marginBottom: verticalScale(15),
+    elevation: 2, // Android shadow
+    shadowColor: '#000', // iOS shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  heartContainer: {
+    position: 'absolute',
+    top: verticalScale(10),
+    right: scale(10),
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 9999,
+    padding: moderateScale(7),
+    zIndex: 50,
+  },
+  heartIcon: {
+    width: scale(15),
+    height: scale(15),
+    tintColor: '#191d31',
+  },
+  categoryBadge: {
+    position: 'absolute',
+    top: verticalScale(120),
+    right: scale(10),
+    backgroundColor: 'rgba(35, 79, 104, 0.9)',
+    borderRadius: moderateScale(8),
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateScale(2),
+    zIndex: 50,
+  },
+  categoryText: {
+    fontSize: moderateScale(12),
+    fontFamily: 'Rubik-Regular',
+    color: '#FFFFFF',
+  },
+  thumbnail: {
+    width: '100%',
+    height: verticalScale(140),
+    borderRadius: moderateScale(20),
+  },
+  content: {
+    padding: moderateScale(10),
+  },
+  propertyName: {
+    fontSize: moderateScale(14),
+    fontFamily: 'Rubik-Medium',
+    color: '#000000',
+    marginBottom: verticalScale(5),
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(5),
+  },
+  locationText: {
+    fontSize: moderateScale(12),
+    fontFamily: 'Rubik-Regular',
+    color: '#000000',
+    marginLeft: scale(5),
+  },
+  priceText: {
+    fontSize: moderateScale(14),
+    fontFamily: 'Rubik-Regular',
+    color: '#234F68',
+  },
+
   icon: {
     marginRight: 3,
   },

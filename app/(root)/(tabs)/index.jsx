@@ -1,20 +1,26 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
 import Search from '@/components/Search';
 import { Card, HorizontalCard } from '@/components/Cards';
 import Filters from '@/components/Filters';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 // import * as Location from 'expo-location';
 // import { useNavigation } from "expo-router"; 
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+
 import { useNavigation } from "@react-navigation/native";
 import HomeCarousel from '@/components/HomeCarousel';
 import LocationScroll from '@/components/LocationScroll';
 import AgentScroll from '@/components/AgentScroll';
+
+// Get screen width for dynamic card sizing
+const PADDING_HORIZONTAL = scale(15);
+const GAP = scale(10);
+
 
 const Index = () => {
     const handleCardPress = (id) => router.push(`/properties/${id}`);
@@ -130,17 +136,17 @@ const Index = () => {
 
     // console.log('Api listing data: ',listingData);
     return (
-        <SafeAreaView className='bg-white h-full'>
+        <View className='bg-white h-full'>
             <FlatList
                 data={listingData?.data || []}
                 renderItem={({ item }) => <Card item={item} onPress={() => handleCardPress(item.id)} />}
                 keyExtractor={(item) => item.id.toString()}
                 numColumns={2}
-                contentContainerClassName="pb-32"
-                columnWrapperClassName='flex gap-5 px-5'
+                contentContainerStyle={styles.flatListContent}
+                columnWrapperStyle={styles.flatListColumnWrapper}
                 showsVerticalScrollIndicator={false}
                 ListHeaderComponent={
-                    <View className='px-5'>
+                    <View className=''>
                         <View className='flex-row items-center justify-between mt-5'>
                             <View className='flex flex-col items-start ml-2 justify-center'>
                                 <Text className='text-2xl '>
@@ -163,7 +169,7 @@ const Index = () => {
 
                         <Search />
                         <View className='my-3'>
-                        <Filters />
+                            <Filters />
                         </View>
                         <HomeCarousel />
 
@@ -195,7 +201,7 @@ const Index = () => {
                             </View>
                             <LocationScroll />
                         </View>
-                        
+
                         <AgentScroll />
 
 
@@ -212,15 +218,21 @@ const Index = () => {
                     </View>
                 }
             />
-        </SafeAreaView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+    },
+    flatListContent: {
+        paddingBottom: verticalScale(100),
+        paddingHorizontal: PADDING_HORIZONTAL,
+    },
+    flatListColumnWrapper: {
+        flexDirection: 'row',
+        gap: GAP,
     },
 });
 

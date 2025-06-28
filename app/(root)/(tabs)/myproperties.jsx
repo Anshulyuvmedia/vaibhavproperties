@@ -1,12 +1,10 @@
 import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import icons from '@/constants/icons';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Helper to format price in Indian Rupees
 const formatINR = (amount) => {
@@ -69,8 +67,8 @@ const Myproperties = () => {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -144,8 +142,8 @@ const Myproperties = () => {
             />
           )}
         </View>
-      </SafeAreaView>
-    </GestureHandlerRootView>
+      </View>
+    </View>
   );
 };
 
@@ -177,8 +175,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: moderateScale(18),
-    fontWeight: '600',
-    color: '#2D3748',
+    fontFamily: 'Rubik-Bold',
+    color: '#234F68',
   },
   bellIcon: {
     width: moderateScale(24),

@@ -1,6 +1,5 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View, TextInput, FlatList, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import icons from '@/constants/icons';
 import { ProgressSteps, ProgressStep } from 'react-native-progress-steps';
 import * as ImagePicker from 'expo-image-picker';
@@ -650,11 +649,11 @@ const Addproperty = () => {
     };
 
     return (
-        <SafeAreaView style={{ backgroundColor: 'white', height: '100%', paddingHorizontal: 20 }}>
+        <View style={{ backgroundColor: 'white', height: '100%', paddingHorizontal: 20 }}>
 
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 18, marginRight: 10, textAlign: 'center', fontFamily: 'Rubik-Medium', color: '#234F68' }}>
+                <Text style={{ fontSize: 18, marginRight: 10, textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#234F68' }}>
                     Add New Property
                 </Text>
                 <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', backgroundColor: '#f4f2f7', borderRadius: 50, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
@@ -1197,7 +1196,7 @@ const Addproperty = () => {
                     <ActivityIndicator />
                 </View>
             )}
-        </SafeAreaView>
+        </View>
     )
 }
 

@@ -1,6 +1,5 @@
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, ImageBackground, Alert } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import { Link } from 'expo-router';
 import Constants from "expo-constants";
@@ -163,7 +162,7 @@ const Signup = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ImageBackground
         source={images.loginbanner}
         style={styles.backgroundImage}
@@ -277,7 +276,7 @@ const Signup = () => {
           Already have an account? <Text style={styles.loginHighlight}>Login now!</Text>
         </Text>
       </Link>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View, SafeAreaView, Image, TouchableOpacity, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ActivityIndicator, Platform } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
@@ -224,7 +224,7 @@ const EditProfile = () => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Image source={icons.backArrow} style={styles.backIcon} resizeMode="contain" />
@@ -342,7 +342,7 @@ const EditProfile = () => {
                     </Text>
                 </TouchableOpacity>
             </View>
-        </SafeAreaView>
+        </View>
     );
 };
 

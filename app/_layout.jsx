@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import './globals.css';
 import Toast from 'react-native-toast-message';
-import { View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
     const [fontsLoaded] = useFonts({
@@ -63,9 +65,12 @@ export default function RootLayout() {
     if (!appIsReady) return null;
 
     return (
-        <View style={{ flex: 1 }}>
-            <Stack screenOptions={{ headerShown: false }} />
-            <Toast />
-        </View>
+        <GestureHandlerRootView>
+            <SafeAreaView style={{ flex: 1 }}>
+                <StatusBar style="dark" />
+                <Stack screenOptions={{ headerShown: false }} />
+                <Toast />
+            </SafeAreaView>
+        </GestureHandlerRootView>
     );
 }
