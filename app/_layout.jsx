@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import './globals.css';
 import Toast from 'react-native-toast-message';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
@@ -54,7 +54,7 @@ export default function RootLayout() {
         if (appIsReady && isAuthenticated !== null) {
             requestAnimationFrame(() => {
                 if (isAuthenticated) {
-                    router.replace("/");
+                    router.replace("/mapview"); // Navigate to mapview instead of "/"
                 } else {
                     router.replace("/signin");
                 }

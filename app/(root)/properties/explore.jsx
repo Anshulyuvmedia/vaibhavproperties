@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity, View, Text, Image, FlatList, Dimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Image, FlatList, Dimensions, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import axios from 'axios';
@@ -7,6 +7,7 @@ import Search from '@/components/Search';
 import Filters from '@/components/Filters';
 import { Card } from '@/components/Cards';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 // Get screen width for dynamic card sizing
 const PADDING_HORIZONTAL = scale(15);
@@ -36,8 +37,6 @@ const Explore = () => {
       if (params.sqftto) queryParams.append("sqftto", params.sqftto);
 
       const apiUrl = `https://investorlands.com/api/filterlistings?${queryParams.toString()}`;
-      // console.log("Sending API request to:", apiUrl);
-
       const response = await axios({
         method: "post",
         url: apiUrl,
@@ -61,6 +60,25 @@ const Explore = () => {
     fetchFilterData();
   }, []);
 
+  const clearFilter = (filterKey) => {
+    const updatedParams = { ...params };
+    // Map display labels to param keys
+    const keyMap = {
+      city: 'city',
+      type: 'propertyType',
+      price: ['minPrice', 'maxPrice'], // Clear both min and max for price
+      size: ['sqftfrom', 'sqftto'],   // Clear both min and max for size
+    };
+
+    if (Array.isArray(keyMap[filterKey])) {
+      keyMap[filterKey].forEach((key) => delete updatedParams[key]);
+    } else {
+      delete updatedParams[keyMap[filterKey]];
+    }
+
+    router.replace({ pathname: "/properties/explore", params: updatedParams });
+  };
+
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
       <Image source={icons.noResultFound} style={styles.emptyImage} />
@@ -75,6 +93,49 @@ const Explore = () => {
       </Text>
     </View>
   );
+
+  const renderFilterChips = () => {
+    const filters = [];
+    if (params.city) filters.push(`City: ${params.city}`);
+    if (params.propertyType) filters.push(`Type: ${params.propertyType}`);
+    if (params.minPrice || params.maxPrice) {
+      filters.push(`Price: ${params.minPrice || 'Any'} - ${params.maxPrice || 'Any'}`);
+    }
+    if (params.sqftfrom || params.sqftto) {
+      filters.push(`Size: ${params.sqftfrom || 'Any'} - ${params.sqftto || 'Any'} sqft`);
+    }
+
+    return filters.length > 0 ? (
+      <View className='flex-row justify-between items-center'>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterChipsContainer}
+        >
+          {filters.map((filter, index) => (
+            <View key={index} style={styles.filterChip}>
+              <Text style={styles.filterChipText}>{filter}</Text>
+              <TouchableOpacity
+                onPress={() => clearFilter(filter.split(":")[0].toLowerCase().trim())}
+                style={styles.clearButton}
+              >
+                <Ionicons name="close-circle" size={16} color="#234F68" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+
+        {filters.length > 0 && (
+          <TouchableOpacity
+            onPress={() => router.replace({ pathname: "/properties/explore", params: {} })}
+            style={styles.clearAllButton}
+          >
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    ) : null;
+  };
 
   return (
     <View style={styles.container}>
@@ -101,6 +162,9 @@ const Explore = () => {
               </TouchableOpacity>
             </View>
             <Search />
+
+            {renderFilterChips()}
+
             <Filters />
             <View style={styles.foundTextContainer}>
               <Text style={styles.foundText}>
@@ -199,5 +263,38 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     marginTop: verticalScale(5),
+  },
+  filterChipsContainer: {
+    marginTop: verticalScale(10),
+    marginBottom: verticalScale(10),
+    // paddingHorizontal: PADDING_HORIZONTAL,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E6F0FA',
+    borderRadius: 20,
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(6),
+    marginRight: scale(8),
+  },
+  filterChipText: {
+    fontSize: moderateScale(12),
+    fontFamily: 'Rubik-Regular',
+    color: '#234F68',
+    marginRight: scale(4),
+  },
+  clearButton: {
+    padding: scale(2),
+  },
+  clearAllButton: {
+    marginRight: PADDING_HORIZONTAL,
+    marginBottom: verticalScale(5),
+  },
+  clearAllText: {
+    fontSize: moderateScale(14),
+    fontFamily: 'Rubik-Medium',
+    color: '#234F68',
+    textAlign: 'right',
   },
 });

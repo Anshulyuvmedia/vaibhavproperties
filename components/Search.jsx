@@ -1,6 +1,6 @@
 import { View, TouchableOpacity, ScrollView, TextInput, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, router, usePathname } from "expo-router";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import RBSheet from "react-native-raw-bottom-sheet";
 import RNPickerSelect from "react-native-picker-select";
 import axios from "axios";
@@ -13,12 +13,14 @@ const Search = () => {
 
     const [categoryData, setCategoryData] = useState([]);
     const [cityData, setCityData] = useState([]);
-    const [selectedCity, setSelectedCity] = useState(null);
-    const [selectedPropertyTypes, setSelectedPropertyTypes] = useState([]);
-    const [minPrice, setMinPrice] = useState("");
-    const [maxPrice, setMaxPrice] = useState("");
-    const [sqftfrom, setsqftfrom] = useState("");
-    const [sqftto, setsqftto] = useState("");
+    const [selectedCity, setSelectedCity] = useState(params.city || null);
+    const [selectedPropertyTypes, setSelectedPropertyTypes] = useState(
+        params.propertyType ? params.propertyType.split(",") : []
+    );
+    const [minPrice, setMinPrice] = useState(params.minPrice || "");
+    const [maxPrice, setMaxPrice] = useState(params.maxPrice || "");
+    const [sqftfrom, setsqftfrom] = useState(params.sqftfrom || "");
+    const [sqftto, setsqftto] = useState(params.sqftto || "");
     const [loading, setLoading] = useState(false);
 
     const fetchCategories = async () => {
@@ -58,11 +60,49 @@ const Search = () => {
         fetchCityListing();
     }, []);
 
+    // Memoize params to prevent unnecessary updates
+    const memoizedParams = useMemo(
+        () => ({
+            city: params.city || null,
+            propertyType: params.propertyType ? params.propertyType.split(",") : [],
+            minPrice: params.minPrice || "",
+            maxPrice: params.maxPrice || "",
+            sqftfrom: params.sqftfrom || "",
+            sqftto: params.sqftto || "",
+        }),
+        [params.city, params.propertyType, params.minPrice, params.maxPrice, params.sqftfrom, params.sqftto]
+    );
+
+    useEffect(() => {
+        // Only update state if values have changed to prevent infinite loops
+        if (memoizedParams.city !== selectedCity) {
+            setSelectedCity(memoizedParams.city);
+        }
+        if (
+            JSON.stringify(memoizedParams.propertyType) !== JSON.stringify(selectedPropertyTypes)
+        ) {
+            setSelectedPropertyTypes(memoizedParams.propertyType);
+        }
+        if (memoizedParams.minPrice !== minPrice) {
+            setMinPrice(memoizedParams.minPrice);
+        }
+        if (memoizedParams.maxPrice !== maxPrice) {
+            setMaxPrice(memoizedParams.maxPrice);
+        }
+        if (memoizedParams.sqftfrom !== sqftfrom) {
+            setsqftfrom(memoizedParams.sqftfrom);
+        }
+        if (memoizedParams.sqftto !== sqftto) {
+            setsqftto(memoizedParams.sqftto);
+        }
+    }, [memoizedParams]);
+
     const handlePropertyTypeToggle = (propertyType) => {
         if (selectedPropertyTypes.includes(propertyType)) {
             setSelectedPropertyTypes(selectedPropertyTypes.filter((type) => type !== propertyType));
         } else {
             setSelectedPropertyTypes([...selectedPropertyTypes, propertyType]);
+            8
         }
     };
 
@@ -81,7 +121,7 @@ const Search = () => {
             Object.entries(filterParams).filter(([_, v]) => v !== undefined)
         );
 
-        router.push({
+        router.replace({
             pathname: "/properties/explore",
             params: cleanFilters,
         });
@@ -97,12 +137,16 @@ const Search = () => {
         setMaxPrice("");
         setsqftfrom("");
         setsqftto("");
+        router.replace({
+            pathname: "/properties/explore",
+            params: {},
+        });
     };
 
     return (
-        <View className="flex-1 bg-white">
+        <View className="flex-1 bg-white ">
             <TouchableOpacity onPress={() => refRBSheet.current?.open()}>
-                <View className="flex-row items-center justify-between w-full rounded-xl bg-[#f4f2f7] border border-primary-100 mt-5 py-4 px-4">
+                <View className="flex-row items-center justify-between w-full rounded-xl bg-[#f4f2f7] border border-primary-100 py-4 px-4">
                     <View className="flex-row items-center flex-1">
                         <Ionicons name="search-outline" size={20} color="#1F2937" />
                         <TextInput
@@ -129,12 +173,12 @@ const Search = () => {
                 height={550}
                 customStyles={{
                     wrapper: { backgroundColor: "rgba(0,0,0,0.5)" },
-                    container: { borderTopLeftRadius: 35, borderTopRightRadius: 35, padding: 20, paddingBottom: 20, backgroundColor: "white" },
+                    container: { borderTopLeftRadius: 35, borderTopRightRadius: 35, padding: 20, backgroundColor: "white" },
                     draggableIcon: { backgroundColor: "#000", width: 40, height: 5, marginVertical: 10 },
                 }}
             >
                 <View className="flex-row justify-between items-center mb-3">
-                    <Text className="text-xl font-rubik-bold text-black-300 ">Filter</Text>
+                    <Text className="text-xl font-rubik-bold text-black-300">Filter</Text>
                     <TouchableOpacity
                         onPress={handleReset}
                         className="px-5 py-2 rounded-xl bg-white border border-gray-300 mr-3"
@@ -143,7 +187,6 @@ const Search = () => {
                     </TouchableOpacity>
                 </View>
                 <ScrollView showsVerticalScrollIndicator={false}>
-
                     <Text className="text-base font-rubik-medium text-black-300 mb-2">City</Text>
                     <View className="flex-row items-center bg-[#f4f2f7] rounded-xl px-4 py-3">
                         <Ionicons name="location-outline" size={20} color="#1F2937" style={{ marginRight: 8 }} />
@@ -154,6 +197,7 @@ const Search = () => {
                                 value: city.label || city.name || "",
                                 key: city.id || `city-${index}`,
                             }))}
+                            value={selectedCity}
                             placeholder={{ label: "Choose a City...", value: null }}
                             style={pickerSelectStyles}
                             useNativeAndroidPickerStyle={false}
@@ -220,8 +264,8 @@ const Search = () => {
                                     key={cat.id || `category-${index}`}
                                     onPress={() => handlePropertyTypeToggle(label)}
                                     className={`me-2 px-5 py-4 rounded-xl ${isSelected
-                                            ? "bg-[#8bc83f] border-[#8bc83f]"
-                                            : "bg-[#f4f2f7] border-[#D1D5DB]"
+                                        ? "bg-[#8bc83f] border-[#8bc83f]"
+                                        : "bg-[#f4f2f7] border-[#D1D5DB]"
                                         }`}
                                 >
                                     <Text
@@ -237,7 +281,6 @@ const Search = () => {
                 </ScrollView>
 
                 <View className="flex-row justify-between mt-6">
-
                     <TouchableOpacity
                         onPress={handleSubmit}
                         className="flex-1 p-4 rounded-xl bg-primary-300"

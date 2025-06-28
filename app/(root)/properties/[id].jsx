@@ -159,6 +159,8 @@ const PropertyDetails = () => {
                             : `https://investorlands.com/assets/images/Listings/${apiData.thumbnail}`
                         : images.newYork
                 );
+
+                // gallery images
                 let galleryImages = [];
                 try {
                     if (apiData.gallery && typeof apiData.gallery === "string" && apiData.gallery.trim()) {
@@ -175,13 +177,25 @@ const PropertyDetails = () => {
                     galleryImages = [];
                 }
                 setPropertyGallery(galleryImages);
+
+                // video
                 let parsedVideos = [];
+
                 try {
                     parsedVideos = apiData.videos ? (typeof apiData.videos === "string" ? JSON.parse(apiData.videos) : []) : [];
+                    // Map videos to include title and thumbnail
+                    parsedVideos = parsedVideos.map((video, index) => ({
+                        id: `video-${index}`,
+                        url: video.startsWith("http") ? video : `https://investorlands.com/${video}`,
+                        title: `Video ${index + 1}`,
+                        thumbnail: icons.videofile,
+                    }));
                 } catch (error) {
                     console.error("Error parsing videos:", error);
                 }
-                setVideoUrls(parsedVideos.map((video) => (video.startsWith("http") ? video : `https://investorlands.com/${video}`)));
+                setVideoUrls(parsedVideos);
+
+                // amenities
                 let parsedAmenities = [];
                 try {
                     parsedAmenities = apiData.amenties ? JSON.parse(apiData.amenties) : [];
@@ -247,6 +261,8 @@ const PropertyDetails = () => {
         const totalMedia = (propertyGallery?.length || 0) + videoUrls.length;
         if (index >= 0 && index < totalMedia) {
             setSelectedMediaIndex(index);
+            const mediaUrl = getMediaAtIndex(index);
+            // console.log("Opening lightbox with media:", mediaUrl);
             setIsLightboxVisible(true);
         } else {
             console.warn("Invalid index for lightbox:", index, "Total media:", totalMedia);
@@ -254,7 +270,9 @@ const PropertyDetails = () => {
     };
 
     const closeLightbox = () => {
-        if (videoRef.current) videoRef.current.pauseAsync();
+        if (videoRef.current) {
+            videoRef.current.pauseAsync().catch((e) => console.log("Pause error:", e));
+        }
         setIsLightboxVisible(false);
         setSelectedMediaIndex(0);
     };
@@ -271,7 +289,8 @@ const PropertyDetails = () => {
         const totalMedia = (propertyGallery?.length || 0) + videoUrls.length;
         if (index >= 0 && index < totalMedia) {
             const allMedia = [...(propertyGallery || []), ...videoUrls];
-            return allMedia[index]?.image || allMedia[index];
+            const media = allMedia[index];
+            return media?.image || media?.url || null; // Prioritize image for gallery, url for videos
         }
         console.warn("Invalid index in getMediaAtIndex:", index, "Total media:", totalMedia);
         return null;
@@ -433,14 +452,36 @@ const PropertyDetails = () => {
                                 horizontal
                                 pagingEnabled
                                 showsHorizontalScrollIndicator={false}
-                                keyExtractor={(_, index) => `video-${index}`}
+                                keyExtractor={(item) => item.id} // Use item.id as the key
                                 renderItem={({ item, index }) => (
-                                    <TouchableOpacity onPress={() => openLightbox(propertyGallery.length + index)} style={{ width: windowWidth }}>
+                                    <TouchableOpacity
+                                        onPress={() => openLightbox(propertyGallery.length + index)}
+                                        style={{ position: "relative", borderRadius: 10 }}
+                                        className=" bg-primary-100 px-2"
+                                    >
                                         <Image
-                                            source={{ uri: item }}
-                                            style={{ width: windowWidth, height: 200, borderRadius: 10 }}
+                                            source={item.thumbnail} // Use thumbnail directly (local image) or { uri: item.thumbnail.uri } if it's a remote URL
+                                            style={{ width: 75, height: 75, }}
                                             resizeMode="cover"
                                         />
+                                        {/* Play Icon Overlay */}
+                                        {/* <View
+                                            style={{
+                                                position: "absolute",
+                                                top: "50%",
+                                                left: "50%",
+                                                transform: [{ translateX: -20 }, { translateY: -20 }],
+                                                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                                                borderRadius: 50,
+                                                padding: 10,
+                                            }}
+                                        >
+                                            <Ionicons name="play" size={40} color="white" />
+                                        </View> */}
+                                        {/* Video Title */}
+                                        <Text className="text-black text-sm font-rubik-medium mt-2 text-center">
+                                            {item.title}
+                                        </Text>
                                     </TouchableOpacity>
                                 )}
                                 contentContainerStyle={{ gap: 10, paddingVertical: 10 }}
@@ -454,7 +495,10 @@ const PropertyDetails = () => {
                                 {videoUrls.map((_, index) => (
                                     <View
                                         key={index}
-                                        className={`w-2 h-2 rounded-full mx-1 ${selectedMediaIndex === propertyGallery.length + index ? "bg-blue-500" : "bg-gray-300"}`}
+                                        className={`w-2 h-2 rounded-full mx-1 ${selectedMediaIndex === propertyGallery.length + index
+                                            ? "bg-blue-500"
+                                            : "bg-gray-300"
+                                            }`}
                                         style={{ width: 8, height: 8 }}
                                     />
                                 ))}
@@ -558,10 +602,7 @@ const PropertyDetails = () => {
             </ScrollView>
             {/* Lightbox Modal */}
             <Modal visible={isLightboxVisible} transparent={true} onRequestClose={closeLightbox} animationType="slide">
-                <View
-                    ref={lightboxRef}
-                    className="flex-1 bg-black/80 justify-center items-center"
-                >
+                <View ref={lightboxRef} className="flex-1 bg-black/80 justify-center items-center">
                     <TouchableOpacity className="absolute top-10 right-10 z-50" onPress={closeLightbox}>
                         <Ionicons name="close" size={30} color="white" />
                     </TouchableOpacity>
@@ -581,8 +622,8 @@ const PropertyDetails = () => {
                                     style={{ width: windowWidth * 0.9, height: windowHeight * 0.6, borderRadius: 10 }}
                                     resizeMode="contain"
                                     useNativeControls
-                                    onError={(error) => console.log("Video Error:", error)}
-                                    onLoad={() => videoRef.current?.playAsync()}
+                                    shouldPlay={true}
+                                    isLooping={false}
                                 />
                             ) : (
                                 <ExpoImage

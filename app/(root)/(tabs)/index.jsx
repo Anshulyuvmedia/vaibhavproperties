@@ -166,8 +166,10 @@ const Index = () => {
                                 </TouchableOpacity>
                             </View>
                         </View>
+                        <View className='mt-3'>
+                            <Search />
+                        </View>
 
-                        <Search />
                         <View className='my-3'>
                             <Filters />
                         </View>

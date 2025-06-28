@@ -89,7 +89,7 @@ const Signin = () => {
       if (response.ok && data.success) {
         await AsyncStorage.setItem('userToken', data.token);
         await AsyncStorage.setItem('userData', JSON.stringify(data.data));
-        router.push('/'); // Redirect to dashboard
+        router.push('/mapview'); // Redirect to dashboard
       } else {
         setError(data.message || "Invalid credentials");
       }

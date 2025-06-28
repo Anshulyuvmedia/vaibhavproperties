@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import icons from '@/constants/icons';
 import { ProgressSteps, ProgressStep } from 'react-native-progress-steps';
 import * as ImagePicker from 'expo-image-picker';
-import RNPickerSelect from 'react-native-picker-select';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import axios from 'axios';
@@ -671,6 +670,8 @@ const Addproperty = () => {
                 <ProgressSteps>
                     <ProgressStep label="General"
                         nextBtnTextStyle={buttonNextTextStyle}
+                        nextBtnText="Next"
+                        previousBtnText="Back"
                     // onNext={() => onNextStep(1)}
                     // errors={errors}
                     >
@@ -746,6 +747,8 @@ const Addproperty = () => {
                     </ProgressStep>
 
                     <ProgressStep label="Price"
+                        nextBtnText="Next"
+                        previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
                     // onNext={() => onNextStep(2)}
@@ -868,6 +871,8 @@ const Addproperty = () => {
                     </ProgressStep>
 
                     <ProgressStep label="Details"
+                        nextBtnText="Next"
+                        previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
                     // onNext={() => onNextStep(3)}
@@ -894,7 +899,7 @@ const Addproperty = () => {
                                     <Image source={icons.addicon} style={styles.addBtn} />
                                 </TouchableOpacity>
                             </View>
-                            <View style={{ flexDirection: "row", alignItems: "center",  }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", }}>
                                 <FlatList
                                     data={amenities}
                                     keyExtractor={(item, index) => index.toString()}
@@ -1047,7 +1052,9 @@ const Addproperty = () => {
                         </View>
                     </ProgressStep>
 
-                    <ProgressStep label="Documents"
+                    <ProgressStep label="Files"
+                        finishBtnText="Save"
+                        previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
                         onSubmit={handleSubmit}>
@@ -1205,7 +1212,7 @@ export default Addproperty
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingBottom: 40,
+        // paddingBottom: 40,
         backgroundColor: '#fff',
     },
     stepContent: {

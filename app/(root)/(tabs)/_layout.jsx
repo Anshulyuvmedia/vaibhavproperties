@@ -59,6 +59,7 @@ const TabsLayout = () => {
 
     return (
         <Tabs
+            initialRouteName="mapview"
             screenOptions={{
                 tabBarShowLabel: false,
                 tabBarStyle: {
@@ -113,6 +114,7 @@ const TabsLayout = () => {
                 name="addproperty"
                 options={{
                     title: "Add Property",
+                    tabBarStyle: { display: 'none' },
                     headerShown: false,
                     tabBarIcon: ({ focused }) => (
                         <TabIcon focused={focused} name="plus-square-o" title="Add Property" />

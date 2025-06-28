@@ -61,19 +61,28 @@ const Editproperty = () => {
     const errorSheetRef = useRef(null);
 
     const buttonPreviousTextStyle = {
-        paddingInline: 20,
-        paddingBlock: 5,
+        paddingHorizontal: 20,
+        paddingVertical: 5,
         borderRadius: 25,
         backgroundColor: '#234F68',
         color: 'white',
+        marginTop: 10, // Add margin to prevent overlap
     };
     const buttonNextTextStyle = {
-        paddingInline: 20,
-        paddingBlock: 5,
+        paddingHorizontal: 20,
+        paddingVertical: 5,
         borderRadius: 25,
         backgroundColor: '#8bc83f',
         color: 'white',
-        marginStart: 50,
+        marginTop: 10, // Add margin to prevent overlap
+    };
+    const buttonFinishTextStyle = {
+        paddingHorizontal: 20,
+        paddingVertical: 5,
+        borderRadius: 25,
+        backgroundColor: '#8bc83f',
+        color: 'white',
+        marginTop: 10, // Align with next button
     };
     const categories = [
         { label: 'Apartment', value: 'Apartment' },
@@ -684,7 +693,7 @@ const Editproperty = () => {
     // Navigation state listener
     useEffect(() => {
         const unsubscribe = navigation.addListener('state', (e) => {
-            console.log('Navigation state changed:', e.data);
+            // console.log('Navigation state changed:', e.data);
         });
         return unsubscribe;
     }, [navigation]);
@@ -796,8 +805,9 @@ const Editproperty = () => {
                     <ProgressStep
                         label="General"
                         nextBtnTextStyle={buttonNextTextStyle}
-                        // onNext={() => onNextStep(1)}
-                        // errors={errors}
+                        nextBtnText="Next"
+                    // onNext={() => onNextStep(1)}
+                    // errors={errors}
                     >
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Property Title</Text>
@@ -869,10 +879,12 @@ const Editproperty = () => {
 
                     <ProgressStep
                         label="Price"
+                        nextBtnText="Next"
+                        previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                        // onNext={() => onNextStep(2)}
-                        // errors={errors}
+                    // onNext={() => onNextStep(2)}
+                    // errors={errors}
                     >
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Approx Rental Income</Text>
@@ -989,10 +1001,13 @@ const Editproperty = () => {
 
                     <ProgressStep
                         label="Details"
+                        nextBtnText="Next"
+                        previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                        onNext={() => onNextStep(3)}
-                        errors={errors}
+
+                    // onNext={() => onNextStep(3)}
+                    // errors={errors}
                     >
                         <View style={styles.stepContent}>
                             <View className='flex flex-row items-center'>
@@ -1167,9 +1182,12 @@ const Editproperty = () => {
                     </ProgressStep>
 
                     <ProgressStep
-                        label="Documents"
-                        nextBtnTextStyle={buttonNextTextStyle}
+                        label="Files"
+                        finishBtnText="Save"
+                        previousBtnText="Back"
+                        nextBtnTextStyle={buttonFinishTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
+
                         onSubmit={() => {
                             console.log('ProgressSteps onSubmit triggered');
                             handleSubmit();
@@ -1367,7 +1385,7 @@ const Editproperty = () => {
                             ? `Please fill the ${errorField} field.`
                             : errorField || 'An error occurred. Please try again.'}
                     </Text>
-                    
+
                     <TouchableOpacity
                         style={{ backgroundColor: '#dc3545', padding: 10, borderRadius: 10, marginTop: 10 }}
                         onPress={() => {
