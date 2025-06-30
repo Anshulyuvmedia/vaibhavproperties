@@ -184,7 +184,7 @@ export default Explore;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fafafa',
   },
   header: {
     // padding: moderateScale(10),

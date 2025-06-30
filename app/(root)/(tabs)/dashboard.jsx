@@ -189,7 +189,7 @@ const Dashboard = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff', // bg-gray-50
+    backgroundColor: '#fafafa', // bg-gray-50
   },
   scrollContent: {
     paddingBottom: verticalScale(60),

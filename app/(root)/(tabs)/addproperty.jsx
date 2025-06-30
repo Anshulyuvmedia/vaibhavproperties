@@ -1213,7 +1213,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         // paddingBottom: 40,
-        backgroundColor: '#fff',
+        backgroundColor: '#fafafa',
     },
     stepContent: {
         borderWidth: 1,

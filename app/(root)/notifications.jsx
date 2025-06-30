@@ -252,7 +252,7 @@ const Notifications = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#fafafa',
         paddingHorizontal: scale(16),
     },
     header: {

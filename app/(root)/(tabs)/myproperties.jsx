@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,50 +21,57 @@ const formatINR = (amount) => {
 const Myproperties = () => {
   const [userPropertyData, setUserPropertyData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   const handleCardPress = (id) => router.push(`/properties/${id}`);
   const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
   const handleAddProperty = () => router.push('/addproperty'); // Navigate to add property screen
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      setLoading(true);
-      try {
-        const parsedPropertyData = JSON.parse(await AsyncStorage.getItem('userData'));
-        if (!parsedPropertyData?.id) {
-          console.error('User data or ID missing');
-          return;
-        }
-        const response = await axios.get(`https://investorlands.com/api/viewuserlistings?id=${parsedPropertyData.id}`);
-        if (response.data && response.data.properties) {
-          const formattedData = response.data.properties.map((item) => ({
-            id: item.id,
-            property_name: item.property_name,
-            address: item.address,
-            price: item.price,
-            status: item.status,
-            category: item.category,
-            thumbnail: item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.startsWith('http')
-              ? item.thumbnail
-              : item.thumbnail
-                ? `https://investorlands.com/assets/images/Listings/${item.thumbnail}`
-                : 'https://investorlands.com/assets/images/default-thumbnail.jpg',
-            city: item.city,
-          }));
-          setUserPropertyData(formattedData);
-        } else {
-          console.error('Unexpected API response format:', response.data);
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      } finally {
-        setLoading(false);
+  const fetchUserData = async () => {
+    setLoading(true);
+    try {
+      const parsedPropertyData = JSON.parse(await AsyncStorage.getItem('userData'));
+      if (!parsedPropertyData?.id) {
+        console.error('User data or ID missing');
+        return;
       }
-    };
+      const response = await axios.get(`https://investorlands.com/api/viewuserlistings?id=${parsedPropertyData.id}`);
+      if (response.data && response.data.properties) {
+        const formattedData = response.data.properties.map((item) => ({
+          id: item.id,
+          property_name: item.property_name,
+          address: item.address,
+          price: item.price,
+          status: item.status,
+          category: item.category,
+          thumbnail: item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.startsWith('http')
+            ? item.thumbnail
+            : item.thumbnail
+              ? `https://investorlands.com/assets/images/Listings/${item.thumbnail}`
+              : 'https://investorlands.com/assets/images/default-thumbnail.jpg',
+          city: item.city,
+        }));
+        setUserPropertyData(formattedData);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false); // Reset refreshing state when done
+    }
+  };
 
+  useEffect(() => {
     fetchUserData();
   }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchUserData();
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -82,7 +89,7 @@ const Myproperties = () => {
 
         {/* Content */}
         <View style={styles.content}>
-          {loading ? (
+          {loading && !refreshing ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#4A90E2" />
               <Text style={styles.loadingText}>Loading properties...</Text>
@@ -131,7 +138,23 @@ const Myproperties = () => {
                       <Image source={icons.location} style={styles.locationIcon} />
                       <Text style={styles.locationText}>{item.city}, {item.address}</Text>
                     </View>
-                    <Text style={styles.priceText}>{formatINR(item.price)}</Text>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceText}>{formatINR(item.price)}</Text>
+                      <View style={styles.statusContainer}>
+                        <View
+                          style={[
+                            styles.statusDot,
+                            {
+                              backgroundColor: item.status?.toLowerCase() === 'published' ? '#28A745' : '#DC3545',
+                            },
+                          ]}
+                        />
+                        <Text style={styles.statusText}>
+                          {item.status?.toLowerCase() === 'published' ? 'Live' : 'Offline'}
+                        </Text>
+                      </View>
+                    </View>
+
                     {/* Edit Button */}
                     <TouchableOpacity style={styles.editButton} onPress={() => handleEditPress(item.id)}>
                       <Text style={styles.editText}>Edit Property</Text>
@@ -139,6 +162,14 @@ const Myproperties = () => {
                   </View>
                 </TouchableOpacity>
               )}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#4A90E2']} // Loading indicator color
+                  tintColor="#4A90E2"
+                />
+              }
             />
           )}
         </View>
@@ -152,7 +183,7 @@ export default Myproperties;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#fafafa',
     paddingHorizontal: scale(10),
   },
   header: {
@@ -302,6 +333,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: verticalScale(4),
   },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: verticalScale(4),
+  },
   locationIcon: {
     width: moderateScale(16),
     height: moderateScale(16),
@@ -318,6 +356,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#4A5568',
     marginBottom: verticalScale(8),
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+    marginRight: scale(4),
+  },
+  statusText: {
+    fontSize: moderateScale(12),
+    fontWeight: '400',
+    color: '#4A5568',
   },
   editButton: {
     backgroundColor: '#8bc83f',

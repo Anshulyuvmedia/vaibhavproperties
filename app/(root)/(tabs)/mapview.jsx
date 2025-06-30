@@ -611,7 +611,7 @@ export default Mapview;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#fafafa',
     },
     map: {
         flex: 1,

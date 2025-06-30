@@ -283,7 +283,7 @@ const Signup = () => {
 export default Signup;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: '#fafafa', alignItems: 'center', justifyContent: 'center' },
   scrollContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
   backgroundImage: { width: '100%', height: 150 },
   formContainer: { paddingHorizontal: 40, width: '100%', alignItems: 'center' },

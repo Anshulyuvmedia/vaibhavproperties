@@ -351,7 +351,7 @@ export default EditProfile;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: 'white',
+        backgroundColor: '#fafafa',
     },
     header: {
         flexDirection: 'row',

@@ -17,6 +17,7 @@ import { FontAwesome5, Ionicons, MaterialCommunityIcons, MaterialIcons } from "@
 import { Image as ExpoImage } from "expo-image";
 import { Video } from "expo-av";
 import RBSheet from "react-native-raw-bottom-sheet";
+import { RefreshControl } from "react-native"; // Import RefreshControl
 
 const PropertyDetails = () => {
     const propertyId = useLocalSearchParams().id;
@@ -24,6 +25,7 @@ const PropertyDetails = () => {
     const windowWidth = Dimensions.get("window").width;
     const [propertyData, setPropertyData] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false); // State for refresh control
     const [propertyThumbnail, setPropertyThumbnail] = useState(images.avatar);
     const [propertyGallery, setPropertyGallery] = useState([]);
     const [videoUrls, setVideoUrls] = useState([]);
@@ -180,7 +182,6 @@ const PropertyDetails = () => {
 
                 // video
                 let parsedVideos = [];
-
                 try {
                     parsedVideos = apiData.videos ? (typeof apiData.videos === "string" ? JSON.parse(apiData.videos) : []) : [];
                     // Map videos to include title and thumbnail
@@ -250,12 +251,18 @@ const PropertyDetails = () => {
             console.error("Error fetching property data:", error);
         } finally {
             setLoading(false);
+            setRefreshing(false); // Reset refreshing state when done
         }
     };
 
     useEffect(() => {
         fetchPropertyData();
     }, [propertyId]);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchPropertyData();
+    };
 
     const openLightbox = (index) => {
         const totalMedia = (propertyGallery?.length || 0) + videoUrls.length;
@@ -336,8 +343,17 @@ const PropertyDetails = () => {
         <View className="pb-24">
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerClassName="pb-32 bg-white"
+                contentContainerClassName="pb-32 bg-[#fafafa]"
                 contentContainerStyle={{ paddingBottom: 32, backgroundColor: "white" }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['#8bc83f']} // Loading indicator color
+                        tintColor="#8bc83f"
+                        progressViewOffset={50} // Adjust based on your header height
+                    />
+                }
             >
                 <Toast config={toastConfig} position="top" />
                 <View className="relative w-full p-2" style={{ height: windowHeight / 2 }}>
@@ -461,7 +477,7 @@ const PropertyDetails = () => {
                                     >
                                         <Image
                                             source={item.thumbnail} // Use thumbnail directly (local image) or { uri: item.thumbnail.uri } if it's a remote URL
-                                            style={{ width: 75, height: 75, }}
+                                            style={{ width: 75, height: 75 }}
                                             resizeMode="cover"
                                         />
                                         {/* Play Icon Overlay */}
@@ -713,7 +729,6 @@ const PropertyDetails = () => {
                             <ActivityIndicator color="white" />
                         ) : (
                             <Text className="text-white text-lg text-center font-rubik-bold">Submit Bid</Text>
-
                         )}
                     </TouchableOpacity>
                 </View>
