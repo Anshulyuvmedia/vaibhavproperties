@@ -23,7 +23,11 @@ const Myproperties = () => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
-
+  const [activeButton, setActiveButton] = useState('myproperties'); // Track active button
+  const navigateTo = (screen) => {
+    setActiveButton(screen);
+    router.push(`/${screen}`); // Navigate to the respective screen
+  };
   const handleCardPress = (id) => router.push(`/properties/${id}`);
   const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
   const handleAddProperty = () => router.push('/addproperty'); // Navigate to add property screen
@@ -84,6 +88,32 @@ const Myproperties = () => {
           <Text style={styles.title}>My Properties</Text>
           <TouchableOpacity onPress={() => router.push('/notifications')}>
             <Image source={icons.bell} style={styles.bellIcon} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.button, activeButton === 'myproperties' && styles.activeButton]}
+            onPress={() => navigateTo('myassets/myproperties')}
+          >
+            <Text style={[styles.buttonText, activeButton === 'myproperties' && styles.activeButtonText]}>
+              My Properties
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, activeButton === 'myenquiries' && styles.activeButton]}
+            onPress={() => navigateTo('myassets/myenquiries')}
+          >
+            <Text style={[styles.buttonText, activeButton === 'myenquiries' && styles.activeButtonText]}>
+              My Enquiries
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, activeButton === 'myloans' && styles.activeButton]}
+            onPress={() => navigateTo('myassets/myloans')}
+          >
+            <Text style={[styles.buttonText, activeButton === 'myloans' && styles.activeButtonText]}>
+              My Loans
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -190,7 +220,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginVertical: verticalScale(12),
+    marginVertical: verticalScale(5),
   },
   backButton: {
     backgroundColor: '#f4f2f7',
@@ -212,6 +242,31 @@ const styles = StyleSheet.create({
   bellIcon: {
     width: moderateScale(24),
     height: moderateScale(24),
+  },
+
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 20,
+  },
+  button: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  activeButton: {
+    backgroundColor: '#8bc83f',
+  },
+  buttonText: {
+    color: '#000',
+    fontFamily: 'Sora-Bold',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  activeButtonText: {
+    color: '#fff',
+    fontWeight: '700',
   },
   content: {
     flex: 1,

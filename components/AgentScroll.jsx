@@ -25,7 +25,7 @@ const AgentScroll = () => {
                             : { uri: `https://investorlands.com/assets/images/Users/${agent.profile_photo_path}` }
                         : images.avatar, // Use require result directly if local image
                 }));
-                console.log('Processed Agent List:', apiData);
+                // console.log('Processed Agent List:', apiData);
                 setAgentList(apiData);
             } else {
                 console.error('Unexpected API response format:', response.data);

@@ -648,7 +648,7 @@ const Addproperty = () => {
     };
 
     return (
-        <View style={{ backgroundColor: 'white', height: '100%', paddingHorizontal: 20 }}>
+        <View style={{ backgroundColor: '#fafafa', height: '100%', paddingHorizontal: 20 }}>
 
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1216,6 +1216,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fafafa',
     },
     stepContent: {
+        backgroundColor: '#fff',
         borderWidth: 1,
         borderRadius: 20,
         borderColor: '#f4f2f7',

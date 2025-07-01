@@ -91,12 +91,12 @@ const TabsLayout = () => {
                 }}
             />
             <Tabs.Screen
-                name="myproperties"
+                name="myassets"
                 options={{
-                    title: "My Investments",
+                    title: "My Assets",
                     headerShown: false,
                     tabBarIcon: ({ focused }) => (
-                        <TabIcon focused={focused} name="building-o" title="My Investments" />
+                        <TabIcon focused={focused} name="building-o" title="My Assets" />
                     ),
                 }}
             />

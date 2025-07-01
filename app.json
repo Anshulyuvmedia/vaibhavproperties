@@ -4,19 +4,14 @@
     "slug": "vaibhavproperties",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/vplogo.jpg",
+    "icon": "./assets/images/vplogo.png",
     "scheme": "vaibhavproperties",
-    "entryPoint": "expo-router/entry",
-    "host": "localhost",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vaibhav.properties",
       "associatedDomains": [
-        "applinks:your-server.com",
-        "applinks:your-server.com",
-        "applinks:your-server.com",
         "applinks:your-server.com"
       ],
       "runtimeVersion": {
@@ -29,7 +24,7 @@
     "android": {
       "package": "com.vaibhav.properties",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/vplogo.jpg",
+        "foregroundImage": "./assets/images/vplogo.png",
         "backgroundColor": "#ffffff"
       },
       "runtimeVersion": "1.0.0",
@@ -42,7 +37,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/vplogo.jpg",
+      "favicon": "./assets/images/vplogo.png",
       "config": {
         "react-native-maps": {
           "web": "google"
@@ -59,7 +54,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/vplogo.jpg",
+          "image": "./assets/images/vplogo.png",
           "resizeMode": "cover",
           "backgroundColor": "#ffffff",
           "enableFullScreenImage_legacy": true
@@ -84,7 +79,8 @@
           "supportsBackgroundPlayback": true,
           "supportsPictureInPicture": true
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

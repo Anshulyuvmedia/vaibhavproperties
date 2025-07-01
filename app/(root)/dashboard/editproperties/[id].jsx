@@ -743,7 +743,7 @@ const Editproperty = () => {
     };
 
     return (
-        <View style={{ backgroundColor: 'white', height: '100%', paddingHorizontal: 20 }}>
+        <View style={{ backgroundColor: '#fafafa', height: '100%', paddingHorizontal: 20 }}>
             {/* Test button for debugging */}
             {/* <TouchableOpacity
                 style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 10, marginTop: 20 }}
@@ -1412,6 +1412,7 @@ const styles = StyleSheet.create({
     },
     stepContent: {
         borderWidth: 1,
+        backgroundColor: '#fff',
         borderRadius: 20,
         borderColor: '#f4f2f7',
         padding: 10,
