@@ -25,10 +25,10 @@ const Agent = () => {
     const fetchAgentProfile = async () => {
         setLoading(true);
         setError(null);
-        console.log('Fetching agent profile for id:', id);
+        // console.log('Fetching agent profile for id:', id);
         try {
-            const response = await axios.get(`https://investorlands.com/api/agentprofile?id=${id}`);
-            console.log('API Response:', response.data);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/agentprofile?id=${id}`);
+            // console.log('API Response:', response.data);
             if (response.data.success) {
                 if (response.data.agentprofile && response.data.agentprofile.length > 0) {
                     setAgentData(response.data.agentprofile[0]);
@@ -44,7 +44,7 @@ const Agent = () => {
                         thumbnail: item.thumbnail,
                         city: item.city || 'N/A',
                     }));
-                    console.log('Formatted Properties:', formattedProperties);
+                    // console.log('Formatted Properties:', formattedProperties);
                     setUserPropertyData(formattedProperties);
                 }
             } else {
@@ -69,29 +69,26 @@ const Agent = () => {
         <View style={styles.emptyContainer}>
             <Image source={icons.noResultFound} style={styles.emptyImage} />
             <Text style={styles.emptyTitle}>
-                Search <Text style={styles.emptyHighlight}>not found</Text>
+                Listing <Text style={styles.emptyHighlight}>not found</Text>
             </Text>
             <Text style={styles.emptySubtitle}>
-                Sorry, we can't find the real estate you're looking for.
-            </Text>
-            <Text style={styles.emptySubtitle}>
-                Maybe a little spelling mistake?
+                Sorry, we can't find the real estate from the agent.
             </Text>
         </View>
     );
 
     const getProfileImageUri = () => {
-        let baseUri = agentData?.profile_photo_path
-            ? agentData.profile_photo_path.startsWith('http')
-                ? agentData.profile_photo_path
-                : `https://investorlands.com/assets/images/Users/${agentData.profile_photo_path}`
+        let baseUri = agentData?.profile
+            ? agentData.profile.startsWith('http')
+                ? agentData.profile
+                : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${agentData.profile}`
             : images.avatar;
         // console.log('Profile Image URI:', baseUri);
         return baseUri.toString();
     };
 
     const handleCardPress = (id) => router.push(`/properties/${id}`);
-    const handleChatPress = () => console.log('Chat pressed for agent:', agentData?.name); // Placeholder function
+    const handleChatPress = () => console.log('Chat pressed for agent:', agentData?.username); // Placeholder function
 
     return (
         <View style={styles.container}>
@@ -106,9 +103,9 @@ const Agent = () => {
                     <Image
                         source={{ uri: getProfileImageUri() }}
                         style={styles.profileImage}
-                        onError={(error) => console.log('Image load error for', agentData.name, ':', error.nativeEvent.error)}
+                        onError={(error) => console.log('Image load error for', agentData.username, ':', error.nativeEvent.error)}
                     />
-                    <Text style={styles.name}>{agentData.name}</Text>
+                    <Text style={styles.name}>{agentData.username}</Text>
                     <Text style={styles.email}>{agentData.email}</Text>
                 </>
             ) : error ? (
@@ -134,9 +131,9 @@ const Agent = () => {
                     />
                 )}
             </View>
-            <TouchableOpacity style={styles.chatButton} onPress={handleChatPress}>
+            {/* <TouchableOpacity style={styles.chatButton} onPress={handleChatPress}>
                 <Text style={styles.chatButtonText}>Start Chat</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
         </View>
     );
 };
@@ -146,7 +143,7 @@ export default Agent;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#fafafa',
         paddingHorizontal: scale(15),
     },
     header: {
@@ -242,7 +239,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: verticalScale(80),
+        marginTop: verticalScale(20),
     },
     emptyImage: {
         width: scale(160),

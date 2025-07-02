@@ -22,16 +22,16 @@ const Dashboard = () => {
         router.push('/signin');
         return;
       }
-      const response = await axios.get(`https://investorlands.com/api/userprofile?id=${parsedUserData.id}`);
+      const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/userprofile?id=${parsedUserData.id}`);
 
       if (response.data && response.data.data) {
         const apiData = response.data.data;
         setUserData(apiData);
         setImage(
-          apiData.profile_photo_path
-            ? apiData.profile_photo_path.startsWith('http')
-              ? apiData.profile_photo_path
-              : `https://investorlands.com/assets/images/Users/${apiData.profile_photo_path}`
+          apiData.profile
+            ? apiData.profile.startsWith('http')
+              ? apiData.profile
+              : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${apiData.profile}`
             : images.avatar
         );
       } else {
@@ -123,12 +123,12 @@ const Dashboard = () => {
                 />
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>
-                    {userData?.name || 'User'}
+                    {userData?.username || 'User'}
                   </Text>
                   <Text style={styles.profileDetail}>Email: {userData?.email || 'N/A'}</Text>
                   <View style={styles.profileDetailsRow}>
                     <View>
-                      <Text style={styles.profileDetail}>Mobile: {userData?.mobile || 'N/A'}</Text>
+                      <Text style={styles.profileDetail}>Mobile: {userData?.mobilenumber || 'N/A'}</Text>
                       <Text style={styles.profileDetail}>Role: {userData?.user_type || 'N/A'}</Text>
                     </View>
                     <TouchableOpacity

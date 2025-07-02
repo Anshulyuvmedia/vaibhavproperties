@@ -40,19 +40,20 @@ const Index = () => {
             }
 
             // Fetch user data from API
-            const response = await axios.get(`https://investorlands.com/api/userprofile?id=${parsedUserData.id}`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/userprofile?id=${parsedUserData.id}`);
             // console.log('API Response:', response.data);
 
             if (response.data && response.data.data) {
                 const apiData = response.data.data;
                 setUserData(apiData);
+                // console.log('API apiData:', apiData);
 
                 // Set Profile Image, ensuring fallback to default avatar
-                if (apiData.profile_photo_path) {
+                if (apiData.profile) {
                     setImage(
-                        apiData.profile_photo_path.startsWith('http')
-                            ? apiData.profile_photo_path
-                            : `https://investorlands.com/assets/images/Users/${apiData.profile_photo_path}`
+                        apiData.profile.startsWith('http')
+                            ? apiData.profile
+                            : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${apiData.profile}`
                     );
                 } else {
                     setImage(images.avatar);
@@ -73,7 +74,7 @@ const Index = () => {
     const fetchListingData = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://investorlands.com/api/property-listings`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/property-listings`);
             if (response.data.data) {
                 const apiData = response.data.data;
                 setListingData(apiData);
@@ -115,7 +116,7 @@ const Index = () => {
                         <View className='flex-row items-center justify-between mt-5'>
                             <View className='flex flex-col items-start ml-2 justify-center'>
                                 <Text className='text-2xl'>
-                                    Hey, <Text className='font-rubik-medium text-primary-300'>{userData?.name?.split(' ')[0] || 'User'} </Text>
+                                    Hey, <Text className='font-rubik-medium text-primary-300'>{userData?.username?.split(' ')[0] || 'User'} </Text>
                                 </Text>
                                 <Text className='text-2xl font-rubik text-black'>
                                     Let's Start Exploring
@@ -143,7 +144,7 @@ const Index = () => {
                         <View className='my-5'>
                             <View className='flex flex-row items-center justify-between mb-5'>
                                 <Text className='text-xl font-rubik-bold text-black-300'>Featured Estate</Text>
-                                <TouchableOpacity>
+                                <TouchableOpacity onPress={() => router.push('properties/explore')}>
                                     <Text className='text-base font-rubik text-primary-300'>See All</Text>
                                 </TouchableOpacity>
                             </View>
@@ -161,8 +162,8 @@ const Index = () => {
                         <View className='mt-5'>
                             <View className='flex flex-row items-center justify-between'>
                                 <Text className='text-xl font-rubik-bold text-black-300'>Top Locations</Text>
-                                <TouchableOpacity>
-                                    <Text className='text-base font-rubik text-primary-300'>Explore</Text>
+                                <TouchableOpacity onPress={() => router.push('properties/alllocations')}>
+                                    <Text className='text-base font-rubik text-primary-300'>See All</Text>
                                 </TouchableOpacity>
                             </View>
                             <LocationScroll />

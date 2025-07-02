@@ -16,7 +16,7 @@ const FeaturedCard = ({ item, onPress, map }) => {
   return (
     <View className=''>
       <TouchableOpacity onPress={onPress} className='flex flex-col items-start w-60 h-80 relative'>
-        <Image source={{ uri: `https://investorlands.com/assets/images/Listings/${item.thumbnail}` }} className='size-full rounded-2xl' />
+        <Image source={{ uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${item.thumbnail}` }} className='size-full rounded-2xl' />
         <Image source={images.cardGradient} className='size-full rounded-2xl absolute bottom-0' />
 
         {/* <View className='flex flex-row items-center bg-white/90 px-3 py-1.5 rounded-full absolute top-5 right-5'>
@@ -70,7 +70,7 @@ const Card = ({ item, onPress }) => {
 
       {/* Thumbnail Image */}
       <Image
-        source={{ uri: `https://investorlands.com/assets/images/Listings/${item.thumbnail}` }}
+        source={{ uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${item.thumbnail}` }}
         style={styles.thumbnail}
       />
 
@@ -115,7 +115,7 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
       {/* Image Section */}
       <View className="w-[150px] h-full relative p-2">
         <Image
-          source={{ uri: `https://investorlands.com/assets/images/Listings/${item.thumbnail}` }}
+          source={{ uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${item.thumbnail}` }}
           className="w-full h-full rounded-[30px]"
           style={{ resizeMode: 'cover' }}
         />

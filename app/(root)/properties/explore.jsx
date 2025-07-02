@@ -36,7 +36,7 @@ const Explore = () => {
       if (params.sqftfrom) queryParams.append("sqftfrom", params.sqftfrom);
       if (params.sqftto) queryParams.append("sqftto", params.sqftto);
 
-      const apiUrl = `https://investorlands.com/api/filterlistings?${queryParams.toString()}`;
+      const apiUrl = `https://vaibhavproperties.cigmafeed.in/api/filterlistings?${queryParams.toString()}`;
       const response = await axios({
         method: "post",
         url: apiUrl,

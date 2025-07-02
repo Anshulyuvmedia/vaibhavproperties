@@ -566,7 +566,7 @@ const Addproperty = () => {
             console.log("Uploading FormData add property:", formData);
 
             // Send API request
-            const response = await axios.post("https://investorlands.com/api/insertlisting", formData, {
+            const response = await axios.post("https://vaibhavproperties.cigmafeed.in/api/insertlisting", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                     "Authorization": `Bearer ${userToken}`,

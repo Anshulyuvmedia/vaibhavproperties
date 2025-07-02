@@ -119,7 +119,7 @@ const PropertyDetails = () => {
                 state: propertyData.city || "",
                 bidamount: bidAmount || null,
             };
-            const response = await axios.post("https://investorlands.com/api/sendenquiry", enquiryData);
+            const response = await axios.post("https://vaibhavproperties.cigmafeed.in/api/sendenquiry", enquiryData);
             if (response.status === 200 && !response.data.error) {
                 Toast.show({ type: "success", text1: "Success", text2: "Enquiry submitted successfully!" });
                 if (bidAmount) rbSheetRef.current.close();
@@ -136,7 +136,7 @@ const PropertyDetails = () => {
 
     const shareProperty = async () => {
         try {
-            const propertyUrl = `https://investorlands.com/property-details/${propertyId}`;
+            const propertyUrl = `https://vaibhavproperties.cigmafeed.in/property-details/${propertyId}`;
             const message = `View my property: ${propertyUrl}`;
             const result = await Share.share({ message, url: propertyUrl, title: "Check out this property!" });
             if (result.action === Share.sharedAction) console.log("Property shared successfully!");
@@ -150,15 +150,16 @@ const PropertyDetails = () => {
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
             setLoggedinUserId(parsedUserData?.id || "");
-            const response = await axios.get(`https://investorlands.com/api/property-details/${propertyId}`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/property-details/${propertyId}`);
             if (response.data) {
                 const apiData = response.data.details;
                 setPropertyData(apiData);
+                // console.log('apidata', apiData);
                 setPropertyThumbnail(
                     apiData.thumbnail
                         ? apiData.thumbnail.startsWith("http")
                             ? apiData.thumbnail
-                            : `https://investorlands.com/assets/images/Listings/${apiData.thumbnail}`
+                            : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${apiData.thumbnail}`
                         : images.newYork
                 );
 
@@ -170,7 +171,7 @@ const PropertyDetails = () => {
                         galleryImages = Array.isArray(parsedGallery)
                             ? parsedGallery.map((image) => ({
                                 id: Math.random().toString(36).substring(2, 11),
-                                image: image.startsWith("http") ? image : `https://investorlands.com/${image.replace(/\\/g, "/")}`,
+                                image: image.startsWith("http") ? image : `https://vaibhavproperties.cigmafeed.in/${image.replace(/\\/g, "/")}`,
                             }))
                             : [];
                     } else console.log("Gallery data is empty or invalid:", apiData.gallery);
@@ -187,7 +188,7 @@ const PropertyDetails = () => {
                     // Map videos to include title and thumbnail
                     parsedVideos = parsedVideos.map((video, index) => ({
                         id: `video-${index}`,
-                        url: video.startsWith("http") ? video : `https://investorlands.com/${video}`,
+                        url: video.startsWith("http") ? video : `https://vaibhavproperties.cigmafeed.in/${video}`,
                         title: `Video ${index + 1}`,
                         thumbnail: icons.videofile,
                     }));
@@ -225,7 +226,7 @@ const PropertyDetails = () => {
                     }
                 }
                 if (apiData.masterplandoc) {
-                    const fileUrl = `https://investorlands.com/assets/images/Listings/${apiData.masterplandoc}`;
+                    const fileUrl = `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${apiData.masterplandoc}`;
                     if (fileUrl.toLowerCase().endsWith(".pdf")) setIsPdf(true);
                     else setIsPdf(false);
                     setMasterPlanDocs(fileUrl);

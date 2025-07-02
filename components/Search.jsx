@@ -26,7 +26,7 @@ const Search = () => {
     const fetchCategories = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://investorlands.com/api/get-categories`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/get-categories`);
             if (response.data?.categories) {
                 setCategoryData(response.data.categories);
             } else {
@@ -42,7 +42,7 @@ const Search = () => {
     const fetchCityListing = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://investorlands.com/api/listingscitywise`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/listingscitywise`);
             if (response.data?.data) {
                 setCityData(response.data.data);
             } else {

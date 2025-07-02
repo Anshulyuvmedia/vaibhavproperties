@@ -307,10 +307,10 @@ const Editproperty = () => {
         setGalleryImages(prevImages => prevImages.filter((_, i) => i !== index));
         if (imageUri.startsWith("http")) {
             try {
-                await axios.post("https://investorlands.com/api/deletefile", {
+                await axios.post("https://vaibhavproperties.cigmafeed.in/api/deletefile", {
                     property_id: propertyData.id,
                     file_type: "gallery",
-                    file_path: imageUri.replace("https://investorlands.com/", ""),
+                    file_path: imageUri.replace("https://vaibhavproperties.cigmafeed.in/", ""),
                 });
             } catch (error) {
                 console.error("Failed to delete image:", error);
@@ -322,10 +322,10 @@ const Editproperty = () => {
         setVideos(prevVideos => prevVideos.filter((_, i) => i !== index));
         if (videoUri.startsWith("http")) {
             try {
-                await axios.post("https://investorlands.com/api/deletefile", {
+                await axios.post("https://vaibhavproperties.cigmafeed.in/api/deletefile", {
                     property_id: propertyData.id,
                     file_type: "video",
-                    file_path: videoUri.replace("https://investorlands.com/", ""),
+                    file_path: videoUri.replace("https://vaibhavproperties.cigmafeed.in/", ""),
                 });
             } catch (error) {
                 console.error("Failed to delete video:", error);
@@ -337,10 +337,10 @@ const Editproperty = () => {
         setPropertyDocuments(prevDocs => prevDocs.filter((_, i) => i !== index));
         if (docUri.startsWith("http")) {
             try {
-                await axios.post("https://investorlands.com/api/deletefile", {
+                await axios.post("https://vaibhavproperties.cigmafeed.in/api/deletefile", {
                     property_id: propertyData.id,
                     file_type: "document",
-                    file_path: docUri.replace("https://investorlands.com/", ""),
+                    file_path: docUri.replace("https://vaibhavproperties.cigmafeed.in/", ""),
                 });
             } catch (error) {
                 console.error("Failed to delete document:", error);
@@ -352,10 +352,10 @@ const Editproperty = () => {
         setMasterPlanDoc(prevDocs => prevDocs.filter((_, i) => i !== index));
         if (docUri.startsWith("http")) {
             try {
-                await axios.post("https://investorlands.com/api/deletefile", {
+                await axios.post("https://vaibhavproperties.cigmafeed.in/api/deletefile", {
                     property_id: propertyData.id,
                     file_type: "masterplan",
-                    file_path: docUri.replace("https://investorlands.com/", ""),
+                    file_path: docUri.replace("https://vaibhavproperties.cigmafeed.in/", ""),
                 });
             } catch (error) {
                 console.error("Failed to delete master plan document:", error);
@@ -486,7 +486,7 @@ const Editproperty = () => {
             };
             formData.append("fileData", JSON.stringify(fileData));
 
-            const response = await axios.post(`https://investorlands.com/api/updatelisting/${propertyId}`, formData, {
+            const response = await axios.post(`https://vaibhavproperties.cigmafeed.in/api/updatelisting/${propertyId}`, formData, {
                 headers: {
                     "Accept": "application/json",
                     "Content-Type": "multipart/form-data; charset=utf-8",
@@ -516,7 +516,7 @@ const Editproperty = () => {
     const fetchPropertyData = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`https://investorlands.com/api/property-details/${id}`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/property-details/${id}`);
             if (response.data) {
                 const apiData = response.data.details;
                 setPropertyData(apiData);
@@ -582,7 +582,7 @@ const Editproperty = () => {
                     try {
                         let galleryArray = typeof apiData.gallery === 'string' ? JSON.parse(apiData.gallery) : apiData.gallery;
                         const galleryImages = galleryArray.map(img =>
-                            img.startsWith('http') ? img : `https://investorlands.com/${img}`
+                            img.startsWith('http') ? img : `https://vaibhavproperties.cigmafeed.in/${img}`
                         );
                         setGalleryImages(galleryImages);
                     } catch (error) {
@@ -598,7 +598,7 @@ const Editproperty = () => {
                             : icons.videofile;
                         const videoObjects = galleryVideos.map(video => ({
                             id: video,
-                            uri: video.startsWith('http') ? video : `https://investorlands.com/${video}`,
+                            uri: video.startsWith('http') ? video : `https://vaibhavproperties.cigmafeed.in/${video}`,
                             thumbnailImages: defaultThumbnail,
                         }));
                         setVideos(videoObjects);
@@ -614,7 +614,7 @@ const Editproperty = () => {
                             : apiData.documents;
                         setPropertyDocuments(
                             propertyDocuments.map(uri => ({
-                                uri: uri.startsWith('http') ? uri : `https://investorlands.com/${uri}`,
+                                uri: uri.startsWith('http') ? uri : `https://vaibhavproperties.cigmafeed.in/${uri}`,
                                 name: uri.split('/').pop() || 'Unnamed Document',
                                 thumbnail: 'https://cdn-icons-png.flaticon.com/512/337/337946.png',
                             }))
@@ -631,11 +631,11 @@ const Editproperty = () => {
                             : [apiData.masterplandoc];
                         setMasterPlanDoc(
                             masterPlanDocs.map(filePath => ({
-                                uri: filePath.startsWith('http') ? filePath : `https://investorlands.com/${filePath}`,
+                                uri: filePath.startsWith('http') ? filePath : `https://vaibhavproperties.cigmafeed.in/${filePath}`,
                                 name: filePath.split('/').pop() || 'Unnamed Document',
                                 thumbnail: filePath.endsWith('.pdf')
                                     ? 'https://cdn-icons-png.flaticon.com/512/337/337946.png'
-                                    : `https://investorlands.com/${filePath}`,
+                                    : `https://vaibhavproperties.cigmafeed.in/${filePath}`,
                             }))
                         );
                     } catch (error) {
@@ -667,7 +667,7 @@ const Editproperty = () => {
                     setMainImage(
                         apiData.thumbnail.startsWith('http')
                             ? apiData.thumbnail
-                            : `https://investorlands.com/assets/images/Listings/${apiData.thumbnail}`
+                            : `https://vaibhavproperties.cigmafeed.in/assets/images/Listings/${apiData.thumbnail}`
                     );
                 }
             }

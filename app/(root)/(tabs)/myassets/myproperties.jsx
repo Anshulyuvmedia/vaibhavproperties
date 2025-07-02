@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import icons from '@/constants/icons';
+import PropertyNavigation from '@/components/PropertyNavigation';
 
 // Helper to format price in Indian Rupees
 const formatINR = (amount) => {
@@ -23,11 +24,7 @@ const Myproperties = () => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
-  const [activeButton, setActiveButton] = useState('myproperties'); // Track active button
-  const navigateTo = (screen) => {
-    setActiveButton(screen);
-    router.push(`/${screen}`); // Navigate to the respective screen
-  };
+
   const handleCardPress = (id) => router.push(`/properties/${id}`);
   const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
   const handleAddProperty = () => router.push('/addproperty'); // Navigate to add property screen
@@ -40,7 +37,7 @@ const Myproperties = () => {
         console.error('User data or ID missing');
         return;
       }
-      const response = await axios.get(`https://investorlands.com/api/viewuserlistings?id=${parsedPropertyData.id}`);
+      const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/viewuserlistings?id=${parsedPropertyData.id}`);
       if (response.data && response.data.properties) {
         const formattedData = response.data.properties.map((item) => ({
           id: item.id,
@@ -52,8 +49,8 @@ const Myproperties = () => {
           thumbnail: item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.startsWith('http')
             ? item.thumbnail
             : item.thumbnail
-              ? `https://investorlands.com/assets/images/Listings/${item.thumbnail}`
-              : 'https://investorlands.com/assets/images/default-thumbnail.jpg',
+              ? `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${item.thumbnail}`
+              : 'https://vaibhavproperties.cigmafeed.in/adminAssets/images/default-thumbnail.jpg',
           city: item.city,
         }));
         setUserPropertyData(formattedData);
@@ -90,33 +87,8 @@ const Myproperties = () => {
             <Image source={icons.bell} style={styles.bellIcon} />
           </TouchableOpacity>
         </View>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, activeButton === 'myproperties' && styles.activeButton]}
-            onPress={() => navigateTo('myassets/myproperties')}
-          >
-            <Text style={[styles.buttonText, activeButton === 'myproperties' && styles.activeButtonText]}>
-              My Properties
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, activeButton === 'myenquiries' && styles.activeButton]}
-            onPress={() => navigateTo('myassets/myenquiries')}
-          >
-            <Text style={[styles.buttonText, activeButton === 'myenquiries' && styles.activeButtonText]}>
-              My Enquiries
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, activeButton === 'myloans' && styles.activeButton]}
-            onPress={() => navigateTo('myassets/myloans')}
-          >
-            <Text style={[styles.buttonText, activeButton === 'myloans' && styles.activeButtonText]}>
-              My Loans
-            </Text>
-          </TouchableOpacity>
-        </View>
 
+        <PropertyNavigation path={'myproperties'} />
         {/* Content */}
         <View style={styles.content}>
           {loading && !refreshing ? (
@@ -148,7 +120,7 @@ const Myproperties = () => {
                   {/* Image Section */}
                   <View style={styles.imageContainer}>
                     <Image
-                      source={{ uri: item.thumbnail || 'https://investorlands.com/assets/images/default-thumbnail.jpg' }}
+                      source={{ uri: item.thumbnail || 'https://vaibhavproperties.cigmafeed.in/adminAssets/images/default-thumbnail.jpg' }}
                       style={styles.propertyImage}
                     />
                     {/* Heart Icon (placeholder, replace with actual icon if available) */}
@@ -244,30 +216,6 @@ const styles = StyleSheet.create({
     height: moderateScale(24),
   },
 
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 20,
-  },
-  button: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  activeButton: {
-    backgroundColor: '#8bc83f',
-  },
-  buttonText: {
-    color: '#000',
-    fontFamily: 'Sora-Bold',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  activeButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
   content: {
     flex: 1,
   },

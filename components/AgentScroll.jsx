@@ -12,17 +12,17 @@ const AgentScroll = () => {
     const fetchAgenList = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://investorlands.com/api/agentlist`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/agentlist`);
             // console.log('API Response:', response.data);
 
             if (response.data && response.data.success && Array.isArray(response.data.data)) {
                 const apiData = response.data.data.map((agent, index) => ({
                     id: agent.id, // Generate unique id using index
-                    name: agent.name ? agent.name.split(' ')[0] : 'Unknown Agent', // Take first part before space
-                    image: agent.profile_photo_path
-                        ? agent.profile_photo_path.startsWith('http')
-                            ? { uri: agent.profile_photo_path }
-                            : { uri: `https://investorlands.com/assets/images/Users/${agent.profile_photo_path}` }
+                    name: agent.username ? agent.username.split(' ')[0] : 'Unknown Agent', // Take first part before space
+                    image: agent.profile
+                        ? agent.profile.startsWith('http')
+                            ? { uri: agent.profile }
+                            : { uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${agent.profile}` }
                         : images.avatar, // Use require result directly if local image
                 }));
                 // console.log('Processed Agent List:', apiData);
@@ -81,7 +81,7 @@ const AgentScroll = () => {
                 <Text className="text-xl font-rubik-bold text-black-300">
                     Top Estate Agent
                 </Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('agents/allagents')}>
                     <Text className="text-base font-rubik text-primary-300">
                         Explore
                     </Text>

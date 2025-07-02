@@ -2,15 +2,13 @@ import { StyleSheet, Text, View, ScrollView, Image, Dimensions, TouchableOpacity
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import icons from '@/constants/icons';
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+import PropertyNavigation from '@/components/PropertyNavigation';
+
 
 const Myloans = () => {
-    const [activeButton, setActiveButton] = useState('myloans'); // Track active button
     const router = useRouter();
 
-    const navigateTo = (screen) => {
-        setActiveButton(screen);
-        router.push(`/${screen}`); // Navigate to the respective screen
-    };
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
@@ -22,32 +20,8 @@ const Myloans = () => {
                     <Image source={icons.bell} style={styles.bellIcon} />
                 </TouchableOpacity>
             </View>
-            <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                    style={[styles.button, activeButton === 'myproperties' && styles.activeButton]}
-                    onPress={() => navigateTo('myassets/myproperties')}
-                >
-                    <Text style={[styles.buttonText, activeButton === 'myproperties' && styles.activeButtonText]}>
-                        My Properties
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.button, activeButton === 'myenquiries' && styles.activeButton]}
-                    onPress={() => navigateTo('myassets/myenquiries')}
-                >
-                    <Text style={[styles.buttonText, activeButton === 'myenquiries' && styles.activeButtonText]}>
-                        My Enquiries
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.button, activeButton === 'myloans' && styles.activeButton]}
-                    onPress={() => navigateTo('myassets/myloans')}
-                >
-                    <Text style={[styles.buttonText, activeButton === 'myloans' && styles.activeButtonText]}>
-                        My Loans
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            <PropertyNavigation path={'myloans'} />
+
         </ScrollView>
     )
 }
@@ -58,33 +32,40 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fafafa',
-        paddingHorizontal: 20,
+        paddingHorizontal: scale(10),
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+        justifyContent: 'space-between',
+        marginVertical: verticalScale(5),
     },
     backButton: {
-        padding: 5,
+        backgroundColor: '#f4f2f7',
+        borderRadius: moderateScale(20),
+        width: moderateScale(40),
+        height: moderateScale(40),
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     backIcon: {
-        width: 24,
-        height: 24,
-        tintColor: '#000',
+        width: moderateScale(20),
+        height: moderateScale(20),
     },
     title: {
-        fontSize: 18,
+        fontSize: moderateScale(18),
         fontFamily: 'Rubik-Bold',
         color: '#234F68',
     },
     bellIcon: {
-        width: 24,
-        height: 24,
-        tintColor: '#000',
+        width: moderateScale(24),
+        height: moderateScale(24),
+    },
+
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginVertical: 20,
     },
     buttonContainer: {
         flexDirection: 'row',

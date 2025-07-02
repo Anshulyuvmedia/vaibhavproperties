@@ -56,18 +56,18 @@ const EditProfile = () => {
                 return;
             }
 
-            const response = await axios.get(`https://investorlands.com/api/userprofile?id=${parsedUserData.id}`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/userprofile?id=${parsedUserData.id}`);
             const data = response.data.data;
 
             setUserId(data.id);
-            setUsername(data.name);
+            setUsername(data.username);
             setUsertype(data.user_type);
             setEmail(data.email);
-            setPhoneNumber(data.mobile);
+            setPhoneNumber(data.mobilenumber);
             setCompanyName(data.company_name);
             setCompanyDocs(data.company_document ? [data.company_document] : []);
 
-            let profileImage = data.profile_photo_path;
+            let profileImage = data.profile;
             if (typeof profileImage === 'number') {
                 profileImage = profileImage.toString();
             }
@@ -75,7 +75,7 @@ const EditProfile = () => {
             if (typeof profileImage === 'string' && profileImage.trim() !== '' && profileImage !== 'null' && profileImage !== 'undefined') {
                 profileImage = profileImage.startsWith('http')
                     ? profileImage
-                    : `https://investorlands.com/assets/images/Users/${profileImage}`;
+                    : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${profileImage}`;
             } else {
                 profileImage = images.avatar;
             }
@@ -97,7 +97,7 @@ const EditProfile = () => {
         });
 
         if (!result.canceled) {
-            setImage(result.assets[0].uri);
+            setImage(result.adminAssets[0].uri);
         }
     };
 
@@ -111,7 +111,7 @@ const EditProfile = () => {
 
             if (result.canceled) return;
 
-            const { mimeType, uri, name } = result.assets[0];
+            const { mimeType, uri, name } = result.adminAssets[0];
 
             if (!['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'].includes(mimeType)) {
                 Toast.show({
@@ -150,7 +150,7 @@ const EditProfile = () => {
                 return;
             }
 
-            const fileUrl = `https://investorlands.com/assets/images/Users/${fileName}`;
+            const fileUrl = `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${fileName}`;
             await Linking.openURL(fileUrl);
         } catch (error) {
             console.error('Error opening file:', error);
@@ -191,7 +191,7 @@ const EditProfile = () => {
             }
 
             const response = await axios.post(
-                `https://investorlands.com/api/updateuserprofile/${userId}`,
+                `https://vaibhavproperties.cigmafeed.in/api/updateuserprofile/${userId}`,
                 formData,
                 {
                     headers: {

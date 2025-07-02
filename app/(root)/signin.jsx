@@ -78,7 +78,7 @@ const Signin = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('https://investorlands.com/api/login-user', {
+      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/login-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -205,7 +205,7 @@ const Signin = () => {
           </View>
 
           <View style={styles.optionsContainer}>
-            <TouchableOpacity onPress={() => Linking.openURL("https://investorlands.com/resetpassword")}>
+            <TouchableOpacity onPress={() => Linking.openURL("https://vaibhavproperties.cigmafeed.in/resetpassword")}>
               <Text style={styles.forgotPassword}>Forgot password?</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>

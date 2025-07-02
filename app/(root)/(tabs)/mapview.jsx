@@ -77,7 +77,7 @@ const Mapview = () => {
             const queryParams = new URLSearchParams();
             if (params.city) queryParams.append("filtercity", params.city);
 
-            const apiUrl = `https://investorlands.com/api/filterlistings?${queryParams.toString()}`;
+            const apiUrl = `https://vaibhavproperties.cigmafeed.in/api/filterlistings?${queryParams.toString()}`;
             // console.log("Sending API request to:", apiUrl);
 
             const response = await axios({
@@ -141,7 +141,7 @@ const Mapview = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get('https://investorlands.com/api/property-listings', {
+            const response = await axios.get('https://vaibhavproperties.cigmafeed.in/api/property-listings', {
                 params: {
                     latitude: mapRegion?.latitude || 26.4499,
                     longitude: mapRegion?.longitude || 74.6399,

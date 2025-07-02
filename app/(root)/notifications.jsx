@@ -19,7 +19,7 @@ const Notifications = () => {
         setLoading(true);
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
-            const response = await axios.get(`https://investorlands.com/api/usernotifications/?user_type=${parsedUserData.user_type}`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/usernotifications/?user_type=${parsedUserData.user_type}`);
 
             if (response.data?.notifications) {
                 const apiData = response.data.notifications;
@@ -98,7 +98,7 @@ const Notifications = () => {
     const readCount = notificationData.length - unreadCount;
 
     const renderNotification = ({ item }) => {
-        const imageUrl = `https://investorlands.com/assets/images/Notificaitons/${item.notificationimg}`;
+        const imageUrl = `https://vaibhavproperties.cigmafeed.in/assets/images/Notificaitons/${item.notificationimg}`;
         const isRead = readStatus[item.id] || false;
         const previewText = item.notificationdes.length > 50 ? `${item.notificationdes.substring(0, 50)}...` : item.notificationdes;
 
@@ -222,7 +222,7 @@ const Notifications = () => {
                     <>
                         <View className='flex-row'>
                             <Image
-                                source={{ uri: `https://investorlands.com/assets/images/Notificaitons/${selectedNotification.notificationimg}` }}
+                                source={{ uri: `https://vaibhavproperties.cigmafeed.in/assets/images/Notificaitons/${selectedNotification.notificationimg}` }}
                                 style={styles.profileImage}
                                 onError={(e) => console.log('Image failed to load:', e.nativeEvent.error)}
                             />

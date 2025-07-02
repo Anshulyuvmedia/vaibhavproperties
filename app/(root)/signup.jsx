@@ -64,7 +64,7 @@ const Signup = () => {
 
   const handleGoogleSignIn = async (idToken) => {
     try {
-      const response = await fetch('https://investorlands.com/api/googleRegister', {
+      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/googleRegister', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -130,7 +130,7 @@ const Signup = () => {
       }
 
       try {
-        const response = await fetch('https://investorlands.com/api/register-user', {
+        const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/register-user', {
           method: 'POST',
           headers: { 'Content-Type': 'multipart/form-data' },
           body: formData,
