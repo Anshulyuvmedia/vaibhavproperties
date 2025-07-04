@@ -11,35 +11,35 @@ const PADDING_HORIZONTAL = scale(15);
 const GAP = scale(7);
 const NUM_COLUMNS = 2;
 
-const Allagents = () => {
-    const [agentList, setAgentList] = useState([]);
+const Allbrokers = () => {
+    const [brokerList, setbrokerList] = useState([]);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
     const fetchAgenList = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/agentlist`);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/brokerlist`);
             if (response.data && response.data.success && Array.isArray(response.data.data)) {
-                const apiData = response.data.data.map((agent, index) => ({
-                    id: agent.id,
-                    name: agent.username ? agent.username.split(' ')[0] : 'Unknown Agent',
-                    image: agent.profile
-                        ? agent.profile.startsWith('http')
-                            ? { uri: agent.profile }
-                            : { uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${agent.profile}` }
+                const apiData = response.data.data.map((broker, index) => ({
+                    id: broker.id,
+                    name: broker.username ? broker.username.split(' ')[0] : 'Unknown broker',
+                    image: broker.profile
+                        ? broker.profile.startsWith('http')
+                            ? { uri: broker.profile }
+                            : { uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${broker.profile}` }
                         : images.avatar,
                     rating: (Math.random() * (5 - 4) + 4).toFixed(1), // Simulated rating (4.0-5.0)
                     sales: Math.floor(Math.random() * 20) + 10, // Simulated sales (10-29)
                 }));
-                setAgentList(apiData);
+                setbrokerList(apiData);
             } else {
                 console.error('Unexpected API response format:', response.data);
-                setAgentList([]);
+                setbrokerList([]);
             }
         } catch (error) {
-            console.error('Error fetching agent data:', error.response ? `${error.response.status} - ${error.response.statusText}` : error.message, error.response ? error.response.data : {});
-            setAgentList([]);
+            console.error('Error fetching broker data:', error.response ? `${error.response.status} - ${error.response.statusText}` : error.message, error.response ? error.response.data : {});
+            setbrokerList([]);
         } finally {
             setLoading(false);
         }
@@ -49,20 +49,20 @@ const Allagents = () => {
         fetchAgenList();
     }, []);
 
-    const renderAgent = ({ item }) => (
+    const renderbroker = ({ item }) => (
         <TouchableOpacity
             style={styles.card}
             onPress={() => {
                 const imageUri = typeof item.image === 'object' && item.image.uri ? item.image.uri : (typeof item.image === 'number' ? images.avatar : item.image);
-                router.push({ pathname: `/agents/${item.id}`, params: { name: item.name, image: imageUri } });
+                router.push({ pathname: `/brokers/${item.id}`, params: { name: item.name, image: imageUri } });
             }}
         >
             <Image
                 source={item.image}
-                style={styles.agentImage}
+                style={styles.brokerImage}
                 onError={(error) => console.log('Image load error for', item.name, ':', error.nativeEvent.error)}
             />
-            <Text style={styles.agentName}>{item.name}</Text>
+            <Text style={styles.brokerName}>{item.name}</Text>
             <View style={styles.ratingContainer}>
                 <Ionicons name="star" size={moderateScale(14)} color="#FFD700" />
                 <Text style={styles.ratingText}>{item.rating}</Text>
@@ -82,34 +82,31 @@ const Allagents = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
+                <View style={styles.titleContainer}>
+                    <Text style={styles.title}>All Property Broker</Text>
+                </View>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Image source={icons.backArrow} style={styles.backIcon} />
-                </TouchableOpacity>
-                <View style={styles.titleContainer}>
-                    <Text style={styles.title}>Top Estate Agent</Text>
-                </View>
-                <TouchableOpacity onPress={() => router.push('/notifications')}>
-                    <Image source={icons.bell} style={styles.bellIcon} />
                 </TouchableOpacity>
             </View>
 
             <FlatList
-                data={agentList}
-                renderItem={renderAgent}
+                data={brokerList}
+                renderItem={renderbroker}
                 keyExtractor={(item) => item.id.toString()}
                 numColumns={NUM_COLUMNS}
                 contentContainerStyle={styles.flatListContent}
                 columnWrapperStyle={styles.columnWrapper}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={() => (
-                    <Text style={styles.emptyText}>No agents available</Text>
+                    <Text style={styles.emptyText}>No brokers available</Text>
                 )}
             />
         </View>
     );
 };
 
-export default Allagents;
+export default Allbrokers;
 
 const styles = StyleSheet.create({
     container: {
@@ -175,14 +172,14 @@ const styles = StyleSheet.create({
         // shadowRadius: 4,
         // elevation: 3,
     },
-    agentImage: {
+    brokerImage: {
         width: scale(80),
         height: scale(80),
         borderRadius: 9999,
         backgroundColor: '#fff',
         resizeMode: 'cover',
     },
-    agentName: {
+    brokerName: {
         marginTop: verticalScale(8),
         fontSize: moderateScale(16),
         fontFamily: 'Rubik-Medium',

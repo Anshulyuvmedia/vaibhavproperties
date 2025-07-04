@@ -101,12 +101,12 @@ const MyEnquiries = () => {
             <Text style={styles.actionButtonText}>View Property</Text>
           </TouchableOpacity>
         )}
-        {item.agentid && (
+        {item.brokerid && (
           <TouchableOpacity
-            style={[styles.actionButton, styles.agentButton]}
-            onPress={() => router.push(`/agent/${item.agentid}`)}
+            style={[styles.actionButton, styles.brokerButton]}
+            onPress={() => router.push(`/brokers/${item.brokerid}`)}
           >
-            <Text style={styles.actionButtonText}>View Agent</Text>
+            <Text style={styles.actionButtonText}>View broker</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -212,15 +212,15 @@ const MyEnquiries = () => {
               
             </ScrollView>
             <View style={styles.sheetButtonContainer}>
-              {selectedEnquiry.agentid && (
+              {selectedEnquiry.brokerid && (
                 <TouchableOpacity
-                  style={[styles.sheetActionButton, styles.agentButton]}
+                  style={[styles.sheetActionButton, styles.brokerButton]}
                   onPress={() => {
                     rbSheetRef.current.close();
-                    router.push(`/agent/${selectedEnquiry.agentid}`);
+                    router.push(`/broker/${selectedEnquiry.brokerid}`);
                   }}
                 >
-                  <Text style={styles.sheetActionButtonText}>View Agent Profile</Text>
+                  <Text style={styles.sheetActionButtonText}>View broker Profile</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
@@ -243,13 +243,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fafafa',
-    paddingHorizontal: scale(15),
+    paddingHorizontal: scale(10),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginVertical: verticalScale(10),
+    marginVertical: verticalScale(5),
   },
   backButton: {
     backgroundColor: '#f4f2f7',
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(8),
     paddingHorizontal: scale(12),
   },
-  agentButton: {
+  brokerButton: {
     backgroundColor: '#4CAF50',
   },
   actionButtonText: {

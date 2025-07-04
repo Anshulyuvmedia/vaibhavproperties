@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, Dimensions, RefreshControl } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
@@ -14,24 +14,25 @@ const PADDING_HORIZONTAL = scale(0);
 const GAP = scale(10);
 const CARD_WIDTH = (screenWidth - 2 * PADDING_HORIZONTAL - GAP) / 2;
 
-const Agent = () => {
+const Broker = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const [userPropertyData, setUserPropertyData] = useState([]);
-    const [agentData, setAgentData] = useState(null);
+    const [brokerData, setBrokerData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const fetchAgentProfile = async () => {
+    const fetchbrokerProfile = async () => {
         setLoading(true);
         setError(null);
-        // console.log('Fetching agent profile for id:', id);
+        // console.log('Fetching broker profile for id:', id);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/agentprofile?id=${id}`);
-            // console.log('API Response:', response.data);
+            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/brokerprofile?id=${id}`);
+            console.log('API Response:', response.data);
             if (response.data.success) {
-                if (response.data.agentprofile && response.data.agentprofile.length > 0) {
-                    setAgentData(response.data.agentprofile[0]);
+                if (response.data.brokerdata && response.data.brokerdata.length > 0) {
+                    setBrokerData(response.data.brokerdata[0]);
                 }
                 if (response.data.allproperties) {
                     const formattedProperties = response.data.allproperties.map((item, index) => ({
@@ -48,22 +49,27 @@ const Agent = () => {
                     setUserPropertyData(formattedProperties);
                 }
             } else {
-                throw new Error(response.data.message || 'Failed to fetch agent profile');
+                throw new Error(response.data.message || 'Failed to fetch broker profile');
             }
         } catch (error) {
             console.error('Error fetching user data:', error.message, 'Response:', error.response?.data);
             setError(error.message);
             setUserPropertyData([]);
-            setAgentData(null);
+            setBrokerData(null);
         } finally {
             setLoading(false);
+            setRefreshing(false); // Reset refreshing state when done
         }
     };
 
     useEffect(() => {
-        fetchAgentProfile();
+        fetchbrokerProfile();
     }, [id]);
 
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchbrokerProfile();
+    };
 
     const renderEmptyComponent = () => (
         <View style={styles.emptyContainer}>
@@ -72,41 +78,40 @@ const Agent = () => {
                 Listing <Text style={styles.emptyHighlight}>not found</Text>
             </Text>
             <Text style={styles.emptySubtitle}>
-                Sorry, we can't find the real estate from the agent.
+                Sorry, we can't find the real estate from the broker.
             </Text>
         </View>
     );
 
     const getProfileImageUri = () => {
-        let baseUri = agentData?.profile
-            ? agentData.profile.startsWith('http')
-                ? agentData.profile
-                : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${agentData.profile}`
+        let baseUri = brokerData?.profile
+            ? brokerData.profile.startsWith('http')
+                ? brokerData.profile
+                : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${brokerData.profile}`
             : images.avatar;
         // console.log('Profile Image URI:', baseUri);
         return baseUri.toString();
     };
 
     const handleCardPress = (id) => router.push(`/properties/${id}`);
-    const handleChatPress = () => console.log('Chat pressed for agent:', agentData?.username); // Placeholder function
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerText}>Agent Profile</Text>
+                <Text style={styles.headerText}>Broker Profile</Text>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.7}>
                     <MaterialIcons name="arrow-back" size={moderateScale(20, 0.3)} color="#4B5563" />
                 </TouchableOpacity>
             </View>
-            {agentData ? (
+            {brokerData ? (
                 <>
                     <Image
                         source={{ uri: getProfileImageUri() }}
                         style={styles.profileImage}
-                        onError={(error) => console.log('Image load error for', agentData.username, ':', error.nativeEvent.error)}
+                        onError={(error) => console.log('Image load error for', brokerData.username, ':', error.nativeEvent.error)}
                     />
-                    <Text style={styles.name}>{agentData.username}</Text>
-                    <Text style={styles.email}>{agentData.email}</Text>
+                    <Text style={styles.name}>{brokerData.username}</Text>
+                    <Text style={styles.email}>{brokerData.email}</Text>
                 </>
             ) : error ? (
                 <Text style={styles.errorText}>{error}</Text>
@@ -128,6 +133,14 @@ const Agent = () => {
                         columnWrapperStyle={styles.flatListColumnWrapper}
                         showsVerticalScrollIndicator={false}
                         ListEmptyComponent={!loading && userPropertyData.length === 0 ? renderEmptyComponent : null}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                colors={['#234F68']}
+                                progressBackgroundColor="#f4f2f7"
+                            />
+                        }
                     />
                 )}
             </View>
@@ -138,7 +151,7 @@ const Agent = () => {
     );
 };
 
-export default Agent;
+export default Broker;
 
 const styles = StyleSheet.create({
     container: {

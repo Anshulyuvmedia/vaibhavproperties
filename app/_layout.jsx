@@ -72,5 +72,5 @@ export default function RootLayout() {
                 <Toast />
             </SafeAreaView>
         </GestureHandlerRootView>
-    );
+    );  
 }

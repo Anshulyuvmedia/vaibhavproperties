@@ -526,7 +526,7 @@ const PropertyDetails = () => {
                         <View className="flex flex-row items-center">
                             <Image source={images.appfavicon} className="size-14 rounded-full" />
                             <View className="flex flex-col items-start justify-center ml-3">
-                                <Text className="text-lg text-primary-300 text-start font-rubik-bold">Agent Name</Text>
+                                <Text className="text-lg text-primary-300 text-start font-rubik-bold">Broker Name</Text>
                                 <Text className="text-sm text-black-200 text-start font-rubik-medium">You are one call away.</Text>
                             </View>
                         </View>

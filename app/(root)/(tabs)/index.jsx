@@ -12,7 +12,8 @@ import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import { useNavigation } from "@react-navigation/native";
 import HomeCarousel from '@/components/HomeCarousel';
 import LocationScroll from '@/components/LocationScroll';
-import AgentScroll from '@/components/AgentScroll';
+import BrokerScroll from '@/components/BrokerScroll';
+import BankScroll from '@/components/BankScroll';
 
 // Get screen width for dynamic card sizing
 const PADDING_HORIZONTAL = scale(15);
@@ -169,7 +170,8 @@ const Index = () => {
                             <LocationScroll />
                         </View>
 
-                        <AgentScroll />
+                        <BrokerScroll />
+                        <BankScroll />
 
                         <View className='my-5'>
                             <View className='flex flex-row items-center justify-between'>
