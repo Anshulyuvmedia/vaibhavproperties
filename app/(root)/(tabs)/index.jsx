@@ -33,7 +33,7 @@ const Index = () => {
         setLoading(true);
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
-
+            // console.log('parsedUserData', parsedUserData);
             if (!parsedUserData || !parsedUserData.id) {
                 await AsyncStorage.removeItem('userData');
                 router.push('/signin');

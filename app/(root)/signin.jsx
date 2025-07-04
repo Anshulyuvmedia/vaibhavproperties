@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,155 +9,237 @@ import {
   ActivityIndicator,
   TextInput,
   ImageBackground,
+  Alert,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import images from '@/constants/images';
 import * as WebBrowser from "expo-web-browser";
-import * as Google from 'expo-auth-session/providers/google';
-import * as Facebook from 'expo-auth-session/providers/facebook';
-import Constants from "expo-constants";
 import Toast, { BaseToast } from 'react-native-toast-message';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import RBSheet from 'react-native-raw-bottom-sheet';
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const Signin = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [otpShow, setOtpShow] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [showOtpSheet, setShowOtpSheet] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
+  const otpSheetRef = useRef(null);
   const [userInfo, setUserInfo] = useState(null);
-
-  const ANDROID_CLIENT_ID = Constants.expoConfig.extra.ANDROID_CLIENT_ID;
-  const WEB_CLIENT_ID = Constants.expoConfig.extra.WEB_CLIENT_ID;
-  const IOS_CLIENT_ID = Constants.expoConfig.extra.IOS_CLIENT_ID;
-  const FACEBOOK_APP_ID = Constants.expoConfig.extra.FACEBOOK_APP_ID || 'your-facebook-app-id'; // Add to app.json
+  const otpRefs = useRef([...Array(6)].map(() => React.createRef())); // Refs for OTP inputs
+  const [resendCountdown, setResendCountdown] = useState(0); // Countdown state
+  const [isResendDisabled, setIsResendDisabled] = useState(true); // Button disabled state
 
   const toastConfig = {
     success: (props) => (
       <BaseToast
         {...props}
         style={{ borderLeftColor: "green" }}
-        text1Style={{ fontSize: 16, fontWeight: "bold" }}
-        text2Style={{ fontSize: 14 }}
+        text1Style={{ fontSize: moderateScale(16), fontWeight: "bold" }}
+        text2Style={{ fontSize: moderateScale(14) }}
       />
     ),
     error: (props) => (
       <BaseToast
         {...props}
         style={{ borderLeftColor: "red" }}
-        text1Style={{ fontSize: 16, fontWeight: "bold" }}
-        text2Style={{ fontSize: 14 }}
+        text1Style={{ fontSize: moderateScale(16), fontWeight: "bold" }}
+        text2Style={{ fontSize: moderateScale(14) }}
       />
     ),
   };
 
-  // Google Auth Request
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    androidClientId: ANDROID_CLIENT_ID,
-    iosClientId: IOS_CLIENT_ID,
-    webClientId: WEB_CLIENT_ID,
-  });
-
-  // Facebook Auth Request
-  const [facebookRequest, facebookResponse, facebookPromptAsync] = Facebook.useAuthRequest({
-    clientId: FACEBOOK_APP_ID,
-  });
-
-  // Handle Email Login
-  const emaillogin = async () => {
-    if (!email || !password) {
-      setError("Please enter both email and password.");
+  const generateOtp = async () => {
+    const mobileRegex = /^\d{10}$/;
+    if (!mobileNumber || !mobileRegex.test(mobileNumber)) {
+      Alert.alert("Invalid Mobile Number", "Please enter a valid 10-digit mobile number.");
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/login-user', {
+      // console.log('Sending request to:', 'https://vaibhavproperties.cigmafeed.in/api/generateotp');
+      // console.log('Request body:', { mobilenumber: mobileNumber });
+      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/generateotp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ mobilenumber: mobileNumber }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      // console.log('Raw response:', text);
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error(`Invalid JSON response: ${text.substring(0, 200)}...`);
+      }
 
-      if (response.ok && data.success) {
-        await AsyncStorage.setItem('userToken', data.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(data.data));
-        router.push('/mapview'); // Redirect to dashboard
+      // console.log('Parsed response:', data);
+
+      if (data.success) {
+        setUserInfo({ id: data.data.id });
+        setShowOtpSheet(true);
+        otpSheetRef.current?.open();
+        startResendCountdown(); // Start countdown after successful OTP generation
       } else {
-        setError(data.message || "Invalid credentials");
+        setError(data.message || "Mobile number not found or invalid.");
       }
     } catch (error) {
-      setError("An unexpected error occurred");
+      console.error('Fetch error details (generate):', error.message, 'Status:', response?.status);
+      setError(`An unexpected error occurred while generating OTP: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const getUserInfo = async (token, provider) => {
-    if (!token) return;
+  const verifyOtpAndLogin = async () => {
+    const otpString = otp.join('');
+    if (otpString.length !== 6) {
+      setError("Please enter a 6-digit OTP.");
+      return;
+    }
 
+    setLoading(true);
+    setError(null);
     try {
-      let url = provider === 'google'
-        ? "https://www.googleapis.com/userinfo/v2/me"
-        : "https://graph.facebook.com/me?access_token=" + token;
-
-      const res = await fetch(url, {
-        headers: provider === 'google' ? { Authorization: `Bearer ${token}` } : {},
+      // console.log('Verifying OTP with userInfo:', userInfo, 'OTP Array:', otp, 'OTP String:', otpString);
+      const payload = {
+        loginformidval: userInfo?.id || '',
+        1: otp[0],
+        2: otp[1],
+        3: otp[2],
+        4: otp[3],
+        5: otp[4],
+        6: otp[5],
+      };
+      // console.log('Verification payload:', payload);
+      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/verifyotp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to fetch user data: ${res.status}`);
+      // console.log('Verification response:', response);
+      // console.log('Verification response status:', response.status);
+      const text = await response.text();
+      // console.log('Raw verification response:', text);
+      let data;
+      try {
+        data = JSON.parse(text);
+        // console.log('Parsed verification response:', data);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError.message, 'Raw text:', text.substring(0, 200));
+        throw new Error(`Failed to parse JSON response: ${parseError.message}`);
       }
 
-      const user = await res.json();
-      await AsyncStorage.setItem("user", JSON.stringify(user));
-      setUserInfo(user);
-      router.push('/'); // Redirect to dashboard
-    } catch (error) {
-      setError("Failed to fetch user data");
-    }
-  };
-
-  const signInWithGoogle = async () => {
-    try {
-      if (googleResponse?.type === 'success') {
-        const { authentication } = googleResponse;
-        if (authentication?.accessToken) {
-          await getUserInfo(authentication.accessToken, 'google');
+      if (data.success) {
+        // console.log('Success data:', data);
+        const token = data.token || '';
+        const user = data.data || {}; // Use data.data directly as the user object
+        if (!token || !user.id) {
+          throw new Error('Invalid token or user data');
         }
-      }
-    } catch (error) {
-      setError('Google Sign-In Error');
-    }
-  };
-
-  const signInWithFacebook = async () => {
-    try {
-      if (facebookResponse?.type === 'success') {
-        const { authentication } = facebookResponse;
-        if (authentication?.accessToken) {
-          await getUserInfo(authentication.accessToken, 'facebook');
+        await AsyncStorage.setItem('userToken', token);
+        await AsyncStorage.setItem('userData', JSON.stringify(user));
+        const storedToken = await AsyncStorage.getItem('userToken');
+        const storedUserData = await AsyncStorage.getItem('userData');
+        // console.log('Stored userToken:', storedToken);
+        // console.log('Stored userData:', storedUserData);
+        if (storedToken && storedUserData) {
+          otpSheetRef.current?.close();
+          router.push('/mapview');
+        } else {
+          throw new Error('Failed to store authentication data');
         }
+      } else {
+        setError(data.message || "Invalid OTP");
       }
     } catch (error) {
-      setError('Facebook Sign-In Error');
+      console.error('Fetch error details (verify):', error.message, 'Status:', response?.status, 'Response:', await response?.text());
+      setError(`An unexpected error occurred while verifying OTP: ${error.message}`);
+    } finally {
+      setLoading(false);
+      // Do not close RBSheet on error
     }
   };
 
-  useEffect(() => {
-    signInWithGoogle();
-  }, [googleResponse]);
+  const resendOtp = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // console.log('Resending OTP for:', { mobilenumber: mobileNumber });
+      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/generateotp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobilenumber: mobileNumber }),
+      });
 
-  useEffect(() => {
-    signInWithFacebook();
-  }, [facebookResponse]);
+      const text = await response.text();
+      // console.log('Raw response (resend):', text);
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error(`Invalid JSON response: ${text.substring(0, 200)}...`);
+      }
+
+      // console.log('Parsed response (resend):', data);
+      setOtpShow(data.data.otp);
+      if (data.success) {
+        setUserInfo({ id: data.data.id });
+        setOtp(['', '', '', '', '', '']); // Clear OTP fields on resend
+        startResendCountdown(); // Restart countdown
+      } else {
+        setError(data.message || "Failed to resend OTP.");
+      }
+    } catch (error) {
+      console.error('Fetch error details (resend):', error.message, 'Status:', response?.status);
+      setError(`An unexpected error occurred while resending OTP: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startResendCountdown = () => {
+    setResendCountdown(10);
+    setIsResendDisabled(true);
+    const timer = setInterval(() => {
+      setResendCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsResendDisabled(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleOtpChange = (text, index) => {
+    if (/^\d$/.test(text) || text === '') {
+      const newOtp = [...otp];
+      newOtp[index] = text;
+      setOtp(newOtp);
+
+      // Move focus to next input if a digit is entered
+      if (text && index < 5) {
+        otpRefs.current[index + 1].current.focus();
+      }
+      // Move focus to previous input if backspace is used
+      else if (!text && index > 0) {
+        otpRefs.current[index - 1].current.focus();
+      }
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -171,73 +253,100 @@ const Signin = () => {
         />
 
         <View style={styles.formContainer}>
+          <Image
+            source={images.applogo}
+            style={styles.applogo}
+            resizeMode="cover"
+          />
           <Text style={styles.title}>
             Let's <Text style={styles.highlight}>Sign In</Text>
           </Text>
 
-          <Text style={styles.subtitle}> Get You Closer To Your Dream Home</Text>
+          <Text style={styles.subtitle}>Get You Closer To Your Dream Home</Text>
 
           {error && (
             <Text style={styles.errorText}>{error}</Text>
           )}
 
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="black" style={styles.inputIcon} />
+            <Ionicons name="call-outline" size={moderateScale(20)} color="black" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
+              placeholder="Mobile Number"
+              keyboardType="phone-pad"
+              maxLength={10}
+              value={mobileNumber}
+              onChangeText={setMobileNumber}
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="black" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
-
-          <View style={styles.optionsContainer}>
-            <TouchableOpacity onPress={() => Linking.openURL("https://vaibhavproperties.cigmafeed.in/resetpassword")}>
-              <Text style={styles.forgotPassword}>Forgot password?</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Text style={styles.showPassword}>{showPassword ? 'Hide password' : 'Show password'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity onPress={emaillogin} style={styles.loginButton} disabled={loading}>
+          <TouchableOpacity onPress={generateOtp} style={styles.loginButton} disabled={loading}>
             {loading ? (
               <ActivityIndicator size="small" color="#FFF" style={styles.loginButtonText} />
             ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
+              <Text style={styles.loginButtonText}>Get OTP</Text>
             )}
           </TouchableOpacity>
 
-          {/* <Text style={styles.orText}>OR</Text>
-
-          <View style={styles.socialButtonsContainer}>
-            <TouchableOpacity onPress={() => googlePromptAsync()} style={styles.socialButton} disabled={!googleRequest}>
-              <Image source={icons.google} style={styles.socialIcon} resizeMode="contain" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => facebookPromptAsync()} style={styles.socialButton} disabled={!facebookRequest}>
-              <Image source={icons.facebook} style={styles.socialIcon} resizeMode="contain" />
-            </TouchableOpacity>
-          </View> */}
-
+          <RBSheet
+            ref={otpSheetRef}
+            closeOnDragDown={true}
+            closeOnPressMask={true}
+            height={verticalScale(400)}
+            customStyles={{
+              container: styles.bottomSheetContainer,
+            }}
+          >
+            <View style={styles.otpSheetContent}>
+              <Text style={styles.otpSheetHeader}>Verify Your OTP</Text>
+              <Text style={styles.otpSheetSubtext}>Enter the 6-digit code sent to +91 {mobileNumber}</Text>
+              <Text style={styles.otpSheetSubtext}>Enter OTP: {otpShow}</Text>
+              <View style={styles.otpInputContainer}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={otpRefs.current[index]}
+                    style={styles.otpInput}
+                    keyboardType="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={(text) => handleOtpChange(text, index)}
+                    autoFocus={index === 0}
+                  />
+                ))}
+              </View>
+              {error && (
+                <Text style={styles.otpErrorText}>{error}</Text>
+              )}
+              <TouchableOpacity onPress={verifyOtpAndLogin} style={styles.verifyButton} disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.verifyButtonText}>Verify OTP</Text>
+                )}
+              </TouchableOpacity>
+              <View style={styles.resendContainer}>
+                {resendCountdown > 0 ? (
+                  <Text style={styles.resendText}>Resend in {resendCountdown}s</Text>
+                ) : (
+                  <TouchableOpacity
+                    onPress={resendOtp}
+                    style={[styles.resendButton, isResendDisabled && styles.resendButtonDisabled]}
+                    disabled={isResendDisabled || loading}
+                  >
+                    <Text style={styles.resendButtonText}>Resend OTP</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </RBSheet>
         </View>
-          <Link href="/signup" style={styles.registerLink}>
-            <Text style={styles.registerText}>
-              Don't have an account? <Text style={styles.highlight}>Register</Text>
-            </Text>
-          </Link>
+
+        <Link href="/signup" style={styles.registerLink}>
+          <Text style={styles.registerText}>
+            Don't have an account? <Text style={styles.highlight}>Register</Text>
+          </Text>
+        </Link>
       </ScrollView>
     </View>
   );
@@ -248,25 +357,54 @@ export default Signin;
 // Styles
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafafa', alignItems: 'center', justifyContent: 'center' },
-  scrollContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'space-between' },
-  backgroundImage: { width: '100%', height: 150 },
-  formContainer: { paddingHorizontal: 40, width: '100%', alignItems: 'center' },
-  title: { fontSize: 24, textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#333', marginTop: 20 },
-  highlight: { color: '#1F4C6B', fontFamily: 'Rubik-Bold', },
-  subtitle: { fontSize: 18, fontFamily: 'Rubik-Regular', color: '#555', textAlign: 'center', marginVertical: 15 },
-  errorText: { backgroundColor: '#1e3a8a', color: 'white', padding: 10, borderRadius: 5, marginBottom: 10, width: '100%', textAlign: 'center' },
-  inputContainer: { flexDirection: 'row', padding: 10, alignItems: 'center', backgroundColor: '#f5f4f8', borderWidth: 0, borderRadius: 10, marginBottom: 10, width: '100%' },
-  inputIcon: { marginLeft: 10 },
-  input: { flex: 1, height: 45, paddingHorizontal: 10 },
-  optionsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 10 },
-  forgotPassword: { color: "#1F4C6B" },
-  showPassword: { color: "#1F4C6B" },
-  loginButton: { backgroundColor: '#8BC83F', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10, width: '100%' },
-  loginButtonText: { fontSize: 18, fontFamily: 'Rubik-Medium', color: 'white' },
-  orText: { fontSize: 14, fontFamily: 'Rubik-Regular', color: '#555', textAlign: 'center', marginVertical: 20 },
-  socialButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '60%' },
-  socialButton: { backgroundColor: 'lightgrey', borderRadius: 50, padding: 10, alignItems: 'center', width: 60, height: 60, justifyContent: 'center' },
-  socialIcon: { width: 30, height: 30 },
-  registerLink: { marginBlock: 20, alignItems: 'center' },
-  registerText: { fontSize: 16, fontFamily: 'Rubik-Regular', color: '#000', textAlign: 'center' },
+  scrollContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'space-between', paddingBottom: verticalScale(20) },
+  backgroundImage: { width: '100%', height: verticalScale(150) },
+  applogo: { width: scale(150), height: scale(150), borderRadius: moderateScale(100) },
+  formContainer: { paddingHorizontal: scale(20), width: '100%', alignItems: 'center' },
+  title: { fontSize: moderateScale(24), textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#333', marginTop: verticalScale(20) },
+  highlight: { color: '#1F4C6B', fontFamily: 'Rubik-Bold' },
+  subtitle: { fontSize: moderateScale(18), fontFamily: 'Rubik-Regular', color: '#000', textAlign: 'center', marginVertical: verticalScale(15) },
+  errorText: { backgroundColor: '#1e3a8a', color: 'white', padding: scale(10), borderRadius: moderateScale(5), marginBottom: verticalScale(10), width: '100%', textAlign: 'center' },
+  inputContainer: { flexDirection: 'row', padding: scale(10), alignItems: 'center', backgroundColor: '#f5f4f8', borderWidth: 0, borderRadius: moderateScale(10), marginBottom: verticalScale(10), width: '100%' },
+  inputIcon: { marginLeft: scale(10) },
+  input: { flex: 1, height: verticalScale(45), paddingHorizontal: scale(10) },
+  loginButton: { backgroundColor: '#8BC83F', borderRadius: moderateScale(10), paddingVertical: verticalScale(14), alignItems: 'center', marginTop: verticalScale(10), width: '100%' },
+  loginButtonText: { fontSize: moderateScale(18), fontFamily: 'Rubik-Medium', color: 'white' },
+  bottomSheetContainer: {
+    borderTopLeftRadius: moderateScale(20),
+    borderTopRightRadius: moderateScale(20),
+    padding: scale(15),
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: moderateScale(4),
+    elevation: 5,
+  },
+  otpSheetContent: { alignItems: 'center', width: '100%' },
+  otpSheetHeader: { fontSize: moderateScale(22), fontFamily: 'Rubik-Bold', color: '#333', marginBottom: verticalScale(10) },
+  otpSheetSubtext: { fontSize: moderateScale(14), fontFamily: 'Rubik-Regular', color: '#000', textAlign: 'center', marginBottom: verticalScale(20) },
+  otpInputContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: verticalScale(10), gap: 5 },
+  otpInput: {
+    width: scale(50),
+    height: verticalScale(50),
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: moderateScale(10),
+    textAlign: 'center',
+    fontSize: moderateScale(18),
+    backgroundColor: '#f9f9f9',
+    color: '#333',
+  },
+  otpErrorText: { color: 'red', fontSize: moderateScale(14), textAlign: 'center', marginBottom: verticalScale(15), width: '80%' },
+  verifyButton: { backgroundColor: '#8BC83F', borderRadius: moderateScale(10), paddingVertical: verticalScale(12), alignItems: 'center', width: '80%', marginTop: verticalScale(10) },
+  verifyButtonText: { fontSize: moderateScale(16), fontFamily: 'Rubik-Medium', color: 'white' },
+  resendContainer: { marginTop: verticalScale(10), alignItems: 'center' },
+  resendText: { fontSize: moderateScale(14), fontFamily: 'Rubik-Regular', color: '#666' },
+  resendButton: { backgroundColor: '#f4f2f7', borderRadius: moderateScale(10), paddingVertical: verticalScale(8), paddingInline: verticalScale(18), alignItems: 'center', width: '80%' },
+  resendButtonDisabled: { backgroundColor: '#cccccc' },
+  resendButtonText: { fontSize: moderateScale(14), fontFamily: 'Rubik-Medium', color: '#234F68' },
+  registerLink: { marginBlock: verticalScale(20), alignItems: 'center' },
+  registerText: { fontSize: moderateScale(16), fontFamily: 'Rubik-Regular', color: '#000', textAlign: 'center' },
 });

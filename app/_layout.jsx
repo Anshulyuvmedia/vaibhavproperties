@@ -31,7 +31,7 @@ export default function RootLayout() {
                     const token = await AsyncStorage.getItem("userToken");
                     const userData = await AsyncStorage.getItem("userData");
                     const parsedUserData = userData ? JSON.parse(userData) : null;
-
+                    // console.log('parsedUserData',parsedUserData);
                     if (!token || !parsedUserData || !parsedUserData.id) {
                         await AsyncStorage.removeItem("userData");
                         setIsAuthenticated(false);
