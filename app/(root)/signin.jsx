@@ -12,7 +12,6 @@ import {
   Alert,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import images from '@/constants/images';
 import * as WebBrowser from "expo-web-browser";
