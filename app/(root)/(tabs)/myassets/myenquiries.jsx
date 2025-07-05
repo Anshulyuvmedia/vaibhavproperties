@@ -29,9 +29,16 @@ const MyEnquiries = () => {
         return;
       }
       const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
-
+      // console.log('response', response.data.data);
       if (response.data && response.data.data) {
-        setEnquiries(response.data.data);
+        // Parse propertybid if it's a JSON string
+        const parsedEnquiries = response.data.data.map(enquiry => ({
+          ...enquiry,
+          propertybid: typeof enquiry.propertybid === 'string' && enquiry.propertybid.startsWith('[')
+            ? JSON.parse(enquiry.propertybid)
+            : [{ bidamount: enquiry.propertybid, date: enquiry.created_at }]
+        }));
+        setEnquiries(parsedEnquiries);
       } else {
         console.error('Unexpected API response format:', response.data);
       }
@@ -61,10 +68,20 @@ const MyEnquiries = () => {
     }).format(amount);
   };
 
+  const getLatestBid = (bids) => {
+    if (Array.isArray(bids) && bids.length > 0) {
+      return bids.reduce((latest, current) =>
+        new Date(current.date) > new Date(latest.date) ? current : latest
+      );
+    }
+    return { bidamount: 'N/A', date: '' };
+  };
+
   const renderStatusBadge = (status) => {
     const statusStyles = {
       Qualified: { backgroundColor: '#E6F3E6', color: '#4CAF50' },
       'Not Responded': { backgroundColor: '#FFE6E6', color: '#FF5252' },
+      New: { backgroundColor: '#E6F0FA', color: '#234F68' },
     };
     const style = statusStyles[status] || { backgroundColor: '#F0F0F0', color: '#666' };
     return (
@@ -74,44 +91,65 @@ const MyEnquiries = () => {
     );
   };
 
-  const renderEnquiry = ({ item }) => (
-    <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        {renderStatusBadge(item.status)}
-      </View>
-      <View style={styles.cardrow}>
-        <Text style={styles.cardText}>{item.housecategory}</Text>
-        <Text style={styles.cardText}>{item.inwhichcity}</Text>
-      </View>
+  const renderEnquiry = ({ item }) => {
+    const latestBid = getLatestBid(item.propertybid);
+    return (
+      <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>{item.name}</Text>
+          {renderStatusBadge(item.status)}
+        </View>
+        <View style={styles.cardrow}>
+          <Text style={styles.cardText}>{item.housecategory}</Text>
+          <Text style={styles.cardText}>{item.inwhichcity || 'N/A'}</Text>
+        </View>
+        <View style={styles.cardrow}>
+          <Text style={styles.cardText}>Bid: {formatCurrency(latestBid.bidamount)}</Text>
+          <Text style={styles.cardDate}>
+            {new Date(latestBid.date || item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+        <View style={styles.buttonContainer}>
+          {item.propertyid && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push(`/properties/${item.propertyid}`)}
+            >
+              <Text style={styles.actionButtonText}>View Property</Text>
+            </TouchableOpacity>
+          )}
+          {item.brokerid && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.brokerButton]}
+              onPress={() => router.push(`/brokers/${item.brokerid}`)}
+            >
+              <Text style={styles.actionButtonText}>View Broker</Text>
+            </TouchableOpacity>
+          )}
+          {item.agentid && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.agentButton]}
+              onPress={() => router.push(`/agents/${item.agentid}`)}
+            >
+              <Text style={styles.actionButtonText}>View Broker</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
-      <View style={styles.cardrow}>
-        <Text style={styles.cardText}>Bid: {formatCurrency(item.propertybid)}</Text>
-        <Text style={styles.cardDate}>
-          {new Date(item.created_at).toLocaleDateString()}
+  const renderBidHistory = (bids) => {
+    if (!Array.isArray(bids)) return null;
+    return bids.map((bid, index) => (
+      <View key={index} style={styles.bidHistoryRow}>
+        <Text style={styles.sheetLabel}>Bid {index + 1}:</Text>
+        <Text style={styles.sheetValue}>
+          {formatCurrency(bid.bidamount)} on {new Date(bid.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </Text>
       </View>
-
-      <View style={styles.buttonContainer}>
-        {item.propertyid && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push(`/properties/${item.propertyid}`)}
-          >
-            <Text style={styles.actionButtonText}>View Property</Text>
-          </TouchableOpacity>
-        )}
-        {item.brokerid && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.brokerButton]}
-            onPress={() => router.push(`/brokers/${item.brokerid}`)}
-          >
-            <Text style={styles.actionButtonText}>View broker</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+    ));
+  };
 
   return (
     <View style={styles.container}>
@@ -154,7 +192,7 @@ const MyEnquiries = () => {
 
       <RBSheet
         ref={rbSheetRef}
-        height={verticalScale(500)}
+        height={verticalScale(600)}
         openDuration={250}
         customStyles={{
           container: styles.rbSheet,
@@ -198,29 +236,24 @@ const MyEnquiries = () => {
               </View>
               <View style={styles.sheetRow}>
                 <Text style={styles.sheetLabel}>Client's City:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.inwhichcity}</Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Property Bid:</Text>
-                <Text style={styles.sheetValue}>{formatCurrency(selectedEnquiry.propertybid)}</Text>
+                <Text style={styles.sheetValue}>{selectedEnquiry.inwhichcity || 'N/A'}</Text>
               </View>
               <View style={styles.sheetRow}>
                 <Text style={styles.sheetLabel}>Status:</Text>
                 <Text style={styles.sheetValue}>{selectedEnquiry.status}</Text>
               </View>
-              
-              
+              {renderBidHistory(selectedEnquiry.propertybid)}
             </ScrollView>
             <View style={styles.sheetButtonContainer}>
-              {selectedEnquiry.brokerid && (
+              {selectedEnquiry.agentid && (
                 <TouchableOpacity
-                  style={[styles.sheetActionButton, styles.brokerButton]}
+                  style={[styles.sheetActionButton, styles.agentButton]}
                   onPress={() => {
                     rbSheetRef.current.close();
-                    router.push(`/broker/${selectedEnquiry.brokerid}`);
+                    router.push(`/broker/${selectedEnquiry.agentid}`);
                   }}
                 >
-                  <Text style={styles.sheetActionButtonText}>View broker Profile</Text>
+                  <Text style={styles.sheetActionButtonText}>View Broker</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
@@ -358,6 +391,9 @@ const styles = StyleSheet.create({
   brokerButton: {
     backgroundColor: '#4CAF50',
   },
+  agentButton: {
+    backgroundColor: '#4CAF50',
+  },
   actionButtonText: {
     color: '#fff',
     fontSize: moderateScale(14),
@@ -404,6 +440,13 @@ const styles = StyleSheet.create({
   sheetRow: {
     flexDirection: 'row',
     marginVertical: verticalScale(5),
+  },
+  bidHistoryRow: {
+    flexDirection: 'row',
+    marginVertical: verticalScale(5),
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: verticalScale(5),
   },
   sheetLabel: {
     fontSize: moderateScale(14),

@@ -85,6 +85,7 @@ const Signin = () => {
       // console.log('Parsed response:', data);
 
       if (data.success) {
+        setOtpShow(data.data.otp);
         setUserInfo({ id: data.data.id });
         setShowOtpSheet(true);
         otpSheetRef.current?.open();
@@ -192,8 +193,8 @@ const Signin = () => {
       }
 
       // console.log('Parsed response (resend):', data);
-      setOtpShow(data.data.otp);
       if (data.success) {
+        setOtpShow(data.data.otp);
         setUserInfo({ id: data.data.id });
         setOtp(['', '', '', '', '', '']); // Clear OTP fields on resend
         startResendCountdown(); // Restart countdown
@@ -209,7 +210,7 @@ const Signin = () => {
   };
 
   const startResendCountdown = () => {
-    setResendCountdown(10);
+    setResendCountdown(30);
     setIsResendDisabled(true);
     const timer = setInterval(() => {
       setResendCountdown((prev) => {

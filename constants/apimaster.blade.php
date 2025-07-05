@@ -258,12 +258,16 @@ class ApiMasterController extends Controller
 
     public function propertydetails($id)
     {
-        // $categories = Master::where('type', 'Property Categories')->get();
         $propertydetails = PropertyListing::find($id);
-        // $propertyName = $propertydetails->property_name;
+        $bokerId = $propertydetails->roleid;
+        $brokerdata = RegisterUser::select('username', 'profile', 'email', 'company_name', 'mobilenumber')
+            ->where('id', $bokerId)
+            ->where('user_type', 'broker')
+            ->where('verification_status', '1')
+            ->get();
         return response()->json([
             'success' => true,
-            // 'categories' => $categories,
+            'brokerdata' => $brokerdata,
             'details' => $propertydetails,
         ]);
     }
@@ -428,18 +432,42 @@ class ApiMasterController extends Controller
         ]);
     }
 
+
     public function sendenquiry(Request $rq)
     {
         try {
-            $data = Lead::create([
+            $bidamount = $rq->bidamount;
+            $currentdate = now();
+
+            // Find existing lead
+            $lead = Lead::where('propertyid', $rq->propertyid)
+            ->where('userid', $rq->userid)
+            ->first();
+
+            // Get old bid history and append new bid
+            $bidHistory = [];
+            if ($lead && $lead->propertybid) {
+            $bidHistory = json_decode($lead->propertybid, true) ?? [];
+            }
+            $bidHistory[] = [
+            'date' => $currentdate->toDateTimeString(),
+            'bidamount' => $bidamount
+            ];
+
+            $data = Lead::updateOrCreate(
+            ['propertyid' => $rq->propertyid, 'userid' => $rq->userid],
+            [
                 'name' => $rq->customername,
                 'mobilenumber' => $rq->phone,
                 'email' => $rq->email,
                 'city' => $rq->city,
                 'state' => $rq->state,
+                'inwhichcity' => $rq->usercity,
                 'housecategory' => $rq->propertytype,
                 'propertyid' => $rq->propertyid,
                 'userid' => $rq->userid,
+                'agentid' => $rq->brokerid,
+                'propertybid' => json_encode($bidHistory),
             ]);
             return response()->json(['success' => true, 'data' => $data, 'message' => 'Enquiry Sent..!!!']);
         } catch (Exception $e) {

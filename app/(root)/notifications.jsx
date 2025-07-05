@@ -98,7 +98,7 @@ const Notifications = () => {
     const readCount = notificationData.length - unreadCount;
 
     const renderNotification = ({ item }) => {
-        const imageUrl = `https://vaibhavproperties.cigmafeed.in/assets/images/Notificaitons/${item.notificationimg}`;
+        const imageUrl = `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Notificaitons/${item.notificationimg}`;
         const isRead = readStatus[item.id] || false;
         const previewText = item.notificationdes.length > 50 ? `${item.notificationdes.substring(0, 50)}...` : item.notificationdes;
 
@@ -222,9 +222,9 @@ const Notifications = () => {
                     <>
                         <View className='flex-row'>
                             <Image
-                                source={{ uri: `https://vaibhavproperties.cigmafeed.in/assets/images/Notificaitons/${selectedNotification.notificationimg}` }}
+                                source={{ uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Notificaitons/${selectedNotification.notificationimg}` }}
                                 style={styles.profileImage}
-                                onError={(e) => console.log('Image failed to load:', e.nativeEvent.error)}
+                                // onError={(e) => console.log('Image failed to load:', e.nativeEvent.error)}
                             />
                             <View>
                                 <Text style={styles.sheetTitle}>{selectedNotification.notificationname}</Text>

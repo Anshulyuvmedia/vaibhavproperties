@@ -10,14 +10,12 @@ import "react-native-get-random-values";
 import { useNavigation } from "@react-navigation/native";
 import MasterPlanList from "@/components/MasterPlanList";
 import PriceHistoryChart from "@/components/PriceHistoryChart";
-import MortgageCalculator from "@/components/MortgageCalculator";
 import * as Linking from "expo-linking";
-import Toast, { BaseToast } from "react-native-toast-message";
 import { FontAwesome5, Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { Video } from "expo-av";
 import RBSheet from "react-native-raw-bottom-sheet";
-import { RefreshControl } from "react-native"; // Import RefreshControl
+import { RefreshControl } from "react-native";
 
 const PropertyDetails = () => {
     const propertyId = useLocalSearchParams().id;
@@ -25,20 +23,22 @@ const PropertyDetails = () => {
     const windowWidth = Dimensions.get("window").width;
     const [propertyData, setPropertyData] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [refreshing, setRefreshing] = useState(false); // State for refresh control
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState(null);
     const [propertyThumbnail, setPropertyThumbnail] = useState(images.avatar);
     const [propertyGallery, setPropertyGallery] = useState([]);
     const [videoUrls, setVideoUrls] = useState([]);
-    const [loggedinUserId, setLoggedinUserId] = useState([]);
+    const [loggedinUserId, setLoggedinUserId] = useState("");
     const [amenities, setAmenities] = useState([]);
-    const [priceHistory, setPriceHistory] = useState([]);
-    const [masterPlanDocs, setMasterPlanDocs] = useState([]);
     const [priceHistoryData, setPriceHistoryData] = useState([]);
+    const [masterPlanDocs, setMasterPlanDocs] = useState([]);
     const [isPdf, setIsPdf] = useState(false);
     const [isLightboxVisible, setIsLightboxVisible] = useState(false);
     const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
     const [bidAmount, setBidAmount] = useState("");
     const [bidError, setBidError] = useState("");
+    const [bidStatus, setBidStatus] = useState(null);
+    const [brokerData, setBrokerData] = useState(null);
     const videoRef = useRef(null);
     const lightboxRef = useRef(null);
     const rbSheetRef = useRef(null);
@@ -56,79 +56,53 @@ const PropertyDetails = () => {
     const navigation = useNavigation();
     const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
 
-    const toastConfig = {
-        success: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "green" }}
-                text1Style={{ fontSize: 16, fontWeight: "bold" }}
-                text2Style={{ fontSize: 14 }}
-            />
-        ),
-        error: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "red" }}
-                text1Style={{ fontSize: 16, fontWeight: "bold" }}
-                text2Style={{ fontSize: 14 }}
-            />
-        ),
-    };
-
-    const openPdf = (pdfUrl) => {
-        Linking.openURL(pdfUrl);
-    };
-
     const openWhatsApp = (phoneNumber) => {
         if (!phoneNumber) {
-            Toast.show({ type: "error", text1: "Error", text2: "Invalid phone number." });
+            setError("Invalid phone number.");
             return;
         }
         const cleanedNumber = phoneNumber.replace(/\D/g, "");
         const url = `whatsapp://send?phone=${cleanedNumber}`;
         Linking.openURL(url).catch(() => {
-            Toast.show({ type: "error", text1: "Error", text2: "WhatsApp is not installed." });
+            setError("WhatsApp is not installed.");
         });
     };
 
-    const openDialer = (phoneNumber) => {
-        const url = `tel:${phoneNumber}`;
-        Linking.openURL(url).catch(() => {
-            Toast.show({ type: "error", text1: "Error", text2: "Unable to open the dialer." });
-        });
-    };
-
-    const handleEnquiry = async (bidAmount = null) => {
+    const handleEnquiry = async () => {
         try {
             setLoading(true);
+            setBidStatus(null);
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
             const userId = parsedUserData?.id;
             if (!userId) {
-                console.error("User ID not found in stored userData.");
-                Toast.show({ type: "error", text1: "Error", text2: "User not logged in." });
+                setBidStatus({ type: "error", message: "User not logged in." });
                 return;
             }
             const enquiryData = {
-                customername: parsedUserData.name,
-                phone: parsedUserData.mobile,
-                email: parsedUserData.email,
+                customername: parsedUserData.username || "",
+                phone: parsedUserData.mobilenumber || "",
+                email: parsedUserData.email || "",
+                usercity: parsedUserData.city || "",
                 city: propertyData.city || "",
+                state: propertyData.address || "",
                 propertytype: propertyData.category || "",
                 propertyid: propertyId,
                 userid: parsedUserData.id,
-                state: propertyData.city || "",
-                bidamount: bidAmount || null,
+                brokerid: propertyData.roleid || "",
+                bidamount: bidAmount || "",
             };
+
             const response = await axios.post("https://vaibhavproperties.cigmafeed.in/api/sendenquiry", enquiryData);
             if (response.status === 200 && !response.data.error) {
-                Toast.show({ type: "success", text1: "Success", text2: "Enquiry submitted successfully!" });
-                if (bidAmount) rbSheetRef.current.close();
+                setBidStatus({ type: "success", message: "Enquiry submitted successfully!" });
+                if (bidAmount && rbSheetRef.current) {
+                    setTimeout(() => rbSheetRef.current.close(), 2000);
+                }
             } else {
-                Toast.show({ type: "error", text1: "Error", text2: "Failed to submit enquiry. Please try again." });
+                setBidStatus({ type: "error", message: "Failed to submit enquiry. Please try again." });
             }
         } catch (error) {
-            console.error("Error submitting enquiry:", error);
-            Toast.show({ type: "error", text1: "Error", text2: "An error occurred. Please try again." });
+            setBidStatus({ type: "error", message: "An error occurred. Please try again." });
         } finally {
             setLoading(false);
         }
@@ -139,31 +113,38 @@ const PropertyDetails = () => {
             const propertyUrl = `https://vaibhavproperties.cigmafeed.in/property-details/${propertyId}`;
             const message = `View my property: ${propertyUrl}`;
             const result = await Share.share({ message, url: propertyUrl, title: "Check out this property!" });
-            if (result.action === Share.sharedAction) console.log("Property shared successfully!");
-            else if (result.action === Share.dismissedAction) console.log("Share dismissed.");
+            if (result.action === Share.sharedAction) {
+                console.log("Property shared successfully!");
+            } else if (result.action === Share.dismissedAction) {
+                console.log("Share dismissed.");
+            }
         } catch (error) {
-            console.error("Error sharing property:", error);
+            setError("Error sharing property.");
         }
     };
 
     const fetchPropertyData = async () => {
         try {
+            setLoading(true);
+            setError(null);
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
             setLoggedinUserId(parsedUserData?.id || "");
             const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/property-details/${propertyId}`);
-            if (response.data) {
+            // console.log("API Response:", response.data); // Debug log
+            if (response.data && response.data.details) {
                 const apiData = response.data.details;
                 setPropertyData(apiData);
-                // console.log('apidata', apiData);
-                setPropertyThumbnail(
-                    apiData.thumbnail
-                        ? apiData.thumbnail.startsWith("http")
-                            ? apiData.thumbnail
-                            : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${apiData.thumbnail}`
-                        : images.newYork
-                );
+                const thumbnail = apiData.thumbnail;
+                const thumbnailUri =
+                    thumbnail && typeof thumbnail === "string"
+                        ? thumbnail.startsWith("http")
+                            ? thumbnail
+                            : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${thumbnail}`
+                        : images.avatar;
+                // console.log("Thumbnail URI:", thumbnailUri, "Type:", typeof thumbnailUri);
+                setPropertyThumbnail(thumbnailUri);
 
-                // gallery images
+                // Gallery images
                 let galleryImages = [];
                 try {
                     if (apiData.gallery && typeof apiData.gallery === "string" && apiData.gallery.trim()) {
@@ -171,47 +152,56 @@ const PropertyDetails = () => {
                         galleryImages = Array.isArray(parsedGallery)
                             ? parsedGallery.map((image) => ({
                                 id: Math.random().toString(36).substring(2, 11),
-                                image: image.startsWith("http") ? image : `https://vaibhavproperties.cigmafeed.in/${image.replace(/\\/g, "/")}`,
+                                image:
+                                    typeof image === "string" && image.startsWith("http")
+                                        ? image
+                                        : `https://vaibhavproperties.cigmafeed.in/${image.replace(/\\/g, "/")}` || images.avatar,
                             }))
                             : [];
-                    } else console.log("Gallery data is empty or invalid:", apiData.gallery);
+                    }
                 } catch (error) {
-                    console.error("Error parsing gallery images:", error);
+                    setError("Error parsing gallery images.");
                     galleryImages = [];
                 }
                 setPropertyGallery(galleryImages);
 
-                // video
+                // Videos
                 let parsedVideos = [];
                 try {
                     parsedVideos = apiData.videos ? (typeof apiData.videos === "string" ? JSON.parse(apiData.videos) : []) : [];
-                    // Map videos to include title and thumbnail
                     parsedVideos = parsedVideos.map((video, index) => ({
                         id: `video-${index}`,
-                        url: video.startsWith("http") ? video : `https://vaibhavproperties.cigmafeed.in/${video}`,
+                        url:
+                            typeof video === "string" && video.startsWith("http")
+                                ? video
+                                : `https://vaibhavproperties.cigmafeed.in/${video}` || "",
                         title: `Video ${index + 1}`,
-                        thumbnail: icons.videofile,
+                        thumbnail: images.videoPlaceholder || icons.videofile, // Use a valid image or URL
                     }));
                 } catch (error) {
-                    console.error("Error parsing videos:", error);
+                    setError("Error parsing videos.");
                 }
                 setVideoUrls(parsedVideos);
 
-                // amenities
+                // Amenities
                 let parsedAmenities = [];
                 try {
                     parsedAmenities = apiData.amenties ? JSON.parse(apiData.amenties) : [];
                 } catch (error) {
-                    console.error("Error parsing amenities:", error);
+                    setError("Error parsing amenities.");
                 }
                 setAmenities(parsedAmenities);
+
+                // Price history
                 let priceHistory = [];
                 try {
                     priceHistory = apiData.pricehistory ? JSON.parse(apiData.pricehistory) : [];
                 } catch (error) {
-                    console.error("Error parsing price history:", error);
+                    setError("Error parsing price history.");
                 }
-                setPriceHistory(priceHistory);
+                setPriceHistoryData(Array.isArray(priceHistory) ? priceHistory : []);
+
+                // Map locations
                 if (apiData.maplocations) {
                     try {
                         const locationData = JSON.parse(apiData.maplocations);
@@ -222,37 +212,34 @@ const PropertyDetails = () => {
                             setRegion({ latitude, longitude, latitudeDelta: 0.015, longitudeDelta: 0.0121 });
                         }
                     } catch (error) {
-                        console.error("Error parsing map locations:", error);
+                        setError("Error parsing map locations.");
                     }
                 }
+
+                // Master plan documents
                 if (apiData.masterplandoc) {
                     const fileUrl = `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${apiData.masterplandoc}`;
-                    if (fileUrl.toLowerCase().endsWith(".pdf")) setIsPdf(true);
-                    else setIsPdf(false);
-                    setMasterPlanDocs(fileUrl);
+                    setIsPdf(fileUrl.toLowerCase().endsWith(".pdf"));
+                    setMasterPlanDocs([fileUrl]);
+                } else {
+                    setMasterPlanDocs([]);
                 }
-                if (apiData.pricehistory) {
-                    let priceHistory = apiData.pricehistory;
-                    if (typeof priceHistory === "string") {
-                        try {
-                            priceHistory = JSON.parse(priceHistory);
-                        } catch (error) {
-                            console.error("Error parsing price history:", error);
-                            priceHistory = [];
-                        }
-                    }
-                    if (Array.isArray(priceHistory)) setPriceHistoryData(priceHistory);
-                    else {
-                        console.error("Invalid price history data format");
-                        setPriceHistoryData([]);
-                    }
+
+                // Set broker data
+                const brokerDataFromApi = response.data.brokerdata && response.data.brokerdata.length > 0 ? response.data.brokerdata[0] : null;
+                setBrokerData(brokerDataFromApi);
+                if (!brokerDataFromApi) {
+                    console.warn("No broker data available for this property.");
                 }
-            } else console.error("Unexpected API response format:", response.data);
+            } else {
+                setError("Unexpected API response format or property not found.");
+            }
         } catch (error) {
-            console.error("Error fetching property data:", error);
+            setError(`Error fetching property data: ${error.message}`);
+            console.error("Fetch error:", error);
         } finally {
             setLoading(false);
-            setRefreshing(false); // Reset refreshing state when done
+            setRefreshing(false);
         }
     };
 
@@ -260,8 +247,24 @@ const PropertyDetails = () => {
         fetchPropertyData();
     }, [propertyId]);
 
+    const getProfileImageUri = () => {
+        if (!brokerData || !brokerData.profile) return images.avatar; // Fallback if no broker data or profile
+        const profile = brokerData.profile;
+        const uri =
+            profile != null && typeof profile === "number"
+                ? `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${profile}.jpg`
+                : profile && typeof profile === "string" && profile.startsWith("http")
+                    ? profile
+                    : profile && typeof profile === "string"
+                        ? `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${profile}`
+                        : images.avatar;
+        // console.log("Profile Image URI:", uri, "Type:", typeof uri);
+        return uri;
+    };
+
     const onRefresh = () => {
         setRefreshing(true);
+        setError(null);
         fetchPropertyData();
     };
 
@@ -269,17 +272,13 @@ const PropertyDetails = () => {
         const totalMedia = (propertyGallery?.length || 0) + videoUrls.length;
         if (index >= 0 && index < totalMedia) {
             setSelectedMediaIndex(index);
-            const mediaUrl = getMediaAtIndex(index);
-            // console.log("Opening lightbox with media:", mediaUrl);
             setIsLightboxVisible(true);
-        } else {
-            console.warn("Invalid index for lightbox:", index, "Total media:", totalMedia);
         }
     };
 
     const closeLightbox = () => {
         if (videoRef.current) {
-            videoRef.current.pauseAsync().catch((e) => console.log("Pause error:", e));
+            videoRef.current.pauseAsync().catch(() => { });
         }
         setIsLightboxVisible(false);
         setSelectedMediaIndex(0);
@@ -298,21 +297,21 @@ const PropertyDetails = () => {
         if (index >= 0 && index < totalMedia) {
             const allMedia = [...(propertyGallery || []), ...videoUrls];
             const media = allMedia[index];
-            return media?.image || media?.url || null; // Prioritize image for gallery, url for videos
+            return media?.image || media?.url || null;
         }
-        console.warn("Invalid index in getMediaAtIndex:", index, "Total media:", totalMedia);
         return null;
     };
 
     const validateBidAmount = () => {
         const currentPrice = Number(propertyData?.price) || 0;
         const bid = Number(bidAmount);
-        if (!bidAmount || isNaN(bid)) {
-            setBidError("Please enter a valid bid amount.");
+        const minimumBid = currentPrice * 0.5;
+        if (!bidAmount || isNaN(bid) || bid <= 0) {
+            setBidError("Please enter a valid bid amount greater than zero.");
             return false;
         }
-        if (bid <= currentPrice) {
-            setBidError(`Bid amount must be greater than ${formatINR(currentPrice)}.`);
+        if (bid < minimumBid) {
+            setBidError(`Bid amount must be at least ${formatINR(minimumBid)}.`);
             return false;
         }
         setBidError("");
@@ -321,24 +320,25 @@ const PropertyDetails = () => {
 
     const handleBidSubmit = () => {
         if (validateBidAmount()) {
-            handleEnquiry(bidAmount);
+            handleEnquiry();
             setBidAmount("");
         }
     };
 
-    if (loading) return <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />;
-    if (!propertyData) return <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />;
-
     const formatINR = (amount) => {
-        if (!amount) return '₹0';
+        if (!amount) return "₹0";
         const num = Number(amount);
         if (num >= 1e7) {
-            return '₹' + (num / 1e7).toFixed(2).replace(/\.00$/, '') + ' Cr';
+            return "₹" + (num / 1e7).toFixed(2).replace(/\.00$/, "") + " Cr";
         } else if (num >= 1e5) {
-            return '₹' + (num / 1e5).toFixed(2).replace(/\.00$/, '') + ' Lakh';
+            return "₹" + (num / 1e5).toFixed(2).replace(/\.00$/, "") + " Lakh";
         }
-        return '₹' + num.toLocaleString('en-IN');
+        return "₹" + num.toLocaleString("en-IN");
     };
+
+    if (loading || !propertyData) {
+        return <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />;
+    }
 
     return (
         <View className="pb-24">
@@ -350,16 +350,16 @@ const PropertyDetails = () => {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        colors={['#8bc83f']} // Loading indicator color
+                        colors={["#8bc83f"]}
                         tintColor="#8bc83f"
-                        progressViewOffset={50} // Adjust based on your header height
+                        progressViewOffset={50}
                     />
                 }
             >
-                <Toast config={toastConfig} position="top" />
+                {error && <Text className="text-red-500 text-sm mt-2 px-5">{error}</Text>}
                 <View className="relative w-full p-2" style={{ height: windowHeight / 2 }}>
                     <Image
-                        source={{ uri: propertyThumbnail }}
+                        source={{ uri: typeof propertyThumbnail === "string" ? propertyThumbnail : images.avatar }}
                         className="size-full"
                         resizeMode="cover"
                         style={{ borderRadius: 50 }}
@@ -373,10 +373,13 @@ const PropertyDetails = () => {
                                 onPress={() => router.back()}
                                 className="flex flex-row bg-white rounded-full size-11 items-center justify-center"
                             >
-                                <Image source={icons.backArrow} className="size-5" />
+                                <Image
+                                    source={typeof icons.backArrow === "string" ? { uri: icons.backArrow } : icons.backArrow}
+                                    className="size-5"
+                                />
                             </TouchableOpacity>
                             <View className="flex flex-row items-center gap-3">
-                                {propertyData.roleid == loggedinUserId && (
+                                {propertyData.roleid === loggedinUserId && (
                                     <Text
                                         className={`inline-flex items-center rounded-md capitalize px-2 py-1 text-xs font-rubik ring-1 ring-inset ${propertyData.status === "published"
                                             ? "bg-green-50 text-green-700 ring-green-600/20"
@@ -390,12 +393,19 @@ const PropertyDetails = () => {
                                     onPress={shareProperty}
                                     className="flex flex-row bg-white rounded-full size-11 items-center justify-center"
                                 >
-                                    <Image source={icons.send} className="size-7" />
+                                    <Image
+                                        source={typeof icons.send === "string" ? { uri: icons.send } : icons.send}
+                                        className="size-7"
+                                    />
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     className="flex flex-row bg-white rounded-full size-11 items-center justify-center"
                                 >
-                                    <Image source={icons.heart} className="size-7" tintColor="#191D31" />
+                                    <Image
+                                        source={typeof icons.heart === "string" ? { uri: icons.heart } : icons.heart}
+                                        className="size-7"
+                                        tintColor="#191D31"
+                                    />
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -406,7 +416,9 @@ const PropertyDetails = () => {
                     <View className="flex flex-row items-center justify-between gap-3">
                         <View className="flex flex-row items-center py-2">
                             <Ionicons name="location" size={20} color="#234F68" />
-                            <Text className="text-sm font-rubik text-black">{propertyData.city}, {propertyData.address}.</Text>
+                            <Text className="text-sm font-rubik text-black">
+                                {propertyData.city}, {propertyData.address}.
+                            </Text>
                         </View>
                         <View className="flex flex-row items-center py-2 px-3 bg-primary-300 rounded-xl">
                             <Text className="text-sm font-rubik text-white">{propertyData.category}</Text>
@@ -416,23 +428,31 @@ const PropertyDetails = () => {
                         <View className="flex-row items-center gap-3">
                             <View className="flex-row items-center justify-center bg-primary-100 rounded-full py-4 w-36">
                                 <FontAwesome5 name="bed" size={16} color="#8bc83f" />
-                                <Text className="text-black-300 text-sm font-rubik-medium ml-2">{propertyData.bedroom} Bedroom</Text>
+                                <Text className="text-black-300 text-sm font-rubik-medium ml-2">
+                                    {propertyData.bedroom} Bedroom
+                                </Text>
                             </View>
                             <View className="flex-row items-center justify-center bg-primary-100 rounded-full py-4 w-36">
                                 <MaterialCommunityIcons name="floor-plan" size={20} color="#8bc83f" />
-                                <Text className="text-black-300 text-sm font-rubik-medium ml-2">{propertyData.floor} Floors</Text>
+                                <Text className="text-black-300 text-sm font-rubik-medium ml-2">
+                                    {propertyData.floor} Floors
+                                </Text>
                             </View>
                             <View className="flex-row items-center justify-center bg-primary-100 rounded-full py-4 w-36">
                                 <MaterialCommunityIcons name="bathtub-outline" size={20} color="#8bc83f" />
-                                <Text className="text-black-300 text-sm font-rubik-medium ml-2">{propertyData.bathroom} Bathroom</Text>
+                                <Text className="text-black-300 text-sm font-rubik-medium ml-2">
+                                    {propertyData.bathroom} Bathroom
+                                </Text>
                             </View>
                             <View className="flex-row items-center justify-center bg-primary-100 rounded-full py-4 w-36">
                                 <MaterialIcons name="zoom-out-map" size={20} color="#8bc83f" />
-                                <Text className="text-black-300 text-sm font-rubik-medium ml-2">{propertyData.squarefoot} sqft</Text>
+                                <Text className="text-black-300 text-sm font-rubik-medium ml-2">
+                                    {propertyData.squarefoot} sqft
+                                </Text>
                             </View>
                         </View>
                     </ScrollView>
-                    {propertyGallery && propertyGallery.length > 0 && (
+                    {propertyGallery?.length > 0 && (
                         <View className="mt-4 pt-4 border-t border-primary-200">
                             <FlatList
                                 data={propertyGallery}
@@ -442,10 +462,9 @@ const PropertyDetails = () => {
                                 renderItem={({ item, index }) => (
                                     <TouchableOpacity onPress={() => openLightbox(index)} style={{ width: windowWidth / 2 }}>
                                         <ExpoImage
-                                            source={{ uri: item.image }}
+                                            source={{ uri: typeof item.image === "string" ? item.image : images.avatar }}
                                             style={{ width: windowWidth / 2, height: 150, borderRadius: 20 }}
                                             contentFit="cover"
-                                            onError={(error) => console.log("Image load error:", error.nativeEvent.error)}
                                         />
                                     </TouchableOpacity>
                                 )}
@@ -469,38 +488,26 @@ const PropertyDetails = () => {
                                 horizontal
                                 pagingEnabled
                                 showsHorizontalScrollIndicator={false}
-                                keyExtractor={(item) => item.id} // Use item.id as the key
-                                renderItem={({ item, index }) => (
-                                    <TouchableOpacity
-                                        onPress={() => openLightbox(propertyGallery.length + index)}
-                                        style={{ position: "relative", borderRadius: 10 }}
-                                        className=" bg-primary-100 px-2"
-                                    >
-                                        <Image
-                                            source={item.thumbnail} // Use thumbnail directly (local image) or { uri: item.thumbnail.uri } if it's a remote URL
-                                            style={{ width: 75, height: 75 }}
-                                            resizeMode="cover"
-                                        />
-                                        {/* Play Icon Overlay */}
-                                        {/* <View
-                                            style={{
-                                                position: "absolute",
-                                                top: "50%",
-                                                left: "50%",
-                                                transform: [{ translateX: -20 }, { translateY: -20 }],
-                                                backgroundColor: "rgba(0, 0, 0, 0.5)",
-                                                borderRadius: 50,
-                                                padding: 10,
-                                            }}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item, index }) => {
+                                    const thumbnailUri =
+                                        typeof item.thumbnail === "string"
+                                            ? { uri: item.thumbnail }
+                                            : { uri: images.videoPlaceholder || "https://via.placeholder.com/75" }; // Fallback to placeholder
+                                    // console.log("Video Thumbnail URI:", thumbnailUri.uri || thumbnailUri, "Type:", typeof (thumbnailUri.uri || thumbnailUri));
+                                    return (
+                                        <TouchableOpacity
+                                            onPress={() => openLightbox(propertyGallery.length + index)}
+                                            style={{ position: "relative", borderRadius: 10 }}
+                                            className="bg-primary-100 px-2"
                                         >
-                                            <Ionicons name="play" size={40} color="white" />
-                                        </View> */}
-                                        {/* Video Title */}
-                                        <Text className="text-black text-sm font-rubik-medium mt-2 text-center">
-                                            {item.title}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
+                                            <Image source={thumbnailUri} style={{ width: 75, height: 75 }} resizeMode="cover" />
+                                            <Text className="text-black text-sm font-rubik-medium mt-2 text-center">
+                                                {item.title}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                }}
                                 contentContainerStyle={{ gap: 10, paddingVertical: 10 }}
                                 getItemLayout={(data, index) => ({
                                     length: windowWidth,
@@ -524,15 +531,35 @@ const PropertyDetails = () => {
                     )}
                     <View className="flex flex-row items-center justify-between mt-4 bg-primary-100 rounded-3xl p-3 py-5">
                         <View className="flex flex-row items-center">
-                            <Image source={images.appfavicon} className="size-14 rounded-full" />
+                            <Image
+                                source={{ uri: getProfileImageUri() || images.avatar }}
+                                className="size-14 rounded-full"
+                            />
                             <View className="flex flex-col items-start justify-center ml-3">
-                                <Text className="text-lg text-primary-300 text-start font-rubik-bold">Broker Name</Text>
-                                <Text className="text-sm text-black-200 text-start font-rubik-medium">You are one call away.</Text>
+                                <Text className="text-lg text-primary-300 text-start font-rubik-bold">
+                                    {brokerData ? brokerData.username : "Loading..."}
+                                </Text>
+                                <Text className="text-sm text-black-200 text-start font-rubik-medium">
+                                    {brokerData ? brokerData.email : ""}
+                                </Text>
+                                <Text className="text-sm text-black-200 text-start font-rubik-medium">
+                                    {brokerData ? brokerData.mobilenumber : ""}
+                                </Text>
+                                <Text className="text-sm text-black-200 text-start font-rubik-medium">
+                                    {brokerData ? brokerData.company_name : ""}
+                                </Text>
                             </View>
                         </View>
                         <View className="flex flex-row items-center gap-3 pe-3">
-                            <TouchableOpacity onPress={() => openWhatsApp("91000000000")}>
-                                <FontAwesome5 name="whatsapp" size={24} color="#8bc83f" />
+                            <TouchableOpacity
+                                onPress={() => brokerData?.mobilenumber && openWhatsApp(brokerData.mobilenumber)}
+                                disabled={!brokerData?.mobilenumber}
+                            >
+                                <FontAwesome5
+                                    name="whatsapp"
+                                    size={24}
+                                    color={brokerData?.mobilenumber ? "#8bc83f" : "#ccc"}
+                                />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -541,7 +568,7 @@ const PropertyDetails = () => {
                         <Text className="text-black-200 text-base font-rubik mt-2">{propertyData.discription}</Text>
                         {propertyData.nearbylocation && (
                             <>
-                                <Text className="text-black-300 text-base font-rubik-medium mt-3">Near by Locations:</Text>
+                                <Text className="text-black-300 text-base font-rubik-medium mt-3">Nearby Locations:</Text>
                                 <Text className="text-black-200 text-base font-rubik mt-2">{propertyData.nearbylocation}</Text>
                             </>
                         )}
@@ -551,15 +578,20 @@ const PropertyDetails = () => {
                             </Text>
                         )}
                     </View>
-                    {amenities && Array.isArray(amenities) && amenities.length > 0 && (
+                    {amenities?.length > 0 && (
                         <View className="mt-7">
                             <Text className="text-black-300 text-xl font-rubik-bold">Amenities</Text>
                             <View className="flex flex-row flex-wrap items-start justify-start mt-2 gap-3">
                                 {amenities.map((item, index) => (
                                     <View key={index} className="flex items-start">
                                         <View className="px-3 py-2 bg-blue-100 rounded-full flex flex-row items-center justify-center">
-                                            <Image source={icons.checkmark} className="size-6 me-2" />
-                                            <Text className="text-black-300 text-sm text-center font-rubik-bold capitalize">{item}</Text>
+                                            <Image
+                                                source={typeof icons.checkmark === "string" ? { uri: icons.checkmark } : icons.checkmark}
+                                                className="size-6 me-2"
+                                            />
+                                            <Text className="text-black-300 text-sm text-center font-rubik-bold capitalize">
+                                                {item}
+                                            </Text>
                                         </View>
                                     </View>
                                 ))}
@@ -573,29 +605,34 @@ const PropertyDetails = () => {
                             <Text className="text-black-200 text-sm font-rubik-medium">{propertyData.address}.</Text>
                         </View>
                         <View>
-                            <MapView
-                                style={{ height: 150, borderRadius: 10 }}
-                                region={region}
-                                initialRegion={region}
-                            >
-                                {region && (
+                            <MapView style={{ height: 150, borderRadius: 10 }} region={region} initialRegion={region}>
+                                {coordinates.latitude && coordinates.longitude && (
                                     <Marker
-                                        coordinate={{ latitude: parseFloat(coordinates.latitude), longitude: parseFloat(coordinates.longitude) }}
+                                        coordinate={{
+                                            latitude: parseFloat(coordinates.latitude),
+                                            longitude: parseFloat(coordinates.longitude),
+                                        }}
                                     />
                                 )}
                             </MapView>
                             <TouchableOpacity
                                 onPress={() =>
-                                    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`)
+                                    Linking.openURL(
+                                        `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`
+                                    )
                                 }
+                                disabled={!coordinates.latitude || !coordinates.longitude}
                             >
-                                <Text className="text-black-300 text-center font-rubik-medium mt-2 bg-blue-100 flex-grow p-2 rounded-full">
+                                <Text
+                                    className={`text-black-300 text-center font-rubik-medium mt-2 bg-blue-100 flex-grow p-2 rounded-full ${!coordinates.latitude || !coordinates.longitude ? "opacity-50" : ""
+                                        }`}
+                                >
                                     View Location
                                 </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
-                    {Array.isArray(masterPlanDocs) && masterPlanDocs.length > 0 && (
+                    {masterPlanDocs.length > 0 && (
                         <View className="mt-4">
                             <Text className="text-black-300 text-xl font-rubik-bold">Property Master Plan</Text>
                             <View>
@@ -603,21 +640,13 @@ const PropertyDetails = () => {
                             </View>
                         </View>
                     )}
-                    {priceHistoryData && (
+                    {priceHistoryData?.length > 0 && (
                         <View className="mt-4">
-                            <View className="">
-                                <PriceHistoryChart priceHistoryData={priceHistoryData} />
-                            </View>
+                            <PriceHistoryChart priceHistoryData={priceHistoryData} />
                         </View>
                     )}
-                    {/* <View className="mt-4">
-                        <View className="">
-                            <MortgageCalculator />
-                        </View>
-                    </View> */}
                 </View>
             </ScrollView>
-            {/* Lightbox Modal */}
             <Modal visible={isLightboxVisible} transparent={true} onRequestClose={closeLightbox} animationType="slide">
                 <View ref={lightboxRef} className="flex-1 bg-black/80 justify-center items-center">
                     <TouchableOpacity className="absolute top-10 right-10 z-50" onPress={closeLightbox}>
@@ -632,7 +661,8 @@ const PropertyDetails = () => {
                     {getMediaAtIndex(selectedMediaIndex) ? (
                         <>
                             {typeof getMediaAtIndex(selectedMediaIndex) === "string" &&
-                                (getMediaAtIndex(selectedMediaIndex).endsWith(".mp4") || getMediaAtIndex(selectedMediaIndex).endsWith(".mov")) ? (
+                                (getMediaAtIndex(selectedMediaIndex).endsWith(".mp4") ||
+                                    getMediaAtIndex(selectedMediaIndex).endsWith(".mov")) ? (
                                 <Video
                                     ref={videoRef}
                                     source={{ uri: getMediaAtIndex(selectedMediaIndex) }}
@@ -650,7 +680,6 @@ const PropertyDetails = () => {
                                     transition={1000}
                                     enablePinchZoom
                                     enablePan={true}
-                                    onError={(error) => console.log("Image load error:", error.nativeEvent.error)}
                                 />
                             )}
                         </>
@@ -659,7 +688,6 @@ const PropertyDetails = () => {
                     )}
                 </View>
             </Modal>
-            {/* Bottom Book Now Button */}
             <View className="absolute bg-white bottom-0 w-full rounded-t-2xl border-t border-r border-l border-primary-200 px-7 py-4">
                 <View className="flex flex-row items-center justify-between gap-10">
                     <View className="flex flex-col items-start">
@@ -668,9 +696,11 @@ const PropertyDetails = () => {
                             {formatINR(propertyData.price)}
                         </Text>
                     </View>
-
-                    {propertyData.roleid == loggedinUserId ? (
-                        <TouchableOpacity className="flex-1 flex-row items-center justify-center bg-primary-300 py-5 rounded-2xl shadow-md shadow-zinc-400" onPress={() => handleEditPress(propertyData.id)}>
+                    {propertyData.roleid === loggedinUserId ? (
+                        <TouchableOpacity
+                            className="flex-1 flex-row items-center justify-center bg-primary-300 py-5 rounded-2xl shadow-md shadow-zinc-400"
+                            onPress={() => handleEditPress(propertyData.id)}
+                        >
                             <Text className="text-white text-lg text-center font-rubik-bold">Edit Property</Text>
                         </TouchableOpacity>
                     ) : (
@@ -683,7 +713,6 @@ const PropertyDetails = () => {
                     )}
                 </View>
             </View>
-            {/* RBSheet for Bidding */}
             <RBSheet
                 ref={rbSheetRef}
                 closeOnDragDown={true}
@@ -714,17 +743,27 @@ const PropertyDetails = () => {
                             onChangeText={(text) => {
                                 setBidAmount(text);
                                 setBidError("");
+                                setBidStatus(null);
                             }}
                             placeholder="Enter bid amount"
                             keyboardType="numeric"
                             className="border border-primary-200 rounded-lg p-3 mt-2 text-black-300 text-base font-rubik"
                         />
-                        {bidError ? <Text className="text-red-500 text-sm mt-1">{bidError}</Text> : null}
+                        {bidError && <Text className="text-red-500 text-sm mt-1">{bidError}</Text>}
+                        {bidStatus && (
+                            <Text
+                                className={`text-sm mt-1 font-rubik-medium ${bidStatus.type === "success" ? "text-green-500" : "text-red-500"
+                                    }`}
+                            >
+                                {bidStatus.message}
+                            </Text>
+                        )}
                     </View>
                     <TouchableOpacity
                         onPress={handleBidSubmit}
                         disabled={loading}
-                        className={`flex flex-row items-center justify-center bg-primary-400 py-4 rounded-2xl ${loading ? "opacity-50" : ""}`}
+                        className={`flex flex-row items-center justify-center bg-primary-400 py-4 rounded-2xl ${loading ? "opacity-50" : ""
+                            }`}
                     >
                         {loading ? (
                             <ActivityIndicator color="white" />

@@ -54,7 +54,7 @@ const Allbankagents = () => {
             style={styles.card}
             onPress={() => {
                 const imageUri = typeof item.image === 'object' && item.image.uri ? item.image.uri : (typeof item.image === 'number' ? images.avatar : item.image);
-                router.push({ pathname: `/bankAgents/${item.id}`, params: { name: item.name, image: imageUri } });
+                router.push({ pathname: `/bank/${item.id}`, params: { name: item.name, image: imageUri } });
             }}
         >
             <Image

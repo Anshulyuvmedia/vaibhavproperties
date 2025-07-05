@@ -29,7 +29,7 @@ const BankAgent = () => {
         // console.log('Fetching bankAgent profile for id:', id);
         try {
             const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/bankagentprofile?id=${id}`);
-            console.log('API Response:', response.data);
+            // console.log('API Response:', response.data);
             if (response.data.success) {
                 if (response.data.agentdata && response.data.agentdata.length > 0) {
                     setBankAgentData(response.data.agentdata[0]);

@@ -81,7 +81,7 @@ const BrokerScroll = () => {
                 <Text className="text-xl font-rubik-bold text-black-300">
                     Top Property Brokers
                 </Text>
-                <TouchableOpacity onPress={() => router.push('brokers/allbrokers')}>
+                <TouchableOpacity onPress={() => router.push('broker/allbrokers')}>
                     <Text className="text-base font-rubik text-primary-300">
                         Explore
                     </Text>
