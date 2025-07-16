@@ -1,14 +1,13 @@
-import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, Dimensions, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, Dimensions, RefreshControl, Linking } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import images from '@/constants/images';
-import icons from '@/constants/icons'; // Ensure this contains heart, location, and noResultFound images
+import icons from '@/constants/icons';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { Card } from '@/components/Cards';
 
-// Get screen width for dynamic card sizing
 const { width: screenWidth } = Dimensions.get('window');
 const PADDING_HORIZONTAL = scale(0);
 const GAP = scale(10);
@@ -26,10 +25,8 @@ const Broker = () => {
     const fetchbrokerProfile = async () => {
         setLoading(true);
         setError(null);
-        // console.log('Fetching broker profile for id:', id);
         try {
             const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/brokerprofile?id=${id}`);
-            // console.log('API Response:', response.data);
             if (response.data.success) {
                 if (response.data.brokerdata && response.data.brokerdata.length > 0) {
                     setBrokerData(response.data.brokerdata[0]);
@@ -45,7 +42,6 @@ const Broker = () => {
                         thumbnail: item.thumbnail,
                         city: item.city || 'N/A',
                     }));
-                    // console.log('Formatted Properties:', formattedProperties);
                     setUserPropertyData(formattedProperties);
                 }
             } else {
@@ -58,7 +54,7 @@ const Broker = () => {
             setBrokerData(null);
         } finally {
             setLoading(false);
-            setRefreshing(false); // Reset refreshing state when done
+            setRefreshing(false);
         }
     };
 
@@ -89,11 +85,26 @@ const Broker = () => {
                 ? brokerData.profile
                 : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${brokerData.profile}`
             : images.avatar;
-        // console.log('Profile Image URI:', baseUri);
         return baseUri.toString();
     };
 
     const handleCardPress = (id) => router.push(`/properties/${id}`);
+
+    const handleCallPress = () => {
+        if (brokerData?.mobilenumber) {
+            Linking.openURL(`tel:${brokerData.mobilenumber}`).catch((err) => console.error('Error opening phone dialer:', err));
+        } else {
+            console.warn('Phone number not available');
+        }
+    };
+
+    const handleWhatsAppPress = () => {
+        if (brokerData?.mobilenumber) {
+            Linking.openURL(`https://wa.me/${brokerData.mobilenumber}`).catch((err) => console.error('Error opening WhatsApp:', err));
+        } else {
+            console.warn('Phone number not available');
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -112,6 +123,7 @@ const Broker = () => {
                     />
                     <Text style={styles.name}>{brokerData.username}</Text>
                     <Text style={styles.email}>{brokerData.email}</Text>
+                    <Text style={styles.email}>{brokerData.mobilenumber}</Text>
                 </>
             ) : error ? (
                 <Text style={styles.errorText}>{error}</Text>
@@ -129,7 +141,7 @@ const Broker = () => {
                         renderItem={({ item }) => <Card item={item} onPress={() => handleCardPress(item.id)} style={styles.card} />}
                         keyExtractor={(item) => item.id.toString()}
                         numColumns={2}
-                        contentContainerStyle={styles.flatListContent}
+                        contentContainerStyle={[styles.flatListContent, { paddingBottom: verticalScale(80) }]} // Adjusted for button height
                         columnWrapperStyle={styles.flatListColumnWrapper}
                         showsVerticalScrollIndicator={false}
                         ListEmptyComponent={!loading && userPropertyData.length === 0 ? renderEmptyComponent : null}
@@ -144,9 +156,27 @@ const Broker = () => {
                     />
                 )}
             </View>
-            {/* <TouchableOpacity style={styles.chatButton} onPress={handleChatPress}>
-                <Text style={styles.chatButtonText}>Start Chat</Text>
-            </TouchableOpacity> */}
+
+            {/* Fixed Call and WhatsApp Buttons */}
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.callButton]}
+                    onPress={handleCallPress}
+                    activeOpacity={0.7}
+                    disabled={!brokerData?.mobilenumber}
+                >
+                    <Text style={styles.actionButtonText}>Call</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.whatsappButton]}
+                    onPress={handleWhatsAppPress}
+                    activeOpacity={0.7}
+                    disabled={!brokerData?.mobilenumber}
+                >
+                    <FontAwesome5 name="whatsapp" size={moderateScale(16, 0.3)} color="#fff" style={styles.buttonIcon} />
+                    <Text style={styles.actionButtonText}>WhatsApp</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 };
@@ -198,7 +228,6 @@ const styles = StyleSheet.create({
         color: '#666',
         marginBottom: verticalScale(15),
     },
-
     listingsSection: {
         marginBottom: verticalScale(20),
     },
@@ -227,18 +256,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: moderateScale(4, 0.3),
-    },
-    chatButton: {
-        backgroundColor: '#8bc83f',
-        padding: moderateScale(15, 0.3),
-        borderRadius: moderateScale(10, 0.3),
-        alignItems: 'center',
-        marginTop: verticalScale(10),
-    },
-    chatButtonText: {
-        color: '#fff',
-        fontSize: moderateScale(16, 0.3),
-        fontWeight: 'bold',
     },
     loadingText: {
         textAlign: 'center',
@@ -274,5 +291,39 @@ const styles = StyleSheet.create({
         color: '#6B7280',
         textAlign: 'center',
         marginTop: verticalScale(5),
+    },
+    buttonContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: scale(15),
+        paddingVertical: verticalScale(10),
+        backgroundColor: '#fff',
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: moderateScale(4, 0.3),
+    },
+    actionButton: {
+        flex: 1,
+        paddingVertical: verticalScale(12),
+        borderRadius: moderateScale(10, 0.3),
+        alignItems: 'center',
+        marginHorizontal: scale(5),
+    },
+    callButton: {
+        backgroundColor: '#234F68',
+    },
+    whatsappButton: {
+        backgroundColor: '#25D366',
+    },
+    actionButtonText: {
+        color: '#fff',
+        fontSize: moderateScale(16, 0.3),
+        fontWeight: 'bold',
     },
 });

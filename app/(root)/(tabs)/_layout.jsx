@@ -1,10 +1,10 @@
 import { Tabs } from "expo-router";
-import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useEffect } from "react";
-
+import { useEffect, useState } from "react";
+import { useUser } from '@/context/UserContext';
+import { View } from 'react-native';
 const TabIcon = ({ focused, name, title }) => {
     const scale = useSharedValue(1);
     const translateY = useSharedValue(0);
@@ -22,10 +22,8 @@ const TabIcon = ({ focused, name, title }) => {
     }));
 
     useEffect(() => {
-        // Icon animation: scale and bounce up when focused
         scale.value = withSpring(focused ? 1.2 : 1, { damping: 12, stiffness: 120 });
         translateY.value = withSpring(focused ? -6 : 0, { damping: 12, stiffness: 120 });
-        // Dot animation: fade in when focused, fade out when not focused
         dotOpacity.value = withTiming(focused ? 1 : 0, { duration: 200 });
     }, [focused, scale, translateY, dotOpacity]);
 
@@ -56,6 +54,30 @@ const TabIcon = ({ focused, name, title }) => {
 
 const TabsLayout = () => {
     const insets = useSafeAreaInsets();
+    const { userType, loading } = useUser();
+
+    // Define tab configurations
+    const tabsConfig = [
+        { name: "index", title: "Home", icon: "home" },
+        { name: "myassets", title: "My Assets", icon: "building-o", hideFor: "bankagent" },
+        { name: "loanleads", title: "Leads", icon: "list", showFor: "bankagent" },
+        { name: "mapview", title: "Map", icon: "map-o" },
+        { name: "addproperty", title: "Add Property", icon: "plus-square-o", hideFor: "bankagent" },
+        { name: "dashboard", title: "Dashboard", icon: "user-o" },
+    ];
+
+    // Filter tabs based on userType
+    const visibleTabs = tabsConfig.filter(tab => {
+        const shouldHide = tab.hideFor && userType === tab.hideFor;
+        const shouldShow = tab.showFor && userType !== tab.showFor;
+        const isVisible = !shouldHide && !shouldShow;
+        // console.log(`Tab ${tab.name} visibility at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}:`, isVisible);
+        return isVisible;
+    });
+
+    if (loading) {
+        return null; // Delay rendering until userType is fetched
+    }
 
     return (
         <Tabs
@@ -80,57 +102,20 @@ const TabsLayout = () => {
                 },
             }}
         >
-            <Tabs.Screen
-                name="index"
-                options={{
-                    title: "Home",
-                    headerShown: false,
-                    tabBarIcon: ({ focused }) => (
-                        <TabIcon focused={focused} name="home" title="Home" />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="myassets"
-                options={{
-                    title: "My Assets",
-                    headerShown: false,
-                    tabBarIcon: ({ focused }) => (
-                        <TabIcon focused={focused} name="building-o" title="My Assets" />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="mapview"
-                options={{
-                    title: "Map",
-                    headerShown: false,
-                    tabBarIcon: ({ focused }) => (
-                        <TabIcon focused={focused} name="map-o" title="Map" />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="addproperty"
-                options={{
-                    title: "Add Property",
-                    tabBarStyle: { display: 'none' },
-                    headerShown: false,
-                    tabBarIcon: ({ focused }) => (
-                        <TabIcon focused={focused} name="plus-square-o" title="Add Property" />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="dashboard"
-                options={{
-                    title: "Dashboard",
-                    headerShown: false,
-                    tabBarIcon: ({ focused }) => (
-                        <TabIcon focused={focused} name="user-o" title="Dashboard" />
-                    ),
-                }}
-            />
+            {visibleTabs.map((tab) => (
+                <Tabs.Screen
+                    key={tab.name}
+                    name={tab.name}
+                    options={{
+                        title: tab.title,
+                        headerShown: false,
+                        tabBarIcon: ({ focused }) => (
+                            <TabIcon focused={focused} name={tab.icon} title={tab.title} />
+                        ),
+                        
+                    }}
+                />
+            ))}
         </Tabs>
     );
 };

@@ -93,6 +93,10 @@ const Myproperties = () => {
         </View>
 
         <PropertyNavigation path={'myproperties'} />
+
+        <View className='mx-auto'>
+          <Text>All the properties listed by you.</Text>
+        </View>
         {/* Content */}
         <View style={styles.content}>
           {loading && !refreshing ? (

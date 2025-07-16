@@ -23,19 +23,19 @@ const PropertyNavigation = ({ path }) => {
                 </Text>
             </TouchableOpacity>
             <TouchableOpacity
-                style={[styles.button, activeButton === 'myenquiries' && styles.activeButton]}
-                onPress={() => navigateTo('myenquiries')}
+                style={[styles.button, activeButton === 'auction' && styles.activeButton]}
+                onPress={() => navigateTo('auction')}
             >
-                <Text style={[styles.buttonText, activeButton === 'myenquiries' && styles.activeButtonText]}>
-                    Enquiries
+                <Text style={[styles.buttonText, activeButton === 'auction' && styles.activeButtonText]}>
+                    Auction
                 </Text>
             </TouchableOpacity>
             <TouchableOpacity
-                style={[styles.button, activeButton === 'myloans' && styles.activeButton]}
-                onPress={() => navigateTo('myloans')}
+                style={[styles.button, activeButton === 'myleads' && styles.activeButton]}
+                onPress={() => navigateTo('myleads')}
             >
-                <Text style={[styles.buttonText, activeButton === 'myloans' && styles.activeButtonText]}>
-                    Loans
+                <Text style={[styles.buttonText, activeButton === 'myleads' && styles.activeButtonText]}>
+                    Leads
                 </Text>
             </TouchableOpacity>
         </View>

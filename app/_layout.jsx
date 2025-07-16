@@ -1,3 +1,4 @@
+
 import { SplashScreen, Stack, useRouter } from "expo-router";
 import { useFonts } from "expo-font";
 import { useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import './globals.css';
+import { UserProvider } from '@/context/UserContext';
 
 export default function RootLayout() {
     const [fontsLoaded] = useFonts({
@@ -75,8 +77,10 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaView style={{ flex: 1 }}>
                 <StatusBar style="dark" />
-                <Stack screenOptions={{ headerShown: false }} />
-                <Toast />
+                <UserProvider>
+                    <Stack screenOptions={{ headerShown: false }} />
+                    <Toast />
+                </UserProvider>
             </SafeAreaView>
         </GestureHandlerRootView>
     );

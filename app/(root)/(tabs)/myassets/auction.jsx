@@ -9,7 +9,7 @@ import icons from '@/constants/icons';
 import PropertyNavigation from '@/components/PropertyNavigation';
 import { useTranslation } from 'react-i18next';
 
-const MyEnquiries = () => {
+const Auction = () => {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [enquiries, setEnquiries] = useState([]);
@@ -31,14 +31,18 @@ const MyEnquiries = () => {
         return;
       }
       const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
-      if (response.data && response.data.data) {
-        const parsedEnquiries = response.data.data.map(enquiry => ({
+      // console.log('response', response.data.myenquiries);
+
+      if (response.data && response.data.myenquiries) {
+        const parsedEnquiries = response.data.myenquiries.map(enquiry => ({
           ...enquiry,
           propertybid: typeof enquiry.propertybid === 'string' && enquiry.propertybid.startsWith('[')
             ? JSON.parse(enquiry.propertybid)
             : [{ bidamount: enquiry.propertybid, date: enquiry.created_at }]
         }));
+
         setEnquiries(parsedEnquiries);
+
       } else {
         console.error('Unexpected API response format:', response.data);
       }
@@ -61,11 +65,25 @@ const MyEnquiries = () => {
   };
 
   const formatCurrency = (amount) => {
-    if (!amount) return t('notAvailable');
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
+    if (!amount || isNaN(amount)) return t('notAvailable');
+    const num = Number(amount);
+
+    if (num >= 10000000) {
+      // Crore
+      const crore = num / 10000000;
+      return `${crore % 1 === 0 ? crore : crore.toFixed(2).replace(/\.00$/, '')} Cr.`;
+    } else if (num >= 100000) {
+      // Lakh
+      const lakh = num / 100000;
+      return `${lakh % 1 === 0 ? lakh : lakh.toFixed(2).replace(/\.00$/, '')} Lakh`;
+    } else if (num >= 1000) {
+      // Thousand
+      const thousand = num / 1000;
+      return `${thousand % 1 === 0 ? thousand : thousand.toFixed(2).replace(/\.00$/, '')} Thousand`;
+    } else {
+      // Less than thousand, show as is
+      return num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    }
   };
 
   const getLatestBid = (bids) => {
@@ -77,47 +95,46 @@ const MyEnquiries = () => {
     return { bidamount: t('notAvailable'), date: '' };
   };
 
-  const renderStatusBadge = (status) => {
-    const statusStyles = {
-      [t('qualified')]: { backgroundColor: '#E6F3E6', color: '#4CAF50' },
-      [t('notResponded')]: { backgroundColor: '#FFE6E6', color: '#FF5252' },
-      [t('new')]: { backgroundColor: '#E6F0FA', color: '#234F68' },
-    };
-    const style = statusStyles[status] || { backgroundColor: '#F0F0F0', color: '#666' };
-    return (
-      <View style={[styles.statusBadge, style]}>
-        <Text style={[styles.statusText, { color: style.color, fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-          {status}
-        </Text>
-      </View>
-    );
-  };
 
   const renderEnquiry = ({ item }) => {
     const latestBid = getLatestBid(item.propertybid);
     return (
       <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
         <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-            {item.name}
-          </Text>
-          {renderStatusBadge(item.status)}
+          <View>
+            <Text className='text-sm font-rubik text-gray-600'>Broker:</Text>
+            <Text style={[styles.cardTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+              {item.name}
+            </Text>
+          </View>
+
+          <View>
+            <Text className='text-sm font-rubik text-gray-600'>Date:</Text>
+            <Text style={[styles.cardDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              {new Date(latestBid.date || item.created_at).toLocaleDateString()}
+            </Text>
+          </View>
         </View>
         <View style={styles.cardrow}>
-          <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-            {item.housecategory}
-          </Text>
-          <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-            {item.inwhichcity || t('notAvailable')}
-          </Text>
-        </View>
-        <View style={styles.cardrow}>
-          <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-            {t('bid', { index: '' })}: {formatCurrency(latestBid.bidamount)}
-          </Text>
-          <Text style={[styles.cardDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-            {new Date(latestBid.date || item.created_at).toLocaleDateString()}
-          </Text>
+          <View>
+            <Text className='text-sm font-rubik text-gray-600'>Bid amount:</Text>
+            <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              {formatCurrency(latestBid.bidamount)}
+            </Text>
+          </View>
+          <View>
+            <Text className='text-sm font-rubik text-gray-600'>Category:</Text>
+            <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              {item.housecategory}
+            </Text>
+          </View>
+          <View>
+            <Text className='text-sm font-rubik text-gray-600'>City:</Text>
+            <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              {item.inwhichcity || t('notAvailable')}
+            </Text>
+          </View>
+
         </View>
         <View style={styles.buttonContainer}>
           {item.propertyid && (
@@ -166,14 +183,17 @@ const MyEnquiries = () => {
           <Image source={icons.backArrow} style={styles.backIcon} />
         </TouchableOpacity>
         <Text style={[styles.title, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-          {t('myEnquiries')}
+          {t('Auction')}
         </Text>
         <TouchableOpacity onPress={() => router.push('/notifications')}>
           <Image source={icons.bell} style={styles.bellIcon} />
         </TouchableOpacity>
       </View>
 
-      <PropertyNavigation path={'myenquiries'} />
+      <PropertyNavigation path={'auction'} />
+      <View className='mx-auto'>
+        <Text>All the Auctions that you have participated in.</Text>
+      </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -322,7 +342,7 @@ const MyEnquiries = () => {
   );
 };
 
-export default MyEnquiries;
+export default Auction;
 
 const styles = StyleSheet.create({
   container: {
@@ -418,14 +438,14 @@ const styles = StyleSheet.create({
   },
   cardText: {
     fontSize: moderateScale(14),
-    color: '#666',
-    fontFamily: 'Rubik-Regular',
+    color: '#000',
+    fontWeight: 'bold',
     marginVertical: verticalScale(3),
   },
   cardDate: {
     fontSize: moderateScale(12),
-    color: '#999',
-    fontFamily: 'Rubik-Regular',
+    color: '#000',
+    fontWeight: 'bold',
     marginTop: verticalScale(5),
   },
   buttonContainer: {
@@ -437,7 +457,7 @@ const styles = StyleSheet.create({
   actionButton: {
     backgroundColor: '#234F68',
     borderRadius: moderateScale(8),
-    paddingVertical: verticalScale(8),
+    paddingVertical: verticalScale(5),
     paddingHorizontal: scale(12),
   },
   brokerButton: {

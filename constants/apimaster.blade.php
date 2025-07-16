@@ -867,12 +867,12 @@ class ApiMasterController extends Controller
 
     public function brokerlist()
     {
-        $brokerlistdata = RegisterUser::select('username', 'profile', 'id')->where('user_type', 'broker')->where('verification_status', '1')->get();
+        $brokerlistdata = RegisterUser::select('username', 'profile', 'id', 'mobilenumber', 'city')->where('user_type', 'broker')->where('verification_status', '1')->get();
         return response()->json(['success' => true, 'data' => $brokerlistdata]);
     }
     public function brokerprofile(Request $rq)
     {
-        $brokerdata = RegisterUser::select('username', 'profile', 'email', 'company_name')
+        $brokerdata = RegisterUser::select('username', 'profile', 'email', 'company_name', 'mobilenumber')
             ->where('id', $rq->id)
             ->where('user_type', 'broker')
             ->where('verification_status', '1')
@@ -894,16 +894,27 @@ class ApiMasterController extends Controller
     public function fetchenquiries(Request $rq)
     {
         try {
-            $data = Lead::where('userid', $rq->id)->get();
+            $myenquiries = Lead::where('userid', $rq->id)
+            ->where('form_type','=','broker')
+            ->get();
+
+            $brokerenquiries = Lead::where('agentid', $rq->id)
+            ->where('form_type','=','broker')
+            ->get();
+
+            $loanenquiries = Lead::where('form_type','=','bankagent')->get();
 
             return response()->json([
                 'success' => true,
-                'data' => $data,
+                'myenquiries' => $myenquiries,
+                'brokerenquiries' => $brokerenquiries,
+                'loanenquiries' => $loanenquiries,
             ]);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }
     }
+
 
     public function bankagentlist()
     {

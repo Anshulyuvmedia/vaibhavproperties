@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import images from '@/constants/images';
@@ -9,7 +9,6 @@ import icons from '@/constants/icons';
 
 const PADDING_HORIZONTAL = scale(15);
 const GAP = scale(7);
-const NUM_COLUMNS = 2;
 
 const Allbrokers = () => {
     const [brokerList, setbrokerList] = useState([]);
@@ -21,16 +20,17 @@ const Allbrokers = () => {
         try {
             const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/brokerlist`);
             if (response.data && response.data.success && Array.isArray(response.data.data)) {
+                console.log(response.data.data);
                 const apiData = response.data.data.map((broker, index) => ({
                     id: broker.id,
+                    city: broker.city,
                     name: broker.username ? broker.username.split(' ')[0] : 'Unknown broker',
                     image: broker.profile
                         ? broker.profile.startsWith('http')
                             ? { uri: broker.profile }
                             : { uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${broker.profile}` }
                         : images.avatar,
-                    rating: (Math.random() * (5 - 4) + 4).toFixed(1), // Simulated rating (4.0-5.0)
-                    sales: Math.floor(Math.random() * 20) + 10, // Simulated sales (10-29)
+                    phone: broker.mobilenumber || `+91${Math.floor(1000000000 + Math.random() * 9000000000)}`, // Use mobilenumber from API
                 }));
                 setbrokerList(apiData);
             } else {
@@ -49,6 +49,25 @@ const Allbrokers = () => {
         fetchAgenList();
     }, []);
 
+    const handleCall = (phone) => {
+        if (phone) {
+            Linking.openURL(`tel:${phone}`).catch((err) => console.error('Error opening phone dialer:', err));
+        } else {
+            console.error('No phone number provided for call');
+        }
+    };
+
+    const handleWhatsApp = (phone) => {
+        console.log('Attempting WhatsApp with phone:', phone); // Debug log
+        if (phone) {
+            // Ensure phone number is formatted correctly (remove spaces, ensure country code if needed)
+            const formattedPhone = phone.replace(/\s/g, '').startsWith('+') ? phone.replace(/\s/g, '') : `+91${phone.replace(/\s/g, '')}`;
+            Linking.openURL(`https://wa.me/${formattedPhone}`).catch((err) => console.error('Error opening WhatsApp:', err));
+        } else {
+            console.error('No phone number provided for WhatsApp');
+        }
+    };
+
     const renderbroker = ({ item }) => (
         <TouchableOpacity
             style={styles.card}
@@ -62,11 +81,21 @@ const Allbrokers = () => {
                 style={styles.brokerImage}
                 onError={(error) => console.log('Image load error for', item.name, ':', error.nativeEvent.error)}
             />
-            <Text style={styles.brokerName}>{item.name}</Text>
-            <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={moderateScale(14)} color="#FFD700" />
-                <Text style={styles.ratingText}>{item.rating}</Text>
-                <Text style={styles.salesText}>{item.sales} Sold</Text>
+            <View className='flex-row justify-content-between flex-1'>
+                <View style={styles.infoContainer}>
+                    <Text style={styles.brokerName}>{item.name}</Text>
+                    <View style={styles.ratingContainer}>
+                        <Text style={styles.ratingText}>{item.city}</Text>
+                    </View>
+                </View>
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => handleCall(item.phone)}>
+                        <Ionicons name="call" size={moderateScale(18)} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#25D366' }]} onPress={() => handleWhatsApp(item.phone)}>
+                        <Ionicons name="logo-whatsapp" size={moderateScale(18)} color="#fff" />
+                    </TouchableOpacity>
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -83,7 +112,7 @@ const Allbrokers = () => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.titleContainer}>
-                    <Text style={styles.title}>All Property Broker</Text>
+                    <Text style={styles.title}>All Property Brokers</Text>
                 </View>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Image source={icons.backArrow} style={styles.backIcon} />
@@ -94,9 +123,7 @@ const Allbrokers = () => {
                 data={brokerList}
                 renderItem={renderbroker}
                 keyExtractor={(item) => item.id.toString()}
-                numColumns={NUM_COLUMNS}
                 contentContainerStyle={styles.flatListContent}
-                columnWrapperStyle={styles.columnWrapper}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={() => (
                     <Text style={styles.emptyText}>No brokers available</Text>
@@ -141,10 +168,6 @@ const styles = StyleSheet.create({
         color: '#234F68',
         textAlign: 'center',
     },
-    bellIcon: {
-        width: scale(24),
-        height: scale(24),
-    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -152,56 +175,69 @@ const styles = StyleSheet.create({
     },
     flatListContent: {
         paddingBottom: verticalScale(20),
-        paddingInline: verticalScale(2),
-    },
-    columnWrapper: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: GAP,
     },
     card: {
-        backgroundColor: '#f4f2f7',
-        borderRadius: moderateScale(15),
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        borderRadius: moderateScale(8),
         padding: moderateScale(10),
         marginBottom: moderateScale(10),
-        width: (Dimensions.get('window').width - PADDING_HORIZONTAL * 2 - GAP) / NUM_COLUMNS, // Dynamic width
         alignItems: 'center',
-        // shadowColor: '#000',
-        // shadowOffset: { width: 0, height: 2 },
-        // shadowOpacity: 0.1,
-        // shadowRadius: 4,
-        // elevation: 3,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
     },
     brokerImage: {
-        width: scale(80),
-        height: scale(80),
+        width: scale(50),
+        height: scale(50),
         borderRadius: 9999,
         backgroundColor: '#fff',
         resizeMode: 'cover',
+        marginRight: scale(10),
+    },
+    infoContainer: {
+        flex: 1,
+        justifyContent: 'center',
     },
     brokerName: {
-        marginTop: verticalScale(8),
         fontSize: moderateScale(16),
         fontFamily: 'Rubik-Medium',
         color: '#234F68',
-        textAlign: 'center',
     },
     ratingContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: verticalScale(5),
+        marginTop: verticalScale(2),
     },
     ratingText: {
         marginLeft: scale(5),
-        fontSize: moderateScale(14),
+        fontSize: moderateScale(12),
         fontFamily: 'Rubik-Regular',
         color: '#6B7280',
     },
     salesText: {
         marginLeft: scale(5),
-        fontSize: moderateScale(14),
+        fontSize: moderateScale(12),
         fontFamily: 'Rubik-Regular',
         color: '#6B7280',
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        marginTop: verticalScale(5),
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#007AFF',
+        borderRadius: moderateScale(50),
+        paddingVertical: verticalScale(5),
+        paddingHorizontal: scale(12),
+        marginRight: scale(10),
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: moderateScale(12),
+        fontFamily: 'Rubik-Regular',
+        marginLeft: scale(5),
     },
     emptyText: {
         fontSize: moderateScale(16),
