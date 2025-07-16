@@ -6,6 +6,7 @@ import axios from 'axios';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import icons from '@/constants/icons';
 import PropertyNavigation from '@/components/PropertyNavigation';
+import { useTranslation } from 'react-i18next';
 
 // Helper to format price in Indian Rupees
 const formatINR = (amount) => {
@@ -20,6 +21,7 @@ const formatINR = (amount) => {
 };
 
 const Myproperties = () => {
+  const { t, i18n } = useTranslation();
   const [userPropertyData, setUserPropertyData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,7 +29,7 @@ const Myproperties = () => {
 
   const handleCardPress = (id) => router.push(`/properties/${id}`);
   const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
-  const handleAddProperty = () => router.push('/addproperty'); // Navigate to add property screen
+  const handleAddProperty = () => router.push('/addproperty');
 
   const fetchUserData = async () => {
     setLoading(true);
@@ -61,7 +63,7 @@ const Myproperties = () => {
       console.error('Error fetching user data:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false); // Reset refreshing state when done
+      setRefreshing(false);
     }
   };
 
@@ -82,7 +84,9 @@ const Myproperties = () => {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Image source={icons.backArrow} style={styles.backIcon} />
           </TouchableOpacity>
-          <Text style={styles.title}>My Properties</Text>
+          <Text style={[styles.title, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+            {t('myProperties')}
+          </Text>
           <TouchableOpacity onPress={() => router.push('/notifications')}>
             <Image source={icons.bell} style={styles.bellIcon} />
           </TouchableOpacity>
@@ -94,16 +98,20 @@ const Myproperties = () => {
           {loading && !refreshing ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#4A90E2" />
-              <Text style={styles.loadingText}>Loading properties...</Text>
+              <Text style={[styles.loadingText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                {t('loadingProperties')}
+              </Text>
             </View>
           ) : userPropertyData.length === 0 ? (
             <View style={styles.noDataContainer}>
               <TouchableOpacity onPress={handleAddProperty}>
                 <Image source={icons.noProperties} style={styles.noDataIcon} />
               </TouchableOpacity>
-              <Text style={styles.noDataTitle}>No Properties Listed Yet</Text>
-              <Text style={styles.noDataMessage}>
-                It looks like you haven’t added any properties. Start by adding your first property to get started!
+              <Text style={[styles.noDataTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                {t('noPropertiesTitle')}
+              </Text>
+              <Text style={[styles.noDataMessage, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                {t('noPropertiesMessage')}
               </Text>
             </View>
           ) : (
@@ -123,25 +131,33 @@ const Myproperties = () => {
                       source={{ uri: item.thumbnail || 'https://vaibhavproperties.cigmafeed.in/adminAssets/images/default-thumbnail.jpg' }}
                       style={styles.propertyImage}
                     />
-                    {/* Heart Icon (placeholder, replace with actual icon if available) */}
-                    <View style={styles.heartIconContainer}>
+                    {/* Heart Icon (placeholder, commented out as in original) */}
+                    {/* <View style={styles.heartIconContainer}>
                       <Image source={icons.heart} style={styles.heartIcon} />
-                    </View>
+                    </View> */}
                     {/* Category Badge */}
                     <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryText}>{item.category}</Text>
+                      <Text style={[styles.categoryText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                        {item.category}
+                      </Text>
                     </View>
                   </View>
 
                   {/* Text Content Section */}
                   <View style={styles.textContent}>
-                    <Text style={styles.propertyName}>{item.property_name}</Text>
+                    <Text style={[styles.propertyName, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                      {item.property_name}
+                    </Text>
                     <View style={styles.locationRow}>
                       <Image source={icons.location} style={styles.locationIcon} />
-                      <Text style={styles.locationText}>{item.city}, {item.address}</Text>
+                      <Text style={[styles.locationText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                        {item.city}
+                      </Text>
                     </View>
                     <View style={styles.priceRow}>
-                      <Text style={styles.priceText}>{formatINR(item.price)}</Text>
+                      <Text style={[styles.priceText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                        {formatINR(item.price)}
+                      </Text>
                       <View style={styles.statusContainer}>
                         <View
                           style={[
@@ -151,15 +167,17 @@ const Myproperties = () => {
                             },
                           ]}
                         />
-                        <Text style={styles.statusText}>
-                          {item.status?.toLowerCase() === 'published' ? 'Live' : 'Offline'}
+                        <Text style={[styles.statusText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                          {item.status?.toLowerCase() === 'published' ? t('live') : t('offline')}
                         </Text>
                       </View>
                     </View>
 
                     {/* Edit Button */}
                     <TouchableOpacity style={styles.editButton} onPress={() => handleEditPress(item.id)}>
-                      <Text style={styles.editText}>Edit Property</Text>
+                      <Text style={[styles.editText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                        {t('editProperty')}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -168,7 +186,7 @@ const Myproperties = () => {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={onRefresh}
-                  colors={['#4A90E2']} // Loading indicator color
+                  colors={['#4A90E2']}
                   tintColor="#4A90E2"
                 />
               }
@@ -215,7 +233,6 @@ const styles = StyleSheet.create({
     width: moderateScale(24),
     height: moderateScale(24),
   },
-
   content: {
     flex: 1,
   },
@@ -264,7 +281,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   listContent: {
-    paddingBottom: verticalScale(20),
+    paddingBottom: verticalScale(75),
   },
   card: {
     width: '100%',
@@ -330,6 +347,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#4A5568',
     marginBottom: verticalScale(4),
+    textTransform: 'capitalize',
   },
   locationRow: {
     flexDirection: 'row',
@@ -341,7 +359,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    marginBottom: verticalScale(4),
+    marginBottom: verticalScale(8),
   },
   locationIcon: {
     width: moderateScale(16),

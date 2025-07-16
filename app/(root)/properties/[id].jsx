@@ -398,7 +398,7 @@ const PropertyDetails = () => {
                                         className="size-7"
                                     />
                                 </TouchableOpacity>
-                                <TouchableOpacity
+                                {/* <TouchableOpacity
                                     className="flex flex-row bg-white rounded-full size-11 items-center justify-center"
                                 >
                                     <Image
@@ -406,22 +406,22 @@ const PropertyDetails = () => {
                                         className="size-7"
                                         tintColor="#191D31"
                                     />
-                                </TouchableOpacity>
+                                </TouchableOpacity> */}
                             </View>
                         </View>
                     </View>
                 </View>
                 <View className="px-5 mt-7 flex gap-2">
-                    <Text className="text-2xl font-rubik-medium">{propertyData.property_name}</Text>
+                    <Text className="text-2xl font-rubik-medium capitalize ">{propertyData.property_name}</Text>
                     <View className="flex flex-row items-center justify-between gap-3">
                         <View className="flex flex-row items-center py-2">
                             <Ionicons name="location" size={20} color="#234F68" />
                             <Text className="text-sm font-rubik text-black">
-                                {propertyData.city}, {propertyData.address}.
+                                {propertyData.city}
                             </Text>
                         </View>
                         <View className="flex flex-row items-center py-2 px-3 bg-primary-300 rounded-xl">
-                            <Text className="text-sm font-rubik text-white">{propertyData.category}</Text>
+                            <Text className="text-sm font-rubik text-white capitalize">{propertyData.category}</Text>
                         </View>
                     </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="h-15">
@@ -493,7 +493,7 @@ const PropertyDetails = () => {
                                     const thumbnailUri =
                                         typeof item.thumbnail === "string"
                                             ? { uri: item.thumbnail }
-                                            : { uri: images.videoPlaceholder || "https://via.placeholder.com/75" }; // Fallback to placeholder
+                                            : icons.videofile; // Fallback to placeholder
                                     // console.log("Video Thumbnail URI:", thumbnailUri.uri || thumbnailUri, "Type:", typeof (thumbnailUri.uri || thumbnailUri));
                                     return (
                                         <TouchableOpacity
@@ -529,47 +529,50 @@ const PropertyDetails = () => {
                             </View>
                         </View>
                     )}
-                    <View className="flex flex-row items-center justify-between mt-4 bg-primary-100 rounded-3xl p-3 py-5">
-                        <View className="flex flex-row items-center">
-                            <Image
-                                source={{ uri: getProfileImageUri() || images.avatar }}
-                                className="size-14 rounded-full"
-                            />
-                            <View className="flex flex-col items-start justify-center ml-3">
-                                <Text className="text-lg text-primary-300 text-start font-rubik-bold">
-                                    {brokerData ? brokerData.username : "Loading..."}
-                                </Text>
-                                <Text className="text-sm text-black-200 text-start font-rubik-medium">
-                                    {brokerData ? brokerData.email : ""}
-                                </Text>
-                                <Text className="text-sm text-black-200 text-start font-rubik-medium">
-                                    {brokerData ? brokerData.mobilenumber : ""}
-                                </Text>
-                                <Text className="text-sm text-black-200 text-start font-rubik-medium">
-                                    {brokerData ? brokerData.company_name : ""}
-                                </Text>
+
+                    {brokerData && (
+                        <View className="flex flex-row items-center justify-between mt-4 bg-primary-100 rounded-3xl p-3 py-5">
+                            <View className="flex flex-row items-center">
+                                <Image
+                                    source={{ uri: getProfileImageUri() || images.avatar }}
+                                    className="size-14 rounded-full"
+                                />
+                                <View className="flex flex-col items-start justify-center ml-3">
+                                    <Text className="text-lg text-primary-300 text-start font-rubik-bold">
+                                        {brokerData ? brokerData.username : "Loading..."}
+                                    </Text>
+                                    <Text className="text-sm text-black-200 text-start font-rubik-medium">
+                                        {brokerData ? brokerData.email : ""}
+                                    </Text>
+                                    <Text className="text-sm text-black-200 text-start font-rubik-medium">
+                                        {brokerData ? brokerData.mobilenumber : ""}
+                                    </Text>
+                                    <Text className="text-sm text-black-200 text-start font-rubik-medium">
+                                        {brokerData ? brokerData.company_name : ""}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View className="flex flex-row items-center gap-3 pe-3">
+                                <TouchableOpacity
+                                    onPress={() => brokerData?.mobilenumber && openWhatsApp(brokerData.mobilenumber)}
+                                    disabled={!brokerData?.mobilenumber}
+                                >
+                                    <FontAwesome5
+                                        name="whatsapp"
+                                        size={24}
+                                        color={brokerData?.mobilenumber ? "#8bc83f" : "#ccc"}
+                                    />
+                                </TouchableOpacity>
                             </View>
                         </View>
-                        <View className="flex flex-row items-center gap-3 pe-3">
-                            <TouchableOpacity
-                                onPress={() => brokerData?.mobilenumber && openWhatsApp(brokerData.mobilenumber)}
-                                disabled={!brokerData?.mobilenumber}
-                            >
-                                <FontAwesome5
-                                    name="whatsapp"
-                                    size={24}
-                                    color={brokerData?.mobilenumber ? "#8bc83f" : "#ccc"}
-                                />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
+                    )}
                     <View className="mt-7">
                         <Text className="text-black-300 text-xl font-rubik-bold">Overview</Text>
-                        <Text className="text-black-200 text-base font-rubik mt-2">{propertyData.discription}</Text>
+                        <Text className="text-black-200 text-base font-rubik my-2">{propertyData.discription}</Text>
                         {propertyData.nearbylocation && (
                             <>
                                 <Text className="text-black-300 text-base font-rubik-medium mt-3">Nearby Locations:</Text>
-                                <Text className="text-black-200 text-base font-rubik mt-2">{propertyData.nearbylocation}</Text>
+                                <Text className="text-black-200 text-base font-rubik mt-2 capitalize">{propertyData.nearbylocation}</Text>
                             </>
                         )}
                         {propertyData.approxrentalincome && (
@@ -600,12 +603,14 @@ const PropertyDetails = () => {
                     )}
                     <View className="mt-7">
                         <Text className="text-black-300 text-xl font-rubik-bold">Location</Text>
-                        <View className="flex flex-row items-center justify-start my-4 gap-2">
+                        <View className="flex flex-row items-center justify-start my-4 gap-2 me-3">
                             <Ionicons name="location-outline" size={22} color="#234F68" />
-                            <Text className="text-black-200 text-sm font-rubik-medium">{propertyData.address}.</Text>
+                            <Text className="text-black-200 text-sm font-rubik-medium text-wrap">{propertyData.address}.</Text>
                         </View>
                         <View>
-                            <MapView style={{ height: 150, borderRadius: 10 }} region={region} initialRegion={region}>
+                            <MapView style={{ height: 350, borderRadius: 10 }} region={region} initialRegion={region}
+                                mapType='hybrid'
+                            >
                                 {coordinates.latitude && coordinates.longitude && (
                                     <Marker
                                         coordinate={{

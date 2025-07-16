@@ -54,14 +54,14 @@ const Card = ({ item, onPress }) => {
   return (
     <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
       {/* Heart Icon */}
-      <View style={styles.heartContainer}>
+      {/* <View style={styles.heartContainer}>
         <TouchableOpacity>
           <Image
             source={require('../assets/icons/heart.png')} // Update path
             style={styles.heartIcon}
           />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Category Badge */}
       <View style={styles.categoryBadge}>
@@ -120,9 +120,9 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
           style={{ resizeMode: 'cover' }}
         />
         {/* Heart Icon */}
-        <View className="absolute top-4 left-4 bg-[#8bc83f] rounded-full p-2">
+        {/* <View className="absolute top-4 left-4 bg-[#8bc83f] rounded-full p-2">
           <Ionicons name="heart-outline" size={20} color="white" />
-        </View>
+        </View> */}
         {/* Category Badge */}
         <View className="absolute bottom-4 left-4 rounded-xl px-4 py-1" style={{ backgroundColor: 'rgba(35,79,104,0.9)', backdropFilter: 'blur(8px)' }}>
           <Text className="text-sm font-rubik text-white">

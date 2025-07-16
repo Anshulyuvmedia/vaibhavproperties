@@ -924,4 +924,67 @@ class ApiMasterController extends Controller
             'agentdata' => $agentdata,
         ]);
     }
+
+    public function sendloanenquiry(Request $rq)
+    {
+        try {
+            // Validate request data
+            $rq->validate([
+                'customername' => 'required|string',
+                'mobilenumber' => 'required|string|regex:/^[0-9]{10}$/',
+                'email' => 'required|email',
+                'city' => 'required|string',
+                'state' => 'nullable|string',
+                'form_type' => 'required|string',
+                'loan_amount' => 'required|numeric|min:0',
+                'documents.*' => 'required|mimes:pdf,jpeg,jpg',
+            ]);
+
+            // Handle multiple documents
+            $documents = [];
+            if ($rq->hasFile('documents')) {
+                $files = $rq->file('documents');
+                foreach ($files as $file) {
+                    $documentname = md5(rand(1000, 10000));
+                    $extension = strtolower($file->getClientOriginalExtension());
+                    $documentfullname = $documentname . '.' . $extension;
+                    $uploadedPath = public_path('assets/images/EnquiryDocs');
+                    $file->move($uploadedPath, $documentfullname);
+                    $documents[] = 'assets/images/EnquiryDocs/' . $documentfullname;
+                }
+            }
+
+            // Create Lead
+            $data = Lead::create([
+                'userid' => $rq->userid,
+                'name' => $rq->customername,
+                'mobilenumber' => $rq->mobilenumber,
+                'email' => $rq->email,
+                'city' => $rq->city,
+                'state' => $rq->state,
+                'documents' => !empty($documents) ? json_encode($documents) : null,
+                'form_type' => $rq->form_type,
+                'loan_amount' => $rq->loan_amount,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Loan enquiry error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error occurred',
+            ], 500);
+        }
+
+    }
 }
+

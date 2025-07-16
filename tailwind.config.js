@@ -1,7 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   // NOTE: Update this to include the paths to all of your component files.
-  content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
+  content: [
+    "./app/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}"
+  ],
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
@@ -12,6 +15,12 @@ module.exports = {
         "rubik-medium": ["Rubik-Medium", "sans-serif"],
         "rubik-semibold": ["Rubik-SemiBold", "sans-serif"],
         "rubik-light": ["Rubik-Light", "sans-serif"],
+        "noto-serif-devanagari-bold": ["NotoSerifDevanagari-Bold", "serif"],
+        "noto-serif-devanagari-extrabold": ["NotoSerifDevanagari-ExtraBold", "serif"],
+        "noto-serif-devanagari-light": ["NotoSerifDevanagari-Light", "serif"],
+        "noto-serif-devanagari-medium": ["NotoSerifDevanagari-Medium", "serif"],
+        "noto-serif-devanagari-regular": ["NotoSerifDevanagari-Regular", "serif"],
+        "noto-serif-devanagari-semibold": ["NotoSerifDevanagari-SemiBold", "serif"],
       },
       colors: {
         primary: {

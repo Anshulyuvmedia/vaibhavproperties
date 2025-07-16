@@ -7,8 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import icons from '@/constants/icons';
 import PropertyNavigation from '@/components/PropertyNavigation';
+import { useTranslation } from 'react-i18next';
 
 const MyEnquiries = () => {
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,9 +31,7 @@ const MyEnquiries = () => {
         return;
       }
       const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
-      // console.log('response', response.data.data);
       if (response.data && response.data.data) {
-        // Parse propertybid if it's a JSON string
         const parsedEnquiries = response.data.data.map(enquiry => ({
           ...enquiry,
           propertybid: typeof enquiry.propertybid === 'string' && enquiry.propertybid.startsWith('[')
@@ -61,7 +61,7 @@ const MyEnquiries = () => {
   };
 
   const formatCurrency = (amount) => {
-    if (!amount) return 'N/A';
+    if (!amount) return t('notAvailable');
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
@@ -74,19 +74,21 @@ const MyEnquiries = () => {
         new Date(current.date) > new Date(latest.date) ? current : latest
       );
     }
-    return { bidamount: 'N/A', date: '' };
+    return { bidamount: t('notAvailable'), date: '' };
   };
 
   const renderStatusBadge = (status) => {
     const statusStyles = {
-      Qualified: { backgroundColor: '#E6F3E6', color: '#4CAF50' },
-      'Not Responded': { backgroundColor: '#FFE6E6', color: '#FF5252' },
-      New: { backgroundColor: '#E6F0FA', color: '#234F68' },
+      [t('qualified')]: { backgroundColor: '#E6F3E6', color: '#4CAF50' },
+      [t('notResponded')]: { backgroundColor: '#FFE6E6', color: '#FF5252' },
+      [t('new')]: { backgroundColor: '#E6F0FA', color: '#234F68' },
     };
     const style = statusStyles[status] || { backgroundColor: '#F0F0F0', color: '#666' };
     return (
       <View style={[styles.statusBadge, style]}>
-        <Text style={[styles.statusText, { color: style.color }]}>{status}</Text>
+        <Text style={[styles.statusText, { color: style.color, fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+          {status}
+        </Text>
       </View>
     );
   };
@@ -96,16 +98,24 @@ const MyEnquiries = () => {
     return (
       <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{item.name}</Text>
+          <Text style={[styles.cardTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+            {item.name}
+          </Text>
           {renderStatusBadge(item.status)}
         </View>
         <View style={styles.cardrow}>
-          <Text style={styles.cardText}>{item.housecategory}</Text>
-          <Text style={styles.cardText}>{item.inwhichcity || 'N/A'}</Text>
+          <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+            {item.housecategory}
+          </Text>
+          <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+            {item.inwhichcity || t('notAvailable')}
+          </Text>
         </View>
         <View style={styles.cardrow}>
-          <Text style={styles.cardText}>Bid: {formatCurrency(latestBid.bidamount)}</Text>
-          <Text style={styles.cardDate}>
+          <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+            {t('bid', { index: '' })}: {formatCurrency(latestBid.bidamount)}
+          </Text>
+          <Text style={[styles.cardDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
             {new Date(latestBid.date || item.created_at).toLocaleDateString()}
           </Text>
         </View>
@@ -115,23 +125,19 @@ const MyEnquiries = () => {
               style={styles.actionButton}
               onPress={() => router.push(`/properties/${item.propertyid}`)}
             >
-              <Text style={styles.actionButtonText}>View Property</Text>
-            </TouchableOpacity>
-          )}
-          {item.brokerid && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.brokerButton]}
-              onPress={() => router.push(`/brokers/${item.brokerid}`)}
-            >
-              <Text style={styles.actionButtonText}>View Broker</Text>
+              <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                {t('viewProperty')}
+              </Text>
             </TouchableOpacity>
           )}
           {item.agentid && (
             <TouchableOpacity
               style={[styles.actionButton, styles.agentButton]}
-              onPress={() => router.push(`/agents/${item.agentid}`)}
+              onPress={() => router.push(`/broker/${item.agentid}`)}
             >
-              <Text style={styles.actionButtonText}>View Broker</Text>
+              <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                {t('viewBroker')}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -143,8 +149,10 @@ const MyEnquiries = () => {
     if (!Array.isArray(bids)) return null;
     return bids.map((bid, index) => (
       <View key={index} style={styles.bidHistoryRow}>
-        <Text style={styles.sheetLabel}>Bid {index + 1}:</Text>
-        <Text style={styles.sheetValue}>
+        <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+          {t('bid', { index: index + 1 })}:
+        </Text>
+        <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
           {formatCurrency(bid.bidamount)} on {new Date(bid.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </Text>
       </View>
@@ -157,7 +165,9 @@ const MyEnquiries = () => {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Image source={icons.backArrow} style={styles.backIcon} />
         </TouchableOpacity>
-        <Text style={styles.title}>My Enquiries</Text>
+        <Text style={[styles.title, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+          {t('myEnquiries')}
+        </Text>
         <TouchableOpacity onPress={() => router.push('/notifications')}>
           <Image source={icons.bell} style={styles.bellIcon} />
         </TouchableOpacity>
@@ -171,7 +181,9 @@ const MyEnquiries = () => {
         </View>
       ) : enquiries.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No enquiries found</Text>
+          <Text style={[styles.emptyText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+            {t('noEnquiries')}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -201,46 +213,82 @@ const MyEnquiries = () => {
         {selectedEnquiry && (
           <View style={styles.sheetContainer}>
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Enquiry Details</Text>
+              <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                {t('enquiryDetails')}
+              </Text>
               <TouchableOpacity
                 style={styles.sheetCloseButton}
                 onPress={() => rbSheetRef.current.close()}
               >
-                <Text style={styles.sheetCloseButtonText}>X</Text>
+                <Text style={[styles.sheetCloseButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  X
+                </Text>
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.sheetContent}>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Name:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.name}</Text>
+                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('name')}:
+                </Text>
+                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {selectedEnquiry.name}
+                </Text>
               </View>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Mobile:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.mobilenumber}</Text>
+                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('mobile')}:
+                </Text>
+                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {selectedEnquiry.mobilenumber}
+                </Text>
               </View>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Email:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.email}</Text>
+                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('email')}:
+                </Text>
+                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {selectedEnquiry.email}
+                </Text>
               </View>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>City:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.city}</Text>
+                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('city')}:
+                </Text>
+                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {selectedEnquiry.city}
+                </Text>
               </View>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>State:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.state}</Text>
+                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('state')}:
+                </Text>
+                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {selectedEnquiry.state}
+                </Text>
               </View>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Property Type:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.housecategory}</Text>
+                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('propertyType')}:
+                </Text>
+                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {selectedEnquiry.housecategory}
+                </Text>
               </View>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Client's City:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.inwhichcity || 'N/A'}</Text>
+                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('clientsCity')}:
+                </Text>
+                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {selectedEnquiry.inwhichcity || t('notAvailable')}
+                </Text>
               </View>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Status:</Text>
-                <Text style={styles.sheetValue}>{selectedEnquiry.status}</Text>
+                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('status')}:
+                </Text>
+                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {selectedEnquiry.status}
+                </Text>
               </View>
               {renderBidHistory(selectedEnquiry.propertybid)}
             </ScrollView>
@@ -253,14 +301,18 @@ const MyEnquiries = () => {
                     router.push(`/broker/${selectedEnquiry.agentid}`);
                   }}
                 >
-                  <Text style={styles.sheetActionButtonText}>View Broker</Text>
+                  <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('viewBroker')}
+                  </Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 style={styles.sheetActionButton}
                 onPress={() => rbSheetRef.current.close()}
               >
-                <Text style={styles.sheetActionButtonText}>Close</Text>
+                <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                  {t('close')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

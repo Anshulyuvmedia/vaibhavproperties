@@ -6,15 +6,16 @@ import axios from 'axios';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import icons from '@/constants/icons';
 import RBSheet from 'react-native-raw-bottom-sheet';
+import { useTranslation } from 'react-i18next';
 
 const Notifications = () => {
+    const { t, i18n } = useTranslation();
     const [notificationData, setNotificationData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [readStatus, setReadStatus] = useState({});
-    const [filter, setFilter] = useState('All');
+    const [filter, setFilter] = useState(t('all'));
     const [selectedNotification, setSelectedNotification] = useState(null);
 
-    // Function to Fetch Notifications
     const fetchNotifications = async () => {
         setLoading(true);
         try {
@@ -48,14 +49,12 @@ const Notifications = () => {
         fetchNotifications();
     }, []);
 
-    // Function to Toggle Read/Unread Status
     const toggleReadStatus = async (id) => {
         const updatedStatus = { ...readStatus, [id]: !readStatus[id] };
         setReadStatus(updatedStatus);
         await AsyncStorage.setItem('readStatus', JSON.stringify(updatedStatus));
     };
 
-    // Function to Mark All as Read
     const markAllAsRead = async () => {
         const updatedStatus = {};
         notificationData.forEach((item) => {
@@ -65,7 +64,6 @@ const Notifications = () => {
         await AsyncStorage.setItem('readStatus', JSON.stringify(updatedStatus));
     };
 
-    // Mark Notification as Read when RBSheet opens
     const handleOpenSheet = async (item) => {
         if (!readStatus[item.id]) {
             const updatedStatus = { ...readStatus, [item.id]: true };
@@ -76,13 +74,11 @@ const Notifications = () => {
         refRBSheet.current.open();
     };
 
-    // Filter Notifications by Read/Unread Status
     const filteredNotifications = notificationData.filter((item) => {
-        if (filter === 'All') return true;
-        return readStatus[item.id] === (filter === 'Read');
+        if (filter === t('all')) return true;
+        return readStatus[item.id] === (filter === t('read'));
     });
 
-    // Group notifications by date (Today vs Older)
     const groupByDate = (data) => {
         const today = new Date().toLocaleDateString();
         return {
@@ -93,7 +89,6 @@ const Notifications = () => {
 
     const { today, older } = groupByDate(filteredNotifications);
 
-    // Calculate Read and Unread Counts
     const unreadCount = notificationData.filter(item => !readStatus[item.id]).length;
     const readCount = notificationData.length - unreadCount;
 
@@ -108,13 +103,17 @@ const Notifications = () => {
                     <Image source={{ uri: imageUrl }} style={styles.profileImage} />
                     <View style={styles.details}>
                         <View style={styles.headerRow}>
-                            <Text style={[styles.name, !isRead && styles.unreadText]}>{item.notificationname}</Text>
+                            <Text style={[styles.name, !isRead && styles.unreadText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                {item.notificationname}
+                            </Text>
                             <TouchableOpacity onPress={() => toggleReadStatus(item.id)}>
                                 <View style={[styles.statusDot, isRead ? styles.readDot : styles.unreadDot]} />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.description} numberOfLines={2}>{previewText}</Text>
-                        <Text style={styles.timestamp}>
+                        <Text style={[styles.description, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]} numberOfLines={2}>
+                            {previewText}
+                        </Text>
+                        <Text style={[styles.timestamp, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                             {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </Text>
                     </View>
@@ -127,28 +126,31 @@ const Notifications = () => {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Image source={icons.backArrow} style={styles.backIcon} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Notifications</Text>
+                <Text style={[styles.title, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                    {t('notifications')}
+                </Text>
                 <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
-                    <Text style={styles.markAllText}>Mark All Read</Text>
+                    <Text style={[styles.markAllText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                        {t('markAllRead')}
+                    </Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Filter Buttons with Counts */}
             <View style={styles.filterContainer}>
-                {['All', 'Read', 'Unread'].map((status) => {
-                    const count = status === 'All' ? notificationData.length : status === 'Read' ? readCount : unreadCount;
+                {[t('all'), t('read'), t('unread')].map((status, index) => {
+                    const originalStatus = ['All', 'Read', 'Unread'][index];
+                    const count = originalStatus === 'All' ? notificationData.length : originalStatus === 'Read' ? readCount : unreadCount;
                     return (
                         <TouchableOpacity
                             key={status}
                             style={[styles.filterButton, filter === status && styles.activeFilter]}
                             onPress={() => setFilter(status)}
                         >
-                            <Text style={[styles.filterText, filter === status && styles.activeFilterText]}>
+                            <Text style={[styles.filterText, filter === status && styles.activeFilterText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                                 {status} {count > 0 && `(${count})`}
                             </Text>
                         </TouchableOpacity>
@@ -156,26 +158,27 @@ const Notifications = () => {
                 })}
             </View>
 
-            {/* Loading State */}
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#234F68" />
                 </View>
             ) : notificationData.length === 0 ? (
                 <View style={styles.noDataContainer}>
-
                     <Image source={icons.alertDanger} style={styles.noDataIcon} />
-
-                    <Text style={styles.noDataTitle}>No Notification Yet</Text>
-                    <Text style={styles.noDataMessage}>
-                        You will receive all important notifications here meaning
+                    <Text style={[styles.noDataTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                        {t('noNotificationTitle')}
+                    </Text>
+                    <Text style={[styles.noDataMessage, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                        {t('noNotificationMessage')}
                     </Text>
                 </View>
             ) : (
                 <>
                     {today.length > 0 && (
                         <View>
-                            <Text style={styles.sectionTitle}>Today</Text>
+                            <Text style={[styles.sectionTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                                {t('today')}
+                            </Text>
                             <FlatList
                                 data={today}
                                 keyExtractor={(item) => item.id.toString()}
@@ -186,7 +189,9 @@ const Notifications = () => {
                     )}
                     {older.length > 0 && (
                         <View style={styles.olderSection}>
-                            <Text style={styles.sectionTitle}>Older notifications</Text>
+                            <Text style={[styles.sectionTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                                {t('olderNotifications')}
+                            </Text>
                             <FlatList
                                 data={older}
                                 keyExtractor={(item) => item.id.toString()}
@@ -198,7 +203,6 @@ const Notifications = () => {
                 </>
             )}
 
-            {/* RBSheet for Full Notification */}
             <RBSheet
                 ref={refRBSheet}
                 closeOnDragDown={true}
@@ -224,23 +228,28 @@ const Notifications = () => {
                             <Image
                                 source={{ uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Notificaitons/${selectedNotification.notificationimg}` }}
                                 style={styles.profileImage}
-                                // onError={(e) => console.log('Image failed to load:', e.nativeEvent.error)}
                             />
                             <View>
-                                <Text style={styles.sheetTitle}>{selectedNotification.notificationname}</Text>
-                                <Text style={styles.sheetTimestamp}>
+                                <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                                    {selectedNotification.notificationname}
+                                </Text>
+                                <Text style={[styles.sheetTimestamp, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                                     {new Date(selectedNotification.created_at).toLocaleString()}
                                 </Text>
                             </View>
                         </View>
                         <ScrollView>
-                            <Text style={styles.sheetDescription}>{selectedNotification.notificationdes}</Text>
+                            <Text style={[styles.sheetDescription, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                                {selectedNotification.notificationdes}
+                            </Text>
                         </ScrollView>
                         <TouchableOpacity
                             style={styles.closeButton}
                             onPress={() => refRBSheet.current.close()}
                         >
-                            <Text style={styles.closeButtonText}>Close</Text>
+                            <Text style={[styles.closeButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                {t('close')}
+                            </Text>
                         </TouchableOpacity>
                     </>
                 )}
@@ -326,11 +335,6 @@ const styles = StyleSheet.create({
         borderRadius: moderateScale(12),
         padding: moderateScale(12),
         marginBottom: verticalScale(8),
-        // shadowColor: '#000',
-        // shadowOffset: { width: 0, height: 1 },
-        // shadowOpacity: 0.1,
-        // shadowRadius: moderateScale(3),
-        // elevation: 2,
     },
     unreadCard: {
         borderWidth: 1,

@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'Vaibhav Properties'
+rootProject.name = 'Land Squire'
 
 dependencyResolutionManagement {
   versionCatalogs {

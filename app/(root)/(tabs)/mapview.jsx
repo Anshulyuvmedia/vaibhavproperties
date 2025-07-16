@@ -6,8 +6,8 @@ import { HorizontalCard } from '@/components/Cards';
 import Constants from 'expo-constants';
 import debounce from 'lodash.debounce';
 import * as Location from 'expo-location';
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { Link, useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 
 // Define parseCoordinates outside Mapview
 const parseCoordinates = (maplocations) => {
@@ -57,9 +57,20 @@ const Mapview = () => {
     const [citySuggestions, setCitySuggestions] = useState([]);
     const [selectedCity, setSelectedCity] = useState('Ajmer');
     const [currentLocationName, setCurrentLocationName] = useState('Ajmer');
-    const [page, setPage] = useState(1); // Pagination page
-    const [hasMore, setHasMore] = useState(true); // Track if more data is available
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [mapType, setMapType] = useState('hybrid'); // Default to hybrid mode
+
     const viewProperty = (id) => router.push(`/properties/${id}`);
+
+    // Toggle map type
+    const toggleMapType = () => {
+        setMapType((prevType) => {
+            if (prevType === 'hybrid') return 'standard';
+            if (prevType === 'standard') return 'satellite';
+            return 'hybrid';
+        });
+    };
 
     // Fetch filtered data based on city
     const fetchFilterData = async (city) => {
@@ -72,25 +83,20 @@ const Mapview = () => {
         setHasMore(true);
 
         const params = { city };
-        // console.log("fetchFilterData params:", params);
         try {
             const queryParams = new URLSearchParams();
             if (params.city) queryParams.append("filtercity", params.city);
 
             const apiUrl = `https://vaibhavproperties.cigmafeed.in/api/filterlistings?${queryParams.toString()}`;
-            // console.log("Sending API request to:", apiUrl);
-
             const response = await axios({
                 method: "post",
                 url: apiUrl,
             });
 
-            // console.log("fetchFilterData response:", response.data);
-
             if (response.data && Array.isArray(response.data.data)) {
                 const data = response.data.data;
                 setListingData(data);
-                setFilteredData(data.slice(0, 8)); // Limit to 8 items initially
+                setFilteredData(data.slice(0, 8));
                 setHasMore(data.length > 8);
 
                 const limitedMarkers = data.slice(0, 50).map(property => ({
@@ -104,8 +110,8 @@ const Mapview = () => {
                     const newRegion = {
                         latitude,
                         longitude,
-                        latitudeDelta: 0.5,
-                        longitudeDelta: 0.5,
+                        latitudeDelta: 5.0,
+                        longitudeDelta: 5.0,
                     };
                     setRegion(newRegion);
                     mapRef.current?.animateToRegion(newRegion, 500);
@@ -145,25 +151,23 @@ const Mapview = () => {
                 params: {
                     latitude: mapRegion?.latitude || 26.4499,
                     longitude: mapRegion?.longitude || 74.6399,
-                    latitudeDelta: mapRegion?.latitudeDelta || 0.5,
-                    longitudeDelta: mapRegion?.longitudeDelta || 0.5,
-                    limit: 8, // Fetch 8 items per page
+                    latitudeDelta: mapRegion?.latitudeDelta || 5.0,
+                    longitudeDelta: mapRegion?.longitudeDelta || 5.0,
+                    limit: 8,
                     page: pageNum,
                 },
             });
-
-            // console.log("fetchListingData response:", response.data);
 
             if (response.data && response.data.data && Array.isArray(response.data.data.data)) {
                 const data = response.data.data.data;
                 if (pageNum === 1) {
                     setListingData(data);
-                    setFilteredData(data); // Initial set of 8 items
+                    setFilteredData(data);
                 } else {
                     setListingData(prev => [...prev, ...data]);
-                    setFilteredData(prev => [...prev, ...data]); // Append new items
+                    setFilteredData(prev => [...prev, ...data]);
                 }
-                setHasMore(data.length === 8); // If less than 8, assume no more data
+                setHasMore(data.length === 8);
 
                 const limitedMarkers = data.slice(0, 50).map(property => ({
                     ...property,
@@ -176,8 +180,8 @@ const Mapview = () => {
                     setRegion({
                         latitude,
                         longitude,
-                        latitudeDelta: 0.5,
-                        longitudeDelta: 0.5,
+                        latitudeDelta: 5.0,
+                        longitudeDelta: 5.0,
                     });
                 }
             } else {
@@ -203,16 +207,16 @@ const Mapview = () => {
         }
     };
 
-    // Initial load with Ajmer coordinates
+    // Initial load with Rajasthan (Ajmer) coordinates
     useEffect(() => {
-        const ajmerRegion = {
+        const rajasthanRegion = {
             latitude: 26.4499,
             longitude: 74.6399,
-            latitudeDelta: 0.5,
-            longitudeDelta: 0.5,
+            latitudeDelta: 5.0,
+            longitudeDelta: 5.0,
         };
-        setRegion(ajmerRegion);
-        fetchListingData(ajmerRegion, 1);
+        setRegion(rajasthanRegion);
+        fetchListingData(rajasthanRegion, 1);
     }, []);
 
     // Request location permissions and get current location
@@ -230,8 +234,8 @@ const Mapview = () => {
             const newRegion = {
                 latitude,
                 longitude,
-                latitudeDelta: 0.5,
-                longitudeDelta: 0.5,
+                latitudeDelta: 5.0,
+                longitudeDelta: 5.0,
             };
             setRegion(newRegion);
             setSelectedCity(null);
@@ -313,8 +317,8 @@ const Mapview = () => {
                 const newRegion = {
                     latitude: lat,
                     longitude: lng,
-                    latitudeDelta: 0.5,
-                    longitudeDelta: 0.5,
+                    latitudeDelta: 5.0,
+                    longitudeDelta: 5.0,
                 };
                 setSelectedCity(city);
                 setCurrentLocationName(city);
@@ -348,8 +352,8 @@ const Mapview = () => {
             const ajmerRegion = {
                 latitude: 26.4499,
                 longitude: 74.6399,
-                latitudeDelta: 0.5,
-                longitudeDelta: 0.5,
+                latitudeDelta: 5.0,
+                longitudeDelta: 5.0,
             };
             setRegion(ajmerRegion);
             fetchListingData(ajmerRegion, 1);
@@ -495,6 +499,11 @@ const Mapview = () => {
                     </View>
                     <Text style={styles.nearbyButtonText}>Nearby You</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.mapTypeButton} onPress={toggleMapType}>
+                    <Text style={styles.mapTypeButtonText}>
+                        {mapType === 'hybrid' ? 'Standard' : mapType === 'standard' ? 'Satellite' : 'Hybrid'}
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             <View style={styles.searchContainer}>
@@ -531,7 +540,6 @@ const Mapview = () => {
                 </View>
             )}
 
-            {/* Overlay to fade background when search is focused */}
             {showSuggestions && (
                 <View style={styles.overlay} />
             )}
@@ -540,14 +548,15 @@ const Mapview = () => {
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
                 style={styles.map}
-                initialRegion={region || {
+                initialRegion={{
                     latitude: 26.4499,
                     longitude: 74.6399,
-                    latitudeDelta: 0.5,
-                    longitudeDelta: 0.5,
+                    latitudeDelta: 5.0,
+                    longitudeDelta: 5.0,
                 }}
                 onRegionChangeComplete={handleRegionChange}
                 compassEnabled={true}
+                mapType={mapType}
             >
                 {visibleMarkers.map((property) => (
                     <CustomMarker
@@ -707,8 +716,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         flexDirection: 'row',
         alignItems: 'center',
+        marginRight: 10, // Added spacing between buttons
     },
     nearbyButtonText: {
+        color: '#fff',
+        fontSize: 14,
+    },
+    mapTypeButton: {
+        backgroundColor: '#234F68',
+        borderRadius: 25,
+        paddingVertical: 10,
+        paddingHorizontal: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    mapTypeButtonText: {
         color: '#fff',
         fontSize: 14,
     },

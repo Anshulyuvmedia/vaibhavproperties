@@ -8,12 +8,14 @@ import Filters from '@/components/Filters';
 import { Card } from '@/components/Cards';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 
 // Get screen width for dynamic card sizing
 const PADDING_HORIZONTAL = scale(15);
 const GAP = scale(10);
 
 const Explore = () => {
+  const { t, i18n } = useTranslation();
   const [listingData, setListingData] = useState([]);
   const [loading, setLoading] = useState(false);
   const params = useLocalSearchParams();
@@ -24,10 +26,9 @@ const Explore = () => {
     setLoading(true);
     setListingData([]);
 
-    console.log("params:", params);
     try {
       const queryParams = new URLSearchParams();
-      if (params.propertyType && params.propertyType !== "All") {
+      if (params.propertyType && params.propertyType !== t('all')) {
         queryParams.append("filtercategory", params.propertyType);
       }
       if (params.city) queryParams.append("filtercity", params.city);
@@ -62,12 +63,11 @@ const Explore = () => {
 
   const clearFilter = (filterKey) => {
     const updatedParams = { ...params };
-    // Map display labels to param keys
     const keyMap = {
-      city: 'city',
-      type: 'propertyType',
-      price: ['minPrice', 'maxPrice'], // Clear both min and max for price
-      size: ['sqftfrom', 'sqftto'],   // Clear both min and max for size
+      [t('city').toLowerCase()]: 'city',
+      [t('type').toLowerCase()]: 'propertyType',
+      [t('price').toLowerCase()]: ['minPrice', 'maxPrice'],
+      [t('size').toLowerCase()]: ['sqftfrom', 'sqftto'],
     };
 
     if (Array.isArray(keyMap[filterKey])) {
@@ -82,27 +82,27 @@ const Explore = () => {
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
       <Image source={icons.noResultFound} style={styles.emptyImage} />
-      <Text style={styles.emptyTitle}>
-        Search <Text style={styles.emptyHighlight}>not found</Text>
+      <Text style={[styles.emptyTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+        {t('noResultsTitle', { highlight: <Text style={styles.emptyHighlight}>{t('notFound')}</Text> })}
       </Text>
-      <Text style={styles.emptySubtitle}>
-        Sorry, we can't find the real estate you're looking for.
+      <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+        {t('noResultsMessage1')}
       </Text>
-      <Text style={styles.emptySubtitle}>
-        Maybe a little spelling mistake?
+      <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+        {t('noResultsMessage2')}
       </Text>
     </View>
   );
 
   const renderFilterChips = () => {
     const filters = [];
-    if (params.city) filters.push(`City: ${params.city}`);
-    if (params.propertyType) filters.push(`Type: ${params.propertyType}`);
+    if (params.city) filters.push(t('filterCity', { value: params.city }));
+    if (params.propertyType) filters.push(t('filterType', { value: params.propertyType }));
     if (params.minPrice || params.maxPrice) {
-      filters.push(`Price: ${params.minPrice || 'Any'} - ${params.maxPrice || 'Any'}`);
+      filters.push(t('filterPrice', { min: params.minPrice || t('any'), max: params.maxPrice || t('any') }));
     }
     if (params.sqftfrom || params.sqftto) {
-      filters.push(`Size: ${params.sqftfrom || 'Any'} - ${params.sqftto || 'Any'} sqft`);
+      filters.push(t('filterSize', { min: params.sqftfrom || t('any'), max: params.sqftto || t('any') }));
     }
 
     return filters.length > 0 ? (
@@ -114,7 +114,9 @@ const Explore = () => {
         >
           {filters.map((filter, index) => (
             <View key={index} style={styles.filterChip}>
-              <Text style={styles.filterChipText}>{filter}</Text>
+              <Text style={[styles.filterChipText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                {filter}
+              </Text>
               <TouchableOpacity
                 onPress={() => clearFilter(filter.split(":")[0].toLowerCase().trim())}
                 style={styles.clearButton}
@@ -130,7 +132,9 @@ const Explore = () => {
             onPress={() => router.replace({ pathname: "/properties/explore", params: {} })}
             style={styles.clearAllButton}
           >
-            <Text style={styles.clearAllText}>Clear All</Text>
+            <Text style={[styles.clearAllText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+              {t('clearAll')}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -156,7 +160,9 @@ const Explore = () => {
               >
                 <Image source={icons.backArrow} style={styles.backIcon} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Search results</Text>
+              <Text style={[styles.headerTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                {t('searchResults')}
+              </Text>
               <TouchableOpacity onPress={() => router.push('/notifications')}>
                 <Image source={icons.bell} style={styles.bellIcon} />
               </TouchableOpacity>
@@ -167,8 +173,8 @@ const Explore = () => {
 
             <Filters />
             <View style={styles.foundTextContainer}>
-              <Text style={styles.foundText}>
-                Found <Text style={styles.foundHighlight}>{listingData.length}</Text> estates
+              <Text style={[styles.foundText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                {t('foundEstates', { count: listingData.length })}
               </Text>
             </View>
           </View>

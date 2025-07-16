@@ -11,9 +11,15 @@ import applogo from "@/assets/images/vplogo.png";
 import appfavicon from "@/assets/images/vplogo.png";
 import loginbanner from "@/assets/images/loginbanner.png";
 import banner from "@/assets/images/banner.png";
+import axisbank from "@/assets/images/axis-bank-logo.png";
+import icicibank from "@/assets/images/icici-bank-logo.png";
+import hdbbank from "@/assets/images/hdb-bank.png";
 
 export default {
   onboarding,
+  axisbank,
+  icicibank,
+  hdbbank,
   banner,
   avatar,
   newYork,

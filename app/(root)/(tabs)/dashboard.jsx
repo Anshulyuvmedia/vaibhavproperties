@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator, Switch } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,22 +6,32 @@ import axios from 'axios';
 import { MaterialIcons } from '@expo/vector-icons';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import images from '@/constants/images';
+import { useTranslation } from 'react-i18next';
 
 const Dashboard = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const [image, setImage] = useState(images.avatar);
+  const { t, i18n } = useTranslation();
 
   const fetchUserData = async () => {
     setLoading(true);
     try {
-      const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
+      const storedUserData = await AsyncStorage.getItem('userData');
+      if (!storedUserData) {
+        await AsyncStorage.removeItem('userData');
+        router.push('/signin');
+        return;
+      }
+
+      const parsedUserData = JSON.parse(storedUserData);
       if (!parsedUserData || !parsedUserData.id) {
         await AsyncStorage.removeItem('userData');
         router.push('/signin');
         return;
       }
+
       const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/userprofile?id=${parsedUserData.id}`);
 
       if (response.data && response.data.data) {
@@ -53,20 +63,29 @@ const Dashboard = () => {
   const handleLogout = async () => {
     try {
       await AsyncStorage.clear();
-      Alert.alert('Logged Out', 'You have been logged out successfully.');
+      Alert.alert(t('logout'), t('logoutMessage'));
       router.push('/signin');
     } catch (error) {
       console.error('Error during logout:', error);
     }
   };
 
+  const changeLanguage = async (lang) => {
+    try {
+      await i18n.changeLanguage(lang);
+      await AsyncStorage.setItem('appLanguage', lang);
+    } catch (error) {
+      console.error('Error changing language:', error);
+    }
+  };
+
   React.useLayoutEffect(() => {
     if (userData?.name) {
-      router.setParams?.({ title: userData.name + "'s Dashboard" });
+      router.setParams?.({ title: userData.name + "'s " + t('dashboard') });
     } else {
-      router.setParams?.({ title: 'Dashboard' });
+      router.setParams?.({ title: t('dashboard') });
     }
-  }, [userData?.name]);
+  }, [userData?.name, t]);
 
   const links = [
     { path: '/privacypolicy', label: 'Privacy Policy', icon: 'policy' },
@@ -80,19 +99,23 @@ const Dashboard = () => {
   const MenuItem = ({ icon, title, onPress, textColor = '#4B5563' }) => (
     <TouchableOpacity
       onPress={onPress}
-      style={styles.menuItem}
+      className="flex-row items-center py-4 px-3 bg-white rounded-lg mb-1.5 shadow-sm"
       activeOpacity={0.7}
     >
       <MaterialIcons name={icon} size={moderateScale(18, 0.3)} color={textColor} />
-      <Text style={[styles.menuText, { color: textColor }]}>{title}</Text>
+      <Text
+        className={`ml-2.5 text-lg ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} ${textColor === '#F75555' ? 'text-danger' : textColor === '#234F68' ? 'text-primary-300' : 'text-black-100'}`}
+      >
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-primary-100">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ paddingBottom: verticalScale(60), paddingHorizontal: scale(12) }}
       >
         {loading ? (
           <ActivityIndicator
@@ -103,11 +126,15 @@ const Dashboard = () => {
         ) : (
           <View>
             {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.headerText}>Dashboard</Text>
+            <View className="flex-row items-center justify-between my-3">
+              <Text
+                className={`text-xl ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-bold' : 'font-rubik-bold'} text-primary-300`}
+              >
+                {t('dashboard')}
+              </Text>
               <TouchableOpacity
                 onPress={() => router.back()}
-                style={styles.backButton}
+                className="bg-primary-200 rounded-full p-1.5"
                 activeOpacity={0.7}
               >
                 <MaterialIcons name="arrow-back" size={moderateScale(20, 0.3)} color="#4B5563" />
@@ -115,27 +142,50 @@ const Dashboard = () => {
             </View>
 
             {/* User Profile Card */}
-            <View style={styles.profileCard}>
-              <View style={styles.profileContent}>
+            <View className="bg-white rounded-lg p-3 mb-3 shadow-sm">
+              <View className="flex-row items-center">
                 <Image
                   source={typeof image === 'string' ? { uri: image } : image}
-                  style={styles.profileImage}
+                  className="w-12 h-12 rounded-full border-1.5 border-primary-200"
                 />
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>
+                <View className="ml-3 flex-1">
+                  <Text
+                    className={`text-xl ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-bold' : 'font-rubik-bold'} text-black-300 capitalize`}
+                  >
                     {userData?.username || 'User'}
                   </Text>
-                  <Text style={styles.profileDetail}>Email: {userData?.email || 'N/A'}</Text>
-                  <View style={styles.profileDetailsRow}>
+                  <Text
+                    className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-black-100 `}
+                  >
+                    {t('email')}: {userData?.email || 'N/A'}
+                  </Text>
+                  <View className="flex-row justify-between items-end mt-0.75">
                     <View>
-                      <Text style={styles.profileDetail}>Mobile: {userData?.mobilenumber || 'N/A'}</Text>
-                      <Text style={styles.profileDetail}>Role: {userData?.user_type || 'N/A'}</Text>
+                      <Text
+                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-black-100 capitalize`}
+                      >
+                        {t('mobile')}: {userData?.mobilenumber || 'N/A'}
+                      </Text>
+                      <Text
+                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-black-100 capitalize`}
+                      >
+                        {t('role')}: {userData?.user_type || 'N/A'}
+                      </Text>
+                      <Text
+                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-black-100 capitalize`}
+                      >
+                        {t('city')}: {userData?.city || 'N/A'}
+                      </Text>
                     </View>
                     <TouchableOpacity
                       onPress={() => router.push('/dashboard/editprofile')}
-                      style={styles.editButton}
+                      className="bg-primary-200 px-3 py-1.5 rounded-md"
                     >
-                      <Text style={styles.editButtonText}>Edit Profile</Text>
+                      <Text
+                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-primary-300`}
+                      >
+                        {t('editProfile')}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -143,39 +193,78 @@ const Dashboard = () => {
             </View>
 
             {/* Settings Section */}
-            <View style={styles.section}>
+            <View className="mb-3">
               <MenuItem
                 icon="notifications"
-                title="Notifications"
+                title={t('notifications')}
                 onPress={() => router.push('/notifications')}
               />
               <MenuItem
                 icon="home"
-                title="My Properties"
-                onPress={() => router.push('/myproperties')}
+                title={t('myProperties')}
+                onPress={() => router.push('/myassets/myproperties')}
               />
+              <MenuItem
+                icon="attach-money"
+                title={t('Apply for loan')}
+                onPress={() => router.push('/loanenquiry')}
+              />
+              {/* Language Toggle */}
+              <View className="flex-row items-center justify-between py-2.5 px-3 bg-white rounded-lg mb-1.5 shadow-sm">
+                <View className="flex-row items-center">
+                  <MaterialIcons name="language" size={moderateScale(18, 0.3)} color="#234F68" />
+                  <Text
+                    className={`ml-2.5 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-primary-300`}
+                  >
+                    {t('changeLanguage')}
+                  </Text>
+                </View>
+                <View className="flex-row items-center">
+                  <Text
+                    className={`mr-2 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} ${i18n.language === 'en' ? 'text-primary-300' : 'text-black-100'}`}
+                  >
+                    EN
+                  </Text>
+                  <Switch
+                    value={i18n.language === 'hi'}
+                    onValueChange={(value) => changeLanguage(value ? 'hi' : 'en')}
+                    trackColor={{ false: '#234F681A', true: '#234F68' }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="#234F681A"
+                  />
+                  <Text
+                    className={`ml-2 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} ${i18n.language === 'hi' ? 'text-primary-300' : 'text-black-100'}`}
+                  >
+                    HI
+                  </Text>
+                </View>
+              </View>
             </View>
 
             {/* Logout Section */}
-            <View style={styles.section}>
+            <View className="mb-3">
               <MenuItem
                 icon="logout"
-                title="Logout"
+                title={t('logout')}
                 onPress={handleLogout}
                 textColor="#F75555"
               />
             </View>
 
             {/* Policies Section (Commented Out) */}
-            {/* <View style={styles.policyCard}>
-              <Text style={styles.sectionTitle}>Policies</Text>
+            {/* <View className="bg-white rounded-lg p-3 shadow-sm">
+              <Text
+                className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-bold' : 'font-rubik-bold'} text-black-300 mb-2 px-1.5`}
+              >
+                {t('policies') || 'Policies'}
+              </Text>
               {links.map(({ path, label, icon }, index) => (
                 <MenuItem
                   key={index}
                   icon={icon}
                   title={label}
                   onPress={() => router.push(path)}
-                  textColor="#6B7280"
+                  textColor="#4B5563"
                 />
               ))}
             </View> */}
@@ -185,125 +274,5 @@ const Dashboard = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fafafa', // bg-gray-50
-  },
-  scrollContent: {
-    paddingBottom: verticalScale(60),
-    paddingHorizontal: scale(12),
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: verticalScale(12),
-  },
-  headerText: {
-    fontSize: moderateScale(20, 0.3),
-    fontFamily: 'Rubik-Bold',
-    color: '#234F68', // primary-300
-  },
-  backButton: {
-    backgroundColor: '#E5E7EB', // primary-100
-    borderRadius: moderateScale(999, 0.3),
-    padding: moderateScale(6, 0.3),
-  },
-  profileCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: moderateScale(12, 0.3),
-    padding: moderateScale(12, 0.3),
-    marginBottom: verticalScale(12),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(3, 0.3),
-    elevation: 2,
-  },
-  profileContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  profileImage: {
-    width: scale(48),
-    height: scale(48),
-    borderRadius: moderateScale(24, 0.3),
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB', // gray-200
-  },
-  profileInfo: {
-    marginLeft: scale(12),
-    flex: 1,
-  },
-  profileName: {
-    fontSize: moderateScale(16, 0.3),
-    fontFamily: 'Rubik-Bold',
-    color: '#1F2937', // gray-800
-    textTransform: 'capitalize',
-  },
-  profileDetailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: verticalScale(3),
-  },
-  profileDetail: {
-    fontSize: moderateScale(12, 0.3),
-    color: '#6B7280', // gray-600
-    textTransform: 'capitalize',
-  },
-  editButton: {
-    backgroundColor: '#E5E7EB', // primary-200
-    paddingHorizontal: scale(12),
-    paddingVertical: verticalScale(6),
-    borderRadius: moderateScale(6, 0.3),
-  },
-  editButtonText: {
-    fontSize: moderateScale(12, 0.3),
-    fontFamily: 'Rubik-Medium',
-    color: '#234F68', // primary-300
-  },
-  section: {
-    marginBottom: verticalScale(12),
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: verticalScale(10),
-    paddingHorizontal: scale(12),
-    backgroundColor: '#FFFFFF',
-    borderRadius: moderateScale(10, 0.3),
-    marginBottom: verticalScale(6),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(3, 0.3),
-    elevation: 2,
-  },
-  menuText: {
-    marginLeft: scale(10),
-    fontSize: moderateScale(14, 0.3),
-    fontFamily: 'Rubik-Medium',
-  },
-  policyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: moderateScale(12, 0.3),
-    padding: moderateScale(12, 0.3),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(3, 0.3),
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: moderateScale(16, 0.3),
-    fontFamily: 'Rubik-Bold',
-    color: '#1F2937', // gray-800
-    marginBottom: verticalScale(8),
-    paddingHorizontal: scale(6),
-  },
-});
 
 export default Dashboard;

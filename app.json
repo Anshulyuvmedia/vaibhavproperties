@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Vaibhav Properties",
-    "slug": "vaibhavproperties",
+    "name": "Land Squire",
+    "slug": "landsquire",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/vplogo.png",
-    "scheme": "vaibhavproperties",
+    "scheme": "landsquire",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -69,7 +69,13 @@
             "./assets/fonts/Rubik-Medium.ttf",
             "./assets/fonts/Rubik-Light.ttf",
             "./assets/fonts/Rubik-Regular.ttf",
-            "./assets/fonts/Rubik-SemiBold.ttf"
+            "./assets/fonts/Rubik-SemiBold.ttf",
+            "./assets/fonts/NotoSerifDevanagari-Bold.ttf",
+            "./assets/fonts/NotoSerifDevanagari-ExtraBold.ttf",
+            "./assets/fonts/NotoSerifDevanagari-Light.ttf",
+            "./assets/fonts/NotoSerifDevanagari-Medium.ttf",
+            "./assets/fonts/NotoSerifDevanagari-Regular.ttf",
+            "./assets/fonts/NotoSerifDevanagari-SemiBold.ttf"
           ]
         }
       ],
