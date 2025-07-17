@@ -110,7 +110,7 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="w-[320px] h-[160px] rounded-[30px] bg-[#f5f4f8] flex-row overflow-hidden"
+      className="w-[320px] h-[130px] rounded-[30px] bg-[#f5f4f8] flex-row overflow-hidden"
     >
       {/* Image Section */}
       <View className="w-[150px] h-full relative p-2">
@@ -134,7 +134,9 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
       <View className="flex-1 p-2 justify-center items-start">
         {/* Property Name */}
         <Text className="text-lg font-rubik-medium text-black-300 ">
-          {item.property_name}
+          {item.property_name.length > 17
+            ? item.property_name.slice(0, 17) + '...'
+            : item.property_name}
         </Text>
 
         {/* Rating */}
@@ -149,7 +151,7 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
         <View className="flex-row items-center mt-1">
           <Ionicons name="location-outline" size={16} color="#234F68" />
           <Text className="text-sm font-rubik text-black ml-1">
-            {item.city}, {item.address}
+            {item.city}
           </Text>
         </View>
 

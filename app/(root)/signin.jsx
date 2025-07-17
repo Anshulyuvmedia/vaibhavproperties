@@ -156,7 +156,12 @@ const Signin = () => {
         // console.log('Stored userData:', storedUserData);
         if (storedToken && storedUserData) {
           otpSheetRef.current?.close();
-          router.push('/mapview');
+          const userObj = JSON.parse(storedUserData);
+          if (userObj.userType === 'bankagent') {
+            router.push('/dashboard/loanleads');
+          } else {
+            router.push('/mapview');
+          }
         } else {
           throw new Error('Failed to store authentication data');
         }

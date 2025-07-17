@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { StyleSheet, ScrollView, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import RBSheet from 'react-native-raw-bottom-sheet';
@@ -16,6 +16,8 @@ const Auction = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  const [newBidAmount, setNewBidAmount] = useState('');
+  const [isUpdatingBid, setIsUpdatingBid] = useState(false);
   const rbSheetRef = useRef();
 
   useEffect(() => {
@@ -25,14 +27,15 @@ const Auction = () => {
   const fetchUserEnquiries = async () => {
     setLoading(true);
     try {
-      const parsedPropertyData = JSON.parse(await AsyncStorage.getItem('userData'));
+      const userData = await AsyncStorage.getItem('userData');
+      const parsedPropertyData = userData ? JSON.parse(userData) : null;
       if (!parsedPropertyData?.id) {
         console.error('User data or ID missing');
+        alert(t('fetchEnquiriesError', { error: 'User data not found' }) || 'User data not found');
         return;
       }
       const response = await axios.get(`https://landsquire.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
-      // console.log('response', response.data.myenquiries);
-
+      
       if (response.data && response.data.myenquiries) {
         const parsedEnquiries = response.data.myenquiries.map(enquiry => ({
           ...enquiry,
@@ -40,14 +43,14 @@ const Auction = () => {
             ? JSON.parse(enquiry.propertybid)
             : [{ bidamount: enquiry.propertybid, date: enquiry.created_at }]
         }));
-
         setEnquiries(parsedEnquiries);
-
       } else {
         console.error('Unexpected API response format:', response.data);
+        alert(t('fetchEnquiriesError', { error: 'Invalid response format' }) || 'Invalid response format');
       }
     } catch (error) {
       console.error('Error fetching enquiries:', error);
+      alert(t('fetchEnquiriesError', { error: error.message }) || `Failed to fetch enquiries: ${error.message}`);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -59,31 +62,56 @@ const Auction = () => {
     await fetchUserEnquiries();
   };
 
-  const openDetails = (enquiry) => {
+  const openDetails = (enquiry, isUpdateBid = false) => {
     setSelectedEnquiry(enquiry);
-    rbSheetRef.current.open();
+    setIsUpdatingBid(isUpdateBid);
+    setNewBidAmount('');
+    rbSheetRef.current?.open();
+  };
+
+  const updateBid = async () => {
+    if (!newBidAmount || isNaN(newBidAmount) || Number(newBidAmount) <= 0) {
+      alert(t('invalidBidAmount') || 'Please enter a valid bid amount');
+      return;
+    }
+
+    try {
+      const latestBid = getLatestBid(selectedEnquiry.propertybid);
+      console.log('bidamount', selectedEnquiry.id, newBidAmount, latestBid.date)
+      const response = await axios.post('https://landsquire.in/api/updatebidamount', {
+        leadid: selectedEnquiry.id,
+        bidamount: Number(newBidAmount),
+        biddate: latestBid.date
+      });
+
+      if (response.data.success) {
+        alert(t('bidUpdatedSuccess') || 'Bid updated successfully');
+        await fetchUserEnquiries();
+        rbSheetRef.current?.close();
+      } else {
+        alert(t('bidUpdateFailed', { error: response.data.error }) || `Failed to update bid: ${response.data.error}`);
+      }
+    } catch (error) {
+      console.error('Error updating bid:', error);
+      alert(t('bidUpdateFailed', { error: error.message }) || `Failed to update bid: ${error.message}`);
+    }
   };
 
   const formatCurrency = (amount) => {
-    if (!amount || isNaN(amount)) return t('notAvailable');
+    if (!amount || isNaN(amount)) return t('notAvailable') || 'N/A';
     const num = Number(amount);
 
     if (num >= 10000000) {
-      // Crore
       const crore = num / 10000000;
       return `${crore % 1 === 0 ? crore : crore.toFixed(2).replace(/\.00$/, '')} Cr.`;
     } else if (num >= 100000) {
-      // Lakh
       const lakh = num / 100000;
       return `${lakh % 1 === 0 ? lakh : lakh.toFixed(2).replace(/\.00$/, '')} Lakh`;
     } else if (num >= 1000) {
-      // Thousand
       const thousand = num / 1000;
       return `${thousand % 1 === 0 ? thousand : thousand.toFixed(2).replace(/\.00$/, '')} Thousand`;
-    } else {
-      // Less than thousand, show as is
-      return num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
     }
+    return num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
   };
 
   const getLatestBid = (bids) => {
@@ -92,49 +120,50 @@ const Auction = () => {
         new Date(current.date) > new Date(latest.date) ? current : latest
       );
     }
-    return { bidamount: t('notAvailable'), date: '' };
+    return { bidamount: t('notAvailable') || 'N/A', date: '' };
   };
-
 
   const renderEnquiry = ({ item }) => {
     const latestBid = getLatestBid(item.propertybid);
+    const fontFamilyBold = i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold';
+    const fontFamilyRegular = i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular';
+    const fontFamilyMedium = i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium';
+
     return (
       <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
         <View style={styles.cardHeader}>
           <View>
-            <Text className='text-sm font-rubik text-gray-600'>Broker:</Text>
-            <Text style={[styles.cardTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-              {item.name}
+            <Text style={styles.cardLabel}>{t('name') || 'Broker'}:</Text>
+            <Text style={[styles.cardTitle, { fontFamily: fontFamilyBold }]}>
+              {item.name || (t('notAvailable') || 'N/A')}
             </Text>
           </View>
-
           <View>
-            <Text className='text-sm font-rubik text-gray-600'>Date:</Text>
-            <Text style={[styles.cardDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+            <Text style={styles.cardLabel}>{t('bidDate') || 'Date'}:</Text>
+            <Text style={[styles.cardDate, { fontFamily: fontFamilyRegular }]}>
               {new Date(latestBid.date || item.created_at).toLocaleDateString()}
             </Text>
           </View>
         </View>
         <View style={styles.cardrow}>
           <View>
-            <Text className='text-sm font-rubik text-gray-600'>Bid amount:</Text>
-            <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+            <Text style={styles.cardLabel}>{t('bid') || 'Bid Date'}:</Text>
+            <Text style={[styles.cardText, { fontFamily: fontFamilyRegular }]}>
               {formatCurrency(latestBid.bidamount)}
             </Text>
           </View>
           <View>
-            <Text className='text-sm font-rubik text-gray-600'>Category:</Text>
-            <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-              {item.housecategory}
+            <Text style={styles.cardLabel}>{t('propertyType') || 'Category'}:</Text>
+            <Text style={[styles.cardText, { fontFamily: fontFamilyRegular }]}>
+              {item.housecategory || (t('notAvailable') || 'N/A')}
             </Text>
           </View>
           <View>
-            <Text className='text-sm font-rubik text-gray-600'>City:</Text>
-            <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-              {item.inwhichcity || t('notAvailable')}
+            <Text style={styles.cardLabel}>{t('city') || 'City'}:</Text>
+            <Text style={[styles.cardText, { fontFamily: fontFamilyRegular }]}>
+              {item.inwhichcity || (t('notAvailable') || 'N/A')}
             </Text>
           </View>
-
         </View>
         <View style={styles.buttonContainer}>
           {item.propertyid && (
@@ -142,9 +171,9 @@ const Auction = () => {
               style={styles.actionButton}
               onPress={() => router.push(`/properties/${item.propertyid}`)}
             >
-              <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                {t('viewProperty')}
-              </Text>
+              <Text style={[styles.actionButtonText, { fontFamily: fontFamilyMedium }]}>
+                {t('viewProperty') || 'View Property'}
+                </Text>
             </TouchableOpacity>
           )}
           {item.agentid && (
@@ -152,11 +181,19 @@ const Auction = () => {
               style={[styles.actionButton, styles.agentButton]}
               onPress={() => router.push(`/broker/${item.agentid}`)}
             >
-              <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                {t('viewBroker')}
+              <Text style={[styles.actionButtonText, { fontFamily: fontFamilyMedium }]}>
+                {t('viewBroker') || 'View Broker'}
               </Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.updateButton]}
+            onPress={() => openDetails(item, true)}
+          >
+            <Text style={[styles.actionButtonText, { fontFamily: fontFamilyMedium }]}>
+              {t('updateBid') || 'Update Bid'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -164,12 +201,15 @@ const Auction = () => {
 
   const renderBidHistory = (bids) => {
     if (!Array.isArray(bids)) return null;
+    const fontFamilyMedium = i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium';
+    const fontFamilyRegular = i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular';
+
     return bids.map((bid, index) => (
       <View key={index} style={styles.bidHistoryRow}>
-        <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-          {t('bid', { index: index + 1 })}:
+        <Text style={[styles.sheetLabel, { fontFamily: fontFamilyMedium }]}>
+          {t('bid', { index: index + 1 }) || `Bid ${index + 1}`}
         </Text>
-        <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+        <Text style={[styles.sheetValue, { fontFamily: fontFamilyRegular }]}>
           {formatCurrency(bid.bidamount)} on {new Date(bid.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </Text>
       </View>
@@ -183,7 +223,7 @@ const Auction = () => {
           <Image source={icons.backArrow} style={styles.backIcon} />
         </TouchableOpacity>
         <Text style={[styles.title, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-          {t('Auction')}
+          {t('Auction') || 'Auction'}
         </Text>
         <TouchableOpacity onPress={() => router.push('/notifications')}>
           <Image source={icons.bell} style={styles.bellIcon} />
@@ -191,8 +231,8 @@ const Auction = () => {
       </View>
 
       <PropertyNavigation path={'auction'} />
-      <View className='mx-auto'>
-        <Text>All the Auctions that you have participated in.</Text>
+      <View style={styles.auctionDescription}>
+        <Text>{t('auctionDescription') || 'All the Auctions that you have participated in.'}</Text>
       </View>
 
       {loading ? (
@@ -202,14 +242,14 @@ const Auction = () => {
       ) : enquiries.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-            {t('noEnquiries')}
+            {t('noEnquiries') || 'No enquiries found'}
           </Text>
         </View>
       ) : (
         <FlatList
           data={enquiries}
           renderItem={renderEnquiry}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.flatListContent}
           refreshControl={
@@ -224,7 +264,7 @@ const Auction = () => {
 
       <RBSheet
         ref={rbSheetRef}
-        height={verticalScale(600)}
+        height={verticalScale(400)}
         openDuration={250}
         customStyles={{
           container: styles.rbSheet,
@@ -234,107 +274,145 @@ const Auction = () => {
           <View style={styles.sheetContainer}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-                {t('enquiryDetails')}
+                {isUpdatingBid ? (t('updateBid') || 'Update Bid') : (t('enquiryDetails') || 'Enquiry Details')}
               </Text>
               <TouchableOpacity
                 style={styles.sheetCloseButton}
-                onPress={() => rbSheetRef.current.close()}
+                onPress={() => rbSheetRef.current?.close()}
               >
                 <Text style={[styles.sheetCloseButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
                   X
                 </Text>
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.sheetContent}>
-              <View style={styles.sheetRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('name')}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {selectedEnquiry.name}
-                </Text>
+            {isUpdatingBid ? (
+              <View style={styles.sheetContent}>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('newBidAmount') || 'New Bid Amount'}:
+                  </Text>
+                  <TextInput
+                    style={styles.bidInput}
+                    value={newBidAmount}
+                    onChangeText={setNewBidAmount}
+                    keyboardType="numeric"
+                    placeholder={t('enterBidAmount') || 'Enter bid amount'}
+                    placeholderTextColor="#999"
+                  />
+                </View>
+                <View style={styles.sheetButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.sheetActionButton}
+                    onPress={updateBid}
+                  >
+                    <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                      {t('submitBid') || 'Submit Bid'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.sheetActionButton, styles.cancelButton]}
+                    onPress={() => rbSheetRef.current?.close()}
+                  >
+                    <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                      {t('cancel') || 'Cancel'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.sheetRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('mobile')}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {selectedEnquiry.mobilenumber}
-                </Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('email')}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {selectedEnquiry.email}
-                </Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('city')}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {selectedEnquiry.city}
-                </Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('state')}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {selectedEnquiry.state}
-                </Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('propertyType')}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {selectedEnquiry.housecategory}
-                </Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('clientsCity')}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {selectedEnquiry.inwhichcity || t('notAvailable')}
-                </Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('status')}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {selectedEnquiry.status}
-                </Text>
-              </View>
-              {renderBidHistory(selectedEnquiry.propertybid)}
-            </ScrollView>
-            <View style={styles.sheetButtonContainer}>
-              {selectedEnquiry.agentid && (
+            ) : (
+              <ScrollView contentContainerStyle={styles.sheetContent}>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('name') || 'Name'}:
+                  </Text>
+                  <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {selectedEnquiry.name || (t('notAvailable') || 'N/A')}
+                  </Text>
+                </View>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('mobile') || 'Mobile'}:
+                  </Text>
+                  <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {selectedEnquiry.mobilenumber || (t('notAvailable') || 'N/A')}
+                  </Text>
+                </View>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('email') || 'Email'}:
+                  </Text>
+                  <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {selectedEnquiry.email || (t('notAvailable') || 'N/A')}
+                  </Text>
+                </View>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('city') || 'City'}:
+                  </Text>
+                  <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {selectedEnquiry.city || (t('notAvailable') || 'N/A')}
+                  </Text>
+                </View>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('state') || 'State'}:
+                  </Text>
+                  <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {selectedEnquiry.state || (t('notAvailable') || 'N/A')}
+                  </Text>
+                </View>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('propertyType') || 'Property Type'}:
+                  </Text>
+                  <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {selectedEnquiry.housecategory || (t('notAvailable') || 'N/A')}
+                  </Text>
+                </View>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('clientsCity') || "Client's City"}:
+                  </Text>
+                  <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {selectedEnquiry.inwhichcity || (t('notAvailable') || 'N/A')}
+                  </Text>
+                </View>
+                <View style={styles.sheetRow}>
+                  <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                    {t('status') || 'Status'}:
+                  </Text>
+                  <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {selectedEnquiry.status || (t('notAvailable') || 'N/A')}
+                  </Text>
+                </View>
+                {renderBidHistory(selectedEnquiry.propertybid)}
+              </ScrollView>
+            )}
+            {!isUpdatingBid && (
+              <View style={styles.sheetButtonContainer}>
+                {selectedEnquiry.agentid && (
+                  <TouchableOpacity
+                    style={[styles.sheetActionButton, styles.agentButton]}
+                    onPress={() => {
+                      rbSheetRef.current?.close();
+                      router.push(`/broker/${selectedEnquiry.agentid}`);
+                    }}
+                  >
+                    <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                      {t('viewBroker') || 'View Broker'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
-                  style={[styles.sheetActionButton, styles.agentButton]}
-                  onPress={() => {
-                    rbSheetRef.current.close();
-                    router.push(`/broker/${selectedEnquiry.agentid}`);
-                  }}
+                  style={styles.sheetActionButton}
+                  onPress={() => rbSheetRef.current?.close()}
                 >
                   <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                    {t('viewBroker')}
+                    {t('close') || 'Close'}
                   </Text>
                 </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={styles.sheetActionButton}
-                onPress={() => rbSheetRef.current.close()}
-              >
-                <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                  {t('close')}
-                </Text>
-              </TouchableOpacity>
-            </View>
+              </View>
+            )}
           </View>
         )}
       </RBSheet>
@@ -377,6 +455,10 @@ const styles = StyleSheet.create({
     width: moderateScale(24),
     height: moderateScale(24),
   },
+  auctionDescription: {
+    marginHorizontal: 'auto',
+    marginVertical: verticalScale(10),
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -395,7 +477,7 @@ const styles = StyleSheet.create({
   },
   flatListContent: {
     paddingBottom: verticalScale(80),
-    paddingInline: verticalScale(7),
+    paddingHorizontal: scale(7),
   },
   card: {
     backgroundColor: '#fff',
@@ -422,19 +504,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  cardLabel: {
+    fontSize: moderateScale(12),
+    color: '#666',
+    fontFamily: 'Rubik-Regular',
+  },
   cardTitle: {
     fontSize: moderateScale(16),
-    fontFamily: 'Rubik-Bold',
     color: '#234F68',
-  },
-  statusBadge: {
-    paddingHorizontal: moderateScale(10),
-    paddingVertical: verticalScale(5),
-    borderRadius: moderateScale(12),
-  },
-  statusText: {
-    fontSize: moderateScale(12),
-    fontFamily: 'Rubik-Medium',
   },
   cardText: {
     fontSize: moderateScale(14),
@@ -460,11 +537,11 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(5),
     paddingHorizontal: scale(12),
   },
-  brokerButton: {
-    backgroundColor: '#4CAF50',
-  },
   agentButton: {
     backgroundColor: '#4CAF50',
+  },
+  updateButton: {
+    backgroundColor: '#FF9800',
   },
   actionButtonText: {
     color: '#fff',
@@ -472,7 +549,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Medium',
   },
   rbSheet: {
-    flex: 1,
     borderTopLeftRadius: moderateScale(20),
     borderTopRightRadius: moderateScale(20),
     padding: moderateScale(20),
@@ -545,9 +621,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(12),
     alignItems: 'center',
   },
+  cancelButton: {
+    backgroundColor: '#F44336',
+  },
   sheetActionButtonText: {
     color: '#fff',
     fontSize: moderateScale(14),
     fontFamily: 'Rubik-Medium',
+  },
+  bidInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: moderateScale(8),
+    padding: moderateScale(8),
+    fontSize: moderateScale(14),
+    fontFamily: 'Rubik-Regular',
+    color: '#000',
   },
 });

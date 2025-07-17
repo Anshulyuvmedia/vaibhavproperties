@@ -242,15 +242,16 @@ const Loanleads = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                {/* <View className='me-12'></View> */}
+                <TouchableOpacity onPress={() => router.push('/dashboard')} style={styles.backButton}>
                     <Image source={icons.backArrow} style={styles.backIcon} />
                 </TouchableOpacity>
                 <Text style={[styles.title, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
                     {t('Loan Enquiries')}
                 </Text>
-                <TouchableOpacity onPress={() => router.push('/notifications')}>
+                {/* <TouchableOpacity onPress={() => router.push('/notifications')}>
                     <Image source={icons.bell} style={styles.bellIcon} />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
             </View>
 
             <View className='mx-auto'>
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         marginVertical: verticalScale(5),
     },
     backButton: {

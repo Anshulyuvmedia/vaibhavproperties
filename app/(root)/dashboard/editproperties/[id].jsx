@@ -93,6 +93,7 @@ const Editproperty = () => {
         { label: 'Bunglow', value: 'Bunglow' },
     ];
     const status = [
+        { label: 'Published', value: 'published' },
         { label: 'Unpublished', value: 'unpublished' },
     ];
 
@@ -667,7 +668,7 @@ const Editproperty = () => {
                     setMainImage(
                         apiData.thumbnail.startsWith('http')
                             ? apiData.thumbnail
-                            : `https://landsquire.in/assets/images/Listings/${apiData.thumbnail}`
+                            : `https://landsquire.in/adminAssets/images/Listings/${apiData.thumbnail}`
                     );
                 }
             }
@@ -783,7 +784,7 @@ const Editproperty = () => {
                         <View className="flex-row items-center mt-1">
                             <Ionicons name="location-outline" size={16} color="#234F68" />
                             <Text className="text-base font-rubik text-black ml-1">
-                                {step3Data.city}, {step3Data.officeaddress}
+                                {step3Data.city}
                             </Text>
                         </View>
                         <View className="flex-row items-center justify-between mt-1">

@@ -39,4 +39,5 @@ Route::controller(ApiMasterController::class)->group(function () {
     Route::get('/bankagentlist', 'bankagentlist')->name('api.bankagentlist');
     Route::get('/bankagentprofile', 'bankagentprofile')->name('api.bankagentprofile');
     Route::post('/update-bid-status', 'UpdateBidStatus')->name('api.UpdateBidStatus');
+    Route::post('/updatebidamount', 'UpdateBidAmount')->name('api.UpdateBidAmount');
 });

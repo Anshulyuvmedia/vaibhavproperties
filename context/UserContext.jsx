@@ -11,14 +11,14 @@ export const UserProvider = ({ children }) => {
         const fetchUserData = async () => {
             try {
                 const userData = await AsyncStorage.getItem('userData');
-                console.log('Raw userData at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), ':', userData);
+                // console.log('Raw userData at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), ':', userData);
                 const parsedPropertyData = userData ? JSON.parse(userData) : null;
                 if (!parsedPropertyData?.id) {
                     console.error('User data or ID missing at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
                     setUserType(null);
                 } else {
                     const newUserType = parsedPropertyData.user_type || null;
-                    console.log('Detected userType at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), ':', newUserType);
+                    console.log('userType', newUserType);
                     setUserType(newUserType);
                 }
             } catch (error) {

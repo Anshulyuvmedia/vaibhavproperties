@@ -459,12 +459,12 @@ class ApiMasterController extends Controller
             $lead = Lead::where('propertyid', $rq->propertyid)->where('userid', $rq->userid)->first();
 
             // Get old bid history and append new bid
-            $bidHistory = [];
-            if ($lead && $lead->propertybid) {
-                $bidHistory = json_decode($lead->propertybid, true) ?? [];
-            }
+            // $bidHistory = [];
+            // if ($lead && $lead->propertybid) {
+            //     $bidHistory = json_decode($lead->propertybid, true) ?? [];
+            // }
             $bidHistory[] = [
-                'date' => $currentdate->toDateTimeString(),
+                'date' => $currentdate->toDateString(),
                 'bidamount' => $bidamount,
             ];
 
@@ -1022,6 +1022,28 @@ class ApiMasterController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Bid is Live now'], 200);
         } catch (Exception $e) {
+            return response()->json(['success' => false, 'error' => 'Failed to update bid status: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function UpdateBidAmount(Request $request)
+    {
+    try {
+        $leads = Lead::findOrFail($request->leadid);
+        $existingBids = json_decode($leads->propertybid, true);
+
+        foreach ($existingBids as &$bid) {
+                if ($bid['date'] == $request->biddate) {
+                $bid['bidamount'] = $request->bidamount;
+                $bid['date'] = now()->toDateString();
+            }
+        }
+        $leads->update([
+        'propertybid' => json_encode($existingBids),
+        ]);
+
+    return response()->json(['success' => true, 'message' => 'Bid Updated'], 200);
+    } catch (Exception $e) {
             return response()->json(['success' => false, 'error' => 'Failed to update bid status: ' . $e->getMessage()], 500);
         }
     }

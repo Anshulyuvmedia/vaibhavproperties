@@ -127,7 +127,7 @@ const Dashboard = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#234F68']} // Match the primary color used in the app
+            colors={['#234F68']}
             tintColor="#234F68"
           />
         }
@@ -210,20 +210,33 @@ const Dashboard = () => {
             {/* Settings Section */}
             <View className="mb-3">
               <MenuItem
-                icon="notifications"
+                icon="notifications-none"
                 title={t('notifications')}
                 onPress={() => router.push('/notifications')}
               />
-              <MenuItem
-                icon="home"
-                title={t('myProperties')}
-                onPress={() => router.push('/myassets/myproperties')}
-              />
-              <MenuItem
-                icon="attach-money"
-                title={t('applyforloan')}
-                onPress={() => router.push('/loanenquiry')}
-              />
+              {userData?.user_type != 'bankagent' && (
+                <MenuItem
+                  icon="house-siding"
+                  title={t('myProperties')}
+                  onPress={() => router.push('/myassets/myproperties')}
+                />
+              )}
+
+              {userData?.user_type == 'bankagent' && (
+                <MenuItem
+                  icon="checklist-rtl"
+                  title={t('Loan Leads')}
+                  onPress={() => router.push('/dashboard/loanleads')}
+                />
+              )}
+              {userData?.user_type != 'bankagent' && (
+                <MenuItem
+                  icon="attach-money"
+                  title={t('applyforloan')}
+                  onPress={() => router.push('/loanenquiry')}
+                />
+              )}
+
               {/* Language Toggle */}
               <View className="flex-row items-center justify-between py-2.5 px-3 bg-white rounded-lg mb-1.5 shadow-sm">
                 <View className="flex-row items-center">

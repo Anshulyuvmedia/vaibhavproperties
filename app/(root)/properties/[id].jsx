@@ -42,6 +42,8 @@ const PropertyDetails = () => {
     const videoRef = useRef(null);
     const lightboxRef = useRef(null);
     const rbSheetRef = useRef(null);
+    const successSheetRef = useRef(null);
+    const errorSheetRef = useRef(null);
 
     const [coordinates, setCoordinates] = useState({
         latitude: "",
@@ -96,13 +98,22 @@ const PropertyDetails = () => {
             if (response.status === 200 && !response.data.error) {
                 setBidStatus({ type: "success", message: "Enquiry submitted successfully!" });
                 if (bidAmount && rbSheetRef.current) {
-                    setTimeout(() => rbSheetRef.current.close(), 2000);
+                    successSheetRef.current.open();
+                    rbSheetRef.current.close();
                 }
             } else {
                 setBidStatus({ type: "error", message: "Failed to submit enquiry. Please try again." });
+                if (rbSheetRef.current) {
+                    rbSheetRef.current.close();
+                    errorSheetRef.current.open();
+                }
             }
         } catch (error) {
             setBidStatus({ type: "error", message: "An error occurred. Please try again." });
+            if (rbSheetRef.current) {
+                rbSheetRef.current.close();
+                errorSheetRef.current.open();
+            }
         } finally {
             setLoading(false);
         }
@@ -130,7 +141,7 @@ const PropertyDetails = () => {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
             setLoggedinUserId(parsedUserData?.id || "");
             const response = await axios.get(`https://landsquire.in/api/property-details/${propertyId}`);
-            console.log("API Response:", response.data); // Debug log
+
             if (response.data && response.data.details) {
                 const apiData = response.data.details;
                 setPropertyData(apiData);
@@ -141,10 +152,7 @@ const PropertyDetails = () => {
                             ? thumbnail
                             : `https://landsquire.in/adminAssets/images/Listings/${thumbnail}`
                         : images.avatar;
-                // console.log("Thumbnail URI:", thumbnailUri, "Type:", typeof thumbnailUri);
                 setPropertyThumbnail(thumbnailUri);
-
-                // Gallery images
                 let galleryImages = [];
                 try {
                     if (apiData.gallery && typeof apiData.gallery === "string" && apiData.gallery.trim()) {
@@ -165,7 +173,6 @@ const PropertyDetails = () => {
                 }
                 setPropertyGallery(galleryImages);
 
-                // Videos
                 let parsedVideos = [];
                 try {
                     parsedVideos = apiData.videos ? (typeof apiData.videos === "string" ? JSON.parse(apiData.videos) : []) : [];
@@ -176,14 +183,13 @@ const PropertyDetails = () => {
                                 ? video
                                 : `https://landsquire.in/${video}` || "",
                         title: `Video ${index + 1}`,
-                        thumbnail: images.videoPlaceholder || icons.videofile, // Use a valid image or URL
+                        thumbnail: images.videoPlaceholder || icons.videofile,
                     }));
                 } catch (error) {
                     setError("Error parsing videos.");
                 }
                 setVideoUrls(parsedVideos);
 
-                // Amenities
                 let parsedAmenities = [];
                 try {
                     parsedAmenities = apiData.amenties ? JSON.parse(apiData.amenties) : [];
@@ -192,7 +198,6 @@ const PropertyDetails = () => {
                 }
                 setAmenities(parsedAmenities);
 
-                // Price history
                 let priceHistory = [];
                 try {
                     priceHistory = apiData.pricehistory ? JSON.parse(apiData.pricehistory) : [];
@@ -201,7 +206,6 @@ const PropertyDetails = () => {
                 }
                 setPriceHistoryData(Array.isArray(priceHistory) ? priceHistory : []);
 
-                // Map locations
                 if (apiData.maplocations) {
                     try {
                         const locationData = JSON.parse(apiData.maplocations);
@@ -216,7 +220,6 @@ const PropertyDetails = () => {
                     }
                 }
 
-                // Master plan documents
                 if (apiData.masterplandoc) {
                     const fileUrl = `https://landsquire.in/adminAssets/images/Listings/${apiData.masterplandoc}`;
                     setIsPdf(fileUrl.toLowerCase().endsWith(".pdf"));
@@ -225,7 +228,6 @@ const PropertyDetails = () => {
                     setMasterPlanDocs([]);
                 }
 
-                // Set broker data
                 const brokerDataFromApi = response.data.brokerdata && response.data.brokerdata.length > 0 ? response.data.brokerdata[0] : null;
                 setBrokerData(brokerDataFromApi);
                 if (!brokerDataFromApi) {
@@ -248,7 +250,7 @@ const PropertyDetails = () => {
     }, [propertyId]);
 
     const getProfileImageUri = () => {
-        if (!brokerData || !brokerData.profile) return images.avatar; // Fallback if no broker data or profile
+        if (!brokerData || !brokerData.profile) return images.avatar;
         const profile = brokerData.profile;
         const uri =
             profile != null && typeof profile === "number"
@@ -258,7 +260,6 @@ const PropertyDetails = () => {
                     : profile && typeof profile === "string"
                         ? `https://landsquire.in/adminAssets/images/Users/${profile}`
                         : images.avatar;
-        // console.log("Profile Image URI:", uri, "Type:", typeof uri);
         return uri;
     };
 
@@ -322,6 +323,8 @@ const PropertyDetails = () => {
         if (validateBidAmount()) {
             handleEnquiry();
             setBidAmount("");
+        } else {
+            errorSheetRef.current.open();
         }
     };
 
@@ -398,15 +401,6 @@ const PropertyDetails = () => {
                                         className="size-7"
                                     />
                                 </TouchableOpacity>
-                                {/* <TouchableOpacity
-                                    className="flex flex-row bg-white rounded-full size-11 items-center justify-center"
-                                >
-                                    <Image
-                                        source={typeof icons.heart === "string" ? { uri: icons.heart } : icons.heart}
-                                        className="size-7"
-                                        tintColor="#191D31"
-                                    />
-                                </TouchableOpacity> */}
                             </View>
                         </View>
                     </View>
@@ -493,8 +487,7 @@ const PropertyDetails = () => {
                                     const thumbnailUri =
                                         typeof item.thumbnail === "string"
                                             ? { uri: item.thumbnail }
-                                            : icons.videofile; // Fallback to placeholder
-                                    // console.log("Video Thumbnail URI:", thumbnailUri.uri || thumbnailUri, "Type:", typeof (thumbnailUri.uri || thumbnailUri));
+                                            : icons.videofile;
                                     return (
                                         <TouchableOpacity
                                             onPress={() => openLightbox(propertyGallery.length + index)}
@@ -701,7 +694,7 @@ const PropertyDetails = () => {
                             {formatINR(propertyData.price)}
                         </Text>
                     </View>
-                    {propertyData.roleid === loggedinUserId ? (
+                    {propertyData.roleid == loggedinUserId ? (
                         <TouchableOpacity
                             className="flex-1 flex-row items-center justify-center bg-primary-300 py-5 rounded-2xl shadow-md shadow-zinc-400"
                             onPress={() => handleEditPress(propertyData.id)}
@@ -711,13 +704,16 @@ const PropertyDetails = () => {
                     ) : (
                         <TouchableOpacity
                             onPress={() => rbSheetRef.current.open()}
-                            className="flex-1 flex-row items-center justify-center bg-primary-400 py-5 rounded-2xl shadow-md shadow-zinc-400"
+                            className={`flex-1 flex-row items-center justify-center bg-primary-400 py-5 rounded-2xl shadow-md shadow-zinc-400 ${bidStatus?.type === "success" ? "opacity-50" : ""}`}
+                            disabled={bidStatus?.type === "success"}
                         >
                             <Text className="text-white text-lg text-center font-rubik-bold">Bid Now</Text>
                         </TouchableOpacity>
                     )}
                 </View>
             </View>
+
+            {/* Bid Input RBSheet */}
             <RBSheet
                 ref={rbSheetRef}
                 closeOnDragDown={true}
@@ -755,26 +751,95 @@ const PropertyDetails = () => {
                             className="border border-primary-200 rounded-lg p-3 mt-2 text-black-300 text-base font-rubik"
                         />
                         {bidError && <Text className="text-red-500 text-sm mt-1">{bidError}</Text>}
-                        {bidStatus && (
-                            <Text
-                                className={`text-sm mt-1 font-rubik-medium ${bidStatus.type === "success" ? "text-green-500" : "text-red-500"
-                                    }`}
-                            >
-                                {bidStatus.message}
-                            </Text>
-                        )}
                     </View>
                     <TouchableOpacity
                         onPress={handleBidSubmit}
                         disabled={loading}
-                        className={`flex flex-row items-center justify-center bg-primary-400 py-4 rounded-2xl ${loading ? "opacity-50" : ""
-                            }`}
+                        className={`flex flex-row items-center justify-center bg-primary-400 py-4 rounded-2xl ${loading ? "opacity-50" : ""}`}
                     >
                         {loading ? (
                             <ActivityIndicator color="white" />
                         ) : (
                             <Text className="text-white text-lg text-center font-rubik-bold">Submit Bid</Text>
                         )}
+                    </TouchableOpacity>
+                </View>
+            </RBSheet>
+
+            {/* Success RBSheet */}
+            <RBSheet
+                ref={successSheetRef}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                customStyles={{
+                    container: {
+                        backgroundColor: '#f4f2f7',
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        padding: 20,
+                    },
+                    draggableIcon: {
+                        backgroundColor: "#8bc83f",
+                    },
+                }}
+                height={500}
+                openDuration={250}
+            >
+                <View style={{ alignItems: 'center' }}>
+                    <Image source={icons.alertSuccess} style={{ width: 100, height: 100 }} />
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#28a745', marginTop: 10 }}>
+                        Success
+                    </Text>
+                    <Text style={{ fontSize: 16, textAlign: 'center', marginTop: 10 }}>
+                        {bidStatus?.message || "Bid submitted successfully!"}
+                    </Text>
+                    <TouchableOpacity
+                        style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 10, marginTop: 20 }}
+                        onPress={() => {
+                            if (successSheetRef.current) successSheetRef.current.close();
+                        }}
+                    >
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
+                    </TouchableOpacity>
+                </View>
+            </RBSheet>
+
+            {/* Error RBSheet */}
+            <RBSheet
+                ref={errorSheetRef}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                customStyles={{
+                    container: {
+                        backgroundColor: '#f4f2f7',
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        padding: 20,
+                    },
+                    draggableIcon: {
+                        backgroundColor: "#8bc83f",
+                    },
+                }}
+                height={350}
+                openDuration={250}
+            >
+                <View style={{ alignItems: 'center' }}>
+                    <Image source={icons.alertDanger} style={{ width: 100, height: 100 }} />
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#dc3545', marginTop: 10 }}>
+                        Error
+                    </Text>
+                    <Text style={{ fontSize: 16, textAlign: 'center', marginTop: 10 }}>
+                        {bidError || bidStatus?.message || "An error occurred. Please try again."}
+                    </Text>
+                    <TouchableOpacity
+                        style={{ backgroundColor: '#dc3545', padding: 10, borderRadius: 10, marginTop: 20 }}
+                        onPress={() => {
+                            if (errorSheetRef.current) errorSheetRef.current.close();
+                            setBidError("");
+                            setBidStatus(null);
+                        }}
+                    >
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
                     </TouchableOpacity>
                 </View>
             </RBSheet>

@@ -1,8 +1,8 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useUser } from '@/context/UserContext';
 import { View } from 'react-native';
 
@@ -56,12 +56,12 @@ const TabIcon = ({ focused, name, title }) => {
 const TabsLayout = () => {
     const insets = useSafeAreaInsets();
     const { userType, loading } = useUser();
+    const router = useRouter();
 
     // Define tab configurations
     const tabsConfig = [
         { name: "index", title: "Home", icon: "home" },
         { name: "myassets", title: "My Assets", icon: "building-o" },
-        { name: "loanleads", title: "Leads", icon: "list" },
         { name: "mapview", title: "Map", icon: "map-o" },
         { name: "addproperty", title: "Add Property", icon: "plus-square-o" },
         { name: "dashboard", title: "Dashboard", icon: "user-o" },
@@ -70,6 +70,12 @@ const TabsLayout = () => {
     if (loading) {
         return null; // Delay rendering until userType is fetched
     }
+
+    // Hide tab navigation and redirect to loanleads if userType is 'bankagent'
+    // if (userType === 'bankagent') {
+    //     router.replace('/dashboard/loanleads');
+        // return null;
+    // }
 
     return (
         <Tabs
