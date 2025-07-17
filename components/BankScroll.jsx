@@ -13,7 +13,7 @@ const BankScroll = () => {
     const fetchBankAgentList = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/bankagentlist`);
+            const response = await axios.get(`https://landsquire.in/api/bankagentlist`);
             // console.log('API Response:', response.data);
 
             if (response.data && response.data.success && Array.isArray(response.data.data)) {
@@ -23,7 +23,7 @@ const BankScroll = () => {
                     image: bankagent.profile
                         ? bankagent.profile.startsWith('http')
                             ? { uri: bankagent.profile }
-                            : { uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${bankagent.profile}` }
+                            : { uri: `https://landsquire.in/adminAssets/images/Users/${bankagent.profile}` }
                         : images.avatar, // Use require result directly if local image
                 }));
                 // console.log('Processed bankagent List:', apiData);

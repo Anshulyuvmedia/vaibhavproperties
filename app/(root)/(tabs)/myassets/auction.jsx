@@ -30,7 +30,7 @@ const Auction = () => {
         console.error('User data or ID missing');
         return;
       }
-      const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
+      const response = await axios.get(`https://landsquire.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
       // console.log('response', response.data.myenquiries);
 
       if (response.data && response.data.myenquiries) {

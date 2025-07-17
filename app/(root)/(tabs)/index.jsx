@@ -41,7 +41,7 @@ const Index = () => {
                 return;
             }
 
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/userprofile?id=${parsedUserData.id}`);
+            const response = await axios.get(`https://landsquire.in/api/userprofile?id=${parsedUserData.id}`);
 
             if (response.data && response.data.data) {
                 const apiData = response.data.data;
@@ -50,7 +50,7 @@ const Index = () => {
                     setImage(
                         apiData.profile.startsWith('http')
                             ? apiData.profile
-                            : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${apiData.profile}`
+                            : `https://landsquire.in/adminAssets/images/Users/${apiData.profile}`
                     );
                 } else {
                     setImage(images.avatar);
@@ -71,7 +71,7 @@ const Index = () => {
     const fetchListingData = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/property-listings`);
+            const response = await axios.get(`https://landsquire.in/api/property-listings`);
             if (response.data.data) {
                 const apiData = response.data.data;
                 setListingData(apiData);
@@ -112,7 +112,7 @@ const Index = () => {
                         <View className="flex-row items-center justify-between mt-5">
                             <View className="flex flex-col items-start ml-2 justify-center">
                                 <Text
-                                    className={`text-2xl ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-black-300`}
+                                    className={`text-2xl ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-black-300`}
                                 >
                                     {t('welcome', { name: userData?.username?.split(' ')[0] || 'User' })}
                                     <Text
@@ -122,7 +122,7 @@ const Index = () => {
                                     </Text>
                                 </Text>
                                 <Text
-                                    className={`text-2xl ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-black-300`}
+                                    className={`text-2xl ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-black-300`}
                                 >
                                     {t('startExploring')}
                                 </Text>
@@ -164,7 +164,7 @@ const Index = () => {
                                 </Text>
                                 <TouchableOpacity onPress={() => router.push('properties/explore')}>
                                     <Text
-                                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-primary-300`}
+                                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-primary-300`}
                                     >
                                         {t('seeAll')}
                                     </Text>
@@ -190,7 +190,7 @@ const Index = () => {
                                 </Text>
                                 <TouchableOpacity onPress={() => router.push('properties/alllocations')}>
                                     <Text
-                                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-primary-300`}
+                                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-primary-300`}
                                     >
                                         {t('seeAll')}
                                     </Text>

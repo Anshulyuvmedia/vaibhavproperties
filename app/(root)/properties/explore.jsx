@@ -1,5 +1,5 @@
-import { StyleSheet, TouchableOpacity, View, Text, Image, FlatList, Dimensions, ScrollView } from 'react-native';
-import { useState, useEffect } from 'react';
+import { StyleSheet, TouchableOpacity, View, Text, Image, FlatList, Dimensions, ScrollView, RefreshControl } from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import axios from 'axios';
 import icons from '@/constants/icons';
@@ -13,61 +13,90 @@ import { useTranslation } from 'react-i18next';
 // Get screen width for dynamic card sizing
 const PADDING_HORIZONTAL = scale(15);
 const GAP = scale(10);
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const Explore = () => {
   const { t, i18n } = useTranslation();
   const [listingData, setListingData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedCity, setSelectedCity] = useState('all');
+  const [cities, setCities] = useState(['all']);
   const params = useLocalSearchParams();
+
+  // Memoize params with deep comparison
+  const memoizedParams = useMemo(() => JSON.stringify(params), [JSON.stringify(params)]);
+
+  // Derive filtered data instead of storing in state
+  const filteredListingData = useMemo(() => {
+    if (selectedCity === 'all') {
+      return listingData;
+    }
+    return listingData.filter(item => item.city === selectedCity);
+  }, [selectedCity, listingData]);
 
   const handleCardPress = (id) => router.push(`/properties/${id}`);
 
   const fetchFilterData = async () => {
     setLoading(true);
-    setListingData([]);
-
+    setListingData([]); // Clear data to prevent stale renders
     try {
       const queryParams = new URLSearchParams();
-      if (params.propertyType && params.propertyType !== t('all')) {
-        queryParams.append("filtercategory", params.propertyType);
+      const parsedParams = JSON.parse(memoizedParams);
+      if (parsedParams.propertyType && parsedParams.propertyType !== t('all')) {
+        queryParams.append("filtercategory", parsedParams.propertyType);
       }
-      if (params.city) queryParams.append("filtercity", params.city);
-      if (params.minPrice) queryParams.append("filterminprice", params.minPrice);
-      if (params.maxPrice) queryParams.append("filtermaxprice", params.maxPrice);
-      if (params.sqftfrom) queryParams.append("sqftfrom", params.sqftfrom);
-      if (params.sqftto) queryParams.append("sqftto", params.sqftto);
+      if (parsedParams.city) queryParams.append("filtercity", parsedParams.city);
+      if (parsedParams.minPrice) queryParams.append("filterminprice", parsedParams.minPrice);
+      if (parsedParams.maxPrice) queryParams.append("filtermaxprice", parsedParams.maxPrice);
+      if (parsedParams.sqftfrom) queryParams.append("sqftfrom", parsedParams.sqftfrom);
+      if (parsedParams.sqftto) queryParams.append("sqftto", parsedParams.sqftto);
 
-      const apiUrl = `https://vaibhavproperties.cigmafeed.in/api/filterlistings?${queryParams.toString()}`;
+      const apiUrl = `https://landsquire.in/api/filterlistings?${queryParams.toString()}`;
       const response = await axios({
         method: "post",
         url: apiUrl,
       });
 
       if (response.data && Array.isArray(response.data.data)) {
-        setListingData(response.data.data);
+        const apiData = response.data.data;
+        setListingData(apiData);
+        const uniqueCities = ['all', ...new Set(apiData.map(item => item.city).filter(city => city && city !== 'Unknown'))];
+        setCities(uniqueCities);
       } else {
         console.error("Unexpected API response format:", response.data);
         setListingData([]);
+        setCities(['all']);
       }
     } catch (error) {
       console.error("Error fetching filtered listings:", error.response?.data || error.message);
       setListingData([]);
+      setCities(['all']);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchFilterData();
-  }, []);
+  }, [memoizedParams]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setSelectedCity('all');
+    if (Object.keys(params).length > 0) {
+      router.replace({ pathname: "/properties/explore", params: {} });
+    }
+  };
 
   const clearFilter = (filterKey) => {
-    const updatedParams = { ...params };
+    const updatedParams = { ...JSON.parse(memoizedParams) };
     const keyMap = {
-      [t('city').toLowerCase()]: 'city',
-      [t('type').toLowerCase()]: 'propertyType',
-      [t('price').toLowerCase()]: ['minPrice', 'maxPrice'],
-      [t('size').toLowerCase()]: ['sqftfrom', 'sqftto'],
+      city: 'city',
+      type: 'propertyType',
+      price: ['minPrice', 'maxPrice'],
+      size: ['sqftfrom', 'sqftto'],
     };
 
     if (Array.isArray(keyMap[filterKey])) {
@@ -76,14 +105,16 @@ const Explore = () => {
       delete updatedParams[keyMap[filterKey]];
     }
 
-    router.replace({ pathname: "/properties/explore", params: updatedParams });
+    if (JSON.stringify(updatedParams) !== JSON.stringify(params)) {
+      router.replace({ pathname: "/properties/explore", params: updatedParams });
+    }
   };
 
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
       <Image source={icons.noResultFound} style={styles.emptyImage} />
       <Text style={[styles.emptyTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-        {t('noResultsTitle', { highlight: <Text style={styles.emptyHighlight}>{t('notFound')}</Text> })}
+        {t('noResultsTitle')}
       </Text>
       <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
         {t('noResultsMessage1')}
@@ -96,13 +127,14 @@ const Explore = () => {
 
   const renderFilterChips = () => {
     const filters = [];
-    if (params.city) filters.push(t('filterCity', { value: params.city }));
-    if (params.propertyType) filters.push(t('filterType', { value: params.propertyType }));
-    if (params.minPrice || params.maxPrice) {
-      filters.push(t('filterPrice', { min: params.minPrice || t('any'), max: params.maxPrice || t('any') }));
+    const parsedParams = JSON.parse(memoizedParams);
+    if (parsedParams.city) filters.push(`City: ${parsedParams.city}`);
+    if (parsedParams.propertyType) filters.push(`Type: ${parsedParams.propertyType}`);
+    if (parsedParams.minPrice || parsedParams.maxPrice) {
+      filters.push(`Price: ${parsedParams.minPrice || t('any')} - ${parsedParams.maxPrice || t('any')}`);
     }
-    if (params.sqftfrom || params.sqftto) {
-      filters.push(t('filterSize', { min: params.sqftfrom || t('any'), max: params.sqftto || t('any') }));
+    if (parsedParams.sqftfrom || parsedParams.sqftto) {
+      filters.push(`Size: ${parsedParams.sqftfrom || t('any')} - ${parsedParams.sqftto || t('any')} sqft`);
     }
 
     return filters.length > 0 ? (
@@ -144,13 +176,22 @@ const Explore = () => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={listingData}
+        data={filteredListingData}
         renderItem={({ item }) => <Card item={item} onPress={() => handleCardPress(item.id)} />}
         keyExtractor={(item) => item.id.toString()}
         numColumns={2}
         contentContainerStyle={styles.flatListContent}
         columnWrapperStyle={styles.flatListColumnWrapper}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#8bc83f']}
+            tintColor="#8bc83f"
+            accessibilityLabel={t('refreshListings')}
+          />
+        }
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.headerRow}>
@@ -170,16 +211,15 @@ const Explore = () => {
             <Search />
 
             {renderFilterChips()}
-
             <Filters />
             <View style={styles.foundTextContainer}>
               <Text style={[styles.foundText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-                {t('foundEstates', { count: listingData.length })}
+                Found {filteredListingData.length} Properties
               </Text>
             </View>
           </View>
         }
-        ListEmptyComponent={!loading && listingData.length === 0 ? renderEmptyComponent : null}
+        ListEmptyComponent={!loading && !refreshing && filteredListingData.length === 0 ? renderEmptyComponent : null}
       />
     </View>
   );
@@ -187,18 +227,21 @@ const Explore = () => {
 
 export default Explore;
 
+// Styles remain unchanged
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fafafa',
   },
   header: {
-    // padding: moderateScale(10),
+    // paddingHorizontal: PADDING_HORIZONTAL,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: verticalScale(10),
     marginBottom: verticalScale(10),
   },
   backButton: {
@@ -228,12 +271,11 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(20),
   },
   foundText: {
-    fontSize: moderateScale(20),
+    fontSize: moderateScale(16),
     fontFamily: 'Rubik-Bold',
     color: '#4B5563',
-  },
-  foundHighlight: {
-    color: '#234F68',
+    paddingBottom: verticalScale(10),
+
   },
   flatListContent: {
     paddingBottom: verticalScale(32),
@@ -260,9 +302,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: verticalScale(10),
   },
-  emptyHighlight: {
-    color: '#234F68',
-  },
   emptySubtitle: {
     fontSize: moderateScale(16),
     fontFamily: 'Rubik-Regular',
@@ -273,7 +312,6 @@ const styles = StyleSheet.create({
   filterChipsContainer: {
     marginTop: verticalScale(10),
     marginBottom: verticalScale(10),
-    // paddingHorizontal: PADDING_HORIZONTAL,
   },
   filterChip: {
     flexDirection: 'row',
@@ -302,5 +340,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Medium',
     color: '#234F68',
     textAlign: 'right',
+  },
+  filterContainer: {
+    marginTop: verticalScale(10),
+    marginBottom: verticalScale(10),
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  picker: {
+    width: '100%',
+    height: verticalScale(40),
+    color: '#234F68',
+  },
+  pickerItem: {
+    fontSize: moderateScale(14),
+    fontFamily: 'Rubik-Regular',
+    color: '#234F68',
   },
 });

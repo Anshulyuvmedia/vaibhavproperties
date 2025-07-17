@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl, Linking } from 'react-native';
+import { StyleSheet, ScrollView, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Alert } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import RBSheet from 'react-native-raw-bottom-sheet';
@@ -6,13 +6,27 @@ import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import icons from '@/constants/icons';
-import { useUser } from '@/context/UserContext'; // Import UserContext
+import { useUser } from '@/context/UserContext';
 import { useTranslation } from 'react-i18next';
+import { MaterialIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
+
+// Utility function to format phone numbers for WhatsApp
+const formatPhoneNumber = (phone) => {
+    if (!phone) return null;
+    // Remove any non-digit characters (spaces, dashes, etc.)
+    let cleaned = phone.replace(/\D/g, '');
+    // Ensure the phone number includes the country code (e.g., +91 for India)
+    if (!cleaned.startsWith('+')) {
+        // Assuming Indian phone numbers; adjust country code as needed
+        cleaned = `+91${cleaned}`;
+    }
+    return cleaned;
+};
 
 const Loanleads = () => {
     const { t, i18n } = useTranslation();
     const router = useRouter();
-    const { userType, loading: userLoading } = useUser(); // Use UserContext
+    const { userType, loading: userLoading } = useUser();
     const [enquiries, setEnquiries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -21,7 +35,7 @@ const Loanleads = () => {
 
     useEffect(() => {
         if (!userLoading && userType !== 'bankagent') {
-            router.replace('/mapview'); // Redirect if not bankagent
+            router.replace('/mapview');
             console.log(`Redirected from loanleads to /mapview at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} because userType is ${userType}`);
         } else if (!userLoading) {
             fetchUserEnquiries();
@@ -36,27 +50,13 @@ const Loanleads = () => {
                 console.error('User data or ID missing at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
                 return;
             }
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
-            console.log('response at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), ':', response.data);
-
-            if (response.data && Array.isArray(response.data.loanenquiries)) { // Target loanenquiries
-                const parsedEnquiries = response.data.loanenquiries.map(enquiry => {
-                    let parsedBids = [];
-                    if (enquiry.propertybid === null) {
-                        parsedBids = [{ bidamount: Number(enquiry.loan_amount) || 0, date: enquiry.created_at }];
-                    } else if (typeof enquiry.propertybid === 'string') {
-                        if (enquiry.propertybid.startsWith('[')) {
-                            parsedBids = JSON.parse(enquiry.propertybid);
-                        } else {
-                            parsedBids = [{ bidamount: Number(enquiry.propertybid) || 0, date: enquiry.created_at }];
-                        }
-                    }
-                    return {
-                        ...enquiry,
-                        loan_amount: Number(enquiry.loan_amount) || 0,
-                        propertybid: parsedBids,
-                    };
-                });
+            const response = await axios.get(`https://landsquire.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
+            // console.log('response', response.data.loanenquiries);
+            if (response.data && Array.isArray(response.data.loanenquiries)) {
+                const parsedEnquiries = response.data.loanenquiries.map(enquiry => ({
+                    ...enquiry,
+                    loan_amount: Number(enquiry.loan_amount) || 0,
+                }));
                 setEnquiries(parsedEnquiries);
             } else {
                 console.error('No loanenquiries found or invalid response format at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), ':', response.data);
@@ -84,7 +84,6 @@ const Loanleads = () => {
     const formatCurrency = (amount) => {
         if (!amount || isNaN(amount)) return t('notAvailable');
         const num = Number(amount);
-
         if (num >= 10000000) {
             const crore = num / 10000000;
             return `${crore % 1 === 0 ? crore : crore.toFixed(2).replace(/\.00$/, '')} Cr.`;
@@ -93,19 +92,10 @@ const Loanleads = () => {
             return `${lakh % 1 === 0 ? lakh : lakh.toFixed(2).replace(/\.00$/, '')} Lakh`;
         } else if (num >= 1000) {
             const thousand = num / 1000;
-            return `${thousand % 1 === 0 ? thousand : thousand.toFixed(2).replace(/\.00$/, '')} Thousand`;
+            return `${thousand % 1 === 0 ? thousand : thousand.toFixed(2).replace(/\.00$/, '')} k`;
         } else {
             return num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
         }
-    };
-
-    const getLatestBid = (bids) => {
-        if (Array.isArray(bids) && bids.length > 0) {
-            return bids.reduce((latest, current) =>
-                new Date(current.date) > new Date(latest.date) ? current : latest
-            );
-        }
-        return { bidamount: t('notAvailable'), date: '' };
     };
 
     const handleCall = (number) => {
@@ -114,8 +104,39 @@ const Loanleads = () => {
         }
     };
 
+    const handleWhatsAppPress = async (enquiry) => {
+        const phone = formatPhoneNumber(enquiry?.mobilenumber);
+        console.log('WhatsApp - Raw phone:', enquiry?.mobilenumber, 'Formatted:', phone);
+        if (!phone) {
+            Alert.alert(t('error'), t('phoneNotAvailable'));
+            console.warn('Phone number not available or invalid:', enquiry?.mobilenumber);
+            return;
+        }
+        const url = `whatsapp://send?phone=${phone}`;
+        console.log('Attempting to open URL:', url);
+        try {
+            const supported = await Linking.canOpenURL(url);
+            console.log('Can open WhatsApp URL:', supported);
+            if (supported) {
+                await Linking.openURL(url);
+            } else {
+                const webUrl = `https://wa.me/${phone}`;
+                console.log('Falling back to web URL:', webUrl);
+                const webSupported = await Linking.canOpenURL(webUrl);
+                if (webSupported) {
+                    await Linking.openURL(webUrl);
+                } else {
+                    Alert.alert(t('error'), t('whatsappNotInstalled'));
+                    console.error('WhatsApp not supported');
+                }
+            }
+        } catch (err) {
+            Alert.alert(t('error'), t('failedToOpenWhatsApp'));
+            console.error('Error opening WhatsApp:', err);
+        }
+    };
+
     const renderEnquiry = ({ item }) => {
-        const latestBid = getLatestBid(item.propertybid);
         return (
             <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
                 <View style={styles.cardHeader}>
@@ -128,21 +149,15 @@ const Loanleads = () => {
                     <View>
                         <Text className='text-sm font-rubik text-gray-600'>Date:</Text>
                         <Text style={[styles.cardDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                            {new Date(latestBid.date || item.created_at).toLocaleDateString()}
+                            {new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </Text>
                     </View>
                 </View>
                 <View style={styles.cardrow}>
                     <View>
-                        <Text className='text-sm font-rubik text-gray-600'>Bid amount:</Text>
+                        <Text className='text-sm font-rubik text-gray-600'>Loan required:</Text>
                         <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                            {formatCurrency(latestBid.bidamount)}
-                        </Text>
-                    </View>
-                    <View>
-                        <Text className='text-sm font-rubik text-gray-600'>Category:</Text>
-                        <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                            {item.housecategory || t('notAvailable')}
+                            {formatCurrency(item.loan_amount)}
                         </Text>
                     </View>
                     <View>
@@ -178,28 +193,50 @@ const Loanleads = () => {
                             style={[styles.actionButton, styles.callButton]}
                             onPress={() => handleCall(item.mobilenumber)}
                         >
+                            <Feather name="phone" size={moderateScale(16, 0.3)} color="#fff" style={styles.buttonIcon} />
                             <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                {t('call')}
+                                {t('Call Now')}
                             </Text>
                         </TouchableOpacity>
                     )}
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.whatsappButton, !item.mobilenumber && styles.disabledButton]}
+                        onPress={() => handleWhatsAppPress(item)}
+                        disabled={!item.mobilenumber}
+                    >
+                        <FontAwesome5 name="whatsapp" size={moderateScale(16, 0.3)} color="#fff" style={styles.buttonIcon} />
+                        <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                            {t('Whatsapp')}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             </TouchableOpacity>
         );
     };
 
-    const renderBidHistory = (bids) => {
-        if (!Array.isArray(bids) || bids.length === 0) return null;
-        return bids.map((bid, index) => (
-            <View key={index} style={styles.bidHistoryRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                    {t('bid', { index: index + 1 })}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                    {formatCurrency(bid.bidamount)} on {new Date(bid.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </Text>
+    const renderLoanDetails = () => {
+        if (!selectedEnquiry?.loan_amount) return null;
+        return (
+            <View>
+
+                <View style={styles.bidHistoryRow}>
+                    <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                        {t('Loan Amount')}:
+                    </Text>
+                    <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                        {formatCurrency(selectedEnquiry.loan_amount)}
+                    </Text>
+                </View>
+                <View style={styles.bidHistoryRow}>
+                    <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                        {t('Date')}:
+                    </Text>
+                    <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                        {new Date(selectedEnquiry.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </Text>
+                </View>
             </View>
-        ));
+        );
     };
 
     return (
@@ -249,12 +286,14 @@ const Loanleads = () => {
 
             <RBSheet
                 ref={rbSheetRef}
-                height={verticalScale(600)}
+                height={verticalScale(500)}
                 openDuration={250}
                 customStyles={{
                     container: styles.rbSheet,
                 }}
             >
+
+
                 {selectedEnquiry && (
                     <View style={styles.sheetContainer}>
                         <View style={styles.sheetHeader}>
@@ -311,31 +350,7 @@ const Loanleads = () => {
                                     {selectedEnquiry.state}
                                 </Text>
                             </View>
-                            <View style={styles.sheetRow}>
-                                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                    {t('propertyType')}:
-                                </Text>
-                                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                                    {selectedEnquiry.housecategory || t('notAvailable')}
-                                </Text>
-                            </View>
-                            <View style={styles.sheetRow}>
-                                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                    {t('clientsCity')}:
-                                </Text>
-                                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                                    {selectedEnquiry.inwhichcity || t('notAvailable')}
-                                </Text>
-                            </View>
-                            <View style={styles.sheetRow}>
-                                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                    {t('status')}:
-                                </Text>
-                                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                                    {selectedEnquiry.status}
-                                </Text>
-                            </View>
-                            {renderBidHistory(selectedEnquiry.propertybid)}
+                            {renderLoanDetails()}
                         </ScrollView>
                         <View style={styles.sheetButtonContainer}>
                             {selectedEnquiry.agentid && (
@@ -356,30 +371,20 @@ const Loanleads = () => {
                                     style={[styles.sheetActionButton, styles.callButton]}
                                     onPress={() => handleCall(selectedEnquiry.mobilenumber)}
                                 >
+                                    <Feather name="phone" size={moderateScale(16, 0.3)} color="#fff" style={styles.buttonIcon} />
                                     <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                        {t('call')}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                            {selectedEnquiry.propertyid && (
-                                <TouchableOpacity
-                                    style={styles.sheetActionButton}
-                                    onPress={() => {
-                                        rbSheetRef.current.close();
-                                        router.push(`/properties/${selectedEnquiry.propertyid}`);
-                                    }}
-                                >
-                                    <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                        {t('viewProperty')}
+                                        {t('Call Now')}
                                     </Text>
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity
-                                style={styles.sheetActionButton}
-                                onPress={() => rbSheetRef.current.close()}
+                                style={[styles.sheetActionButton, styles.whatsappButton, !selectedEnquiry.mobilenumber && styles.disabledButton]}
+                                onPress={() => handleWhatsAppPress(selectedEnquiry)}
+                                disabled={!selectedEnquiry.mobilenumber}
                             >
+                                <FontAwesome5 name="whatsapp" size={moderateScale(16, 0.3)} color="#fff" style={styles.buttonIcon} />
                                 <Text style={[styles.sheetActionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                    {t('close')}
+                                    {t('Whatsapp')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -392,6 +397,7 @@ const Loanleads = () => {
 
 export default Loanleads;
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -502,17 +508,26 @@ const styles = StyleSheet.create({
         marginTop: verticalScale(10),
         gap: scale(10),
     },
+    whatsappButton: {
+        backgroundColor: '#4CAF50',
+    },
     actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#234F68',
         borderRadius: moderateScale(8),
         paddingVertical: verticalScale(5),
         paddingHorizontal: scale(12),
     },
     callButton: {
-        backgroundColor: '#4CAF50', // Green for call button
+        backgroundColor: '#234F68',
     },
     agentButton: {
         backgroundColor: '#4CAF50',
+    },
+    buttonIcon: {
+        marginRight: scale(3),
     },
     actionButtonText: {
         color: '#fff',
@@ -564,8 +579,6 @@ const styles = StyleSheet.create({
     bidHistoryRow: {
         flexDirection: 'row',
         marginVertical: verticalScale(5),
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
         paddingTop: verticalScale(5),
     },
     sheetLabel: {
@@ -587,6 +600,9 @@ const styles = StyleSheet.create({
         gap: scale(10),
     },
     sheetActionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#234F68',
         borderRadius: moderateScale(8),
         paddingVertical: verticalScale(8),
@@ -594,7 +610,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     sheetCallButton: {
-        backgroundColor: '#4CAF50', // Green for call button
+        backgroundColor: '#4CAF50',
     },
     sheetActionButtonText: {
         color: '#fff',

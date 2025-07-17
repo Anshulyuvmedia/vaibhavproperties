@@ -149,7 +149,7 @@ const LoanEnquiry = () => {
             //     documents: propertyDocuments.map(doc => ({ name: doc.name, mimeType: doc.mimeType })),
             // });
 
-            const apiUrl = 'https://vaibhavproperties.cigmafeed.in/api/sendloanenquiry';
+            const apiUrl = 'https://landsquire.in/api/sendloanenquiry';
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 body: formData,

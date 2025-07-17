@@ -14,7 +14,7 @@ const BrokerScroll = () => {
     const fetchAgenList = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/brokerlist`);
+            const response = await axios.get(`https://landsquire.in/api/brokerlist`);
             if (response.data && response.data.success && Array.isArray(response.data.data)) {
                 const apiData = response.data.data.map((broker, index) => ({
                     id: broker.id,
@@ -22,7 +22,7 @@ const BrokerScroll = () => {
                     image: broker.profile
                         ? broker.profile.startsWith('http')
                             ? { uri: broker.profile }
-                            : { uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${broker.profile}` }
+                            : { uri: `https://landsquire.in/adminAssets/images/Users/${broker.profile}` }
                         : images.avatar,
                 }));
                 setBrokerList(apiData);
@@ -56,7 +56,7 @@ const BrokerScroll = () => {
                 style={{ resizeMode: 'cover' }}
                 onError={(error) => console.log('Image load error for', item.name, ':', error.nativeEvent.error)}
             />
-            <Text className={`mt-2 text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-black-300`}>
+            <Text className={`mt-2 text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-black-300`}>
                 {item.name}
             </Text>
         </TouchableOpacity>
@@ -77,7 +77,7 @@ const BrokerScroll = () => {
                     {t('topPropertyBrokers')}
                 </Text>
                 <TouchableOpacity onPress={() => router.push('broker/allbrokers')}>
-                    <Text className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-primary-300`}>
+                    <Text className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-primary-300`}>
                         {t('explore')}
                     </Text>
                 </TouchableOpacity>
@@ -90,7 +90,7 @@ const BrokerScroll = () => {
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 ListEmptyComponent={() => (
-                    <Text className={`text-black-300 text-center ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'}`}>
+                    <Text className={`text-black-300 text-center ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'}`}>
                         {t('noBrokersAvailable')}
                     </Text>
                 )}

@@ -19,7 +19,7 @@ const Allbankagents = () => {
     const fetchAgenList = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/bankagentlist`);
+            const response = await axios.get(`https://landsquire.in/api/bankagentlist`);
             if (response.data && response.data.success && Array.isArray(response.data.data)) {
                 const apiData = response.data.data.map((bankAgent, index) => ({
                     id: bankAgent.id,
@@ -27,7 +27,7 @@ const Allbankagents = () => {
                     image: bankAgent.profile
                         ? bankAgent.profile.startsWith('http')
                             ? { uri: bankAgent.profile }
-                            : { uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${bankAgent.profile}` }
+                            : { uri: `https://landsquire.in/adminAssets/images/Users/${bankAgent.profile}` }
                         : images.avatar,
                     rating: (Math.random() * (5 - 4) + 4).toFixed(1), // Simulated rating (4.0-5.0)
                     sales: Math.floor(Math.random() * 20) + 10, // Simulated sales (10-29)

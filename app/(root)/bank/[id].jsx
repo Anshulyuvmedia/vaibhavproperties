@@ -28,7 +28,7 @@ const BankAgent = () => {
         setError(null);
         // console.log('Fetching bankAgent profile for id:', id);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/bankagentprofile?id=${id}`);
+            const response = await axios.get(`https://landsquire.in/api/bankagentprofile?id=${id}`);
             // console.log('API Response:', response.data);
             if (response.data.success) {
                 if (response.data.agentdata && response.data.agentdata.length > 0) {
@@ -85,7 +85,7 @@ const BankAgent = () => {
         let baseUri = bankAgentData?.profile
             ? bankAgentData.profile.startsWith('http')
                 ? bankAgentData.profile
-                : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${bankAgentData.profile}`
+                : `https://landsquire.in/adminAssets/images/Users/${bankAgentData.profile}`
             : images.avatar;
         // console.log('Profile Image URI:', baseUri);
         return baseUri.toString();

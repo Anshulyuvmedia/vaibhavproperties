@@ -5,6 +5,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useEffect, useState } from "react";
 import { useUser } from '@/context/UserContext';
 import { View } from 'react-native';
+
 const TabIcon = ({ focused, name, title }) => {
     const scale = useSharedValue(1);
     const translateY = useSharedValue(0);
@@ -59,21 +60,12 @@ const TabsLayout = () => {
     // Define tab configurations
     const tabsConfig = [
         { name: "index", title: "Home", icon: "home" },
-        { name: "myassets", title: "My Assets", icon: "building-o", hideFor: "bankagent" },
-        { name: "loanleads", title: "Leads", icon: "list", showFor: "bankagent" },
+        { name: "myassets", title: "My Assets", icon: "building-o" },
+        { name: "loanleads", title: "Leads", icon: "list" },
         { name: "mapview", title: "Map", icon: "map-o" },
-        { name: "addproperty", title: "Add Property", icon: "plus-square-o", hideFor: "bankagent" },
+        { name: "addproperty", title: "Add Property", icon: "plus-square-o" },
         { name: "dashboard", title: "Dashboard", icon: "user-o" },
     ];
-
-    // Filter tabs based on userType
-    const visibleTabs = tabsConfig.filter(tab => {
-        const shouldHide = tab.hideFor && userType === tab.hideFor;
-        const shouldShow = tab.showFor && userType !== tab.showFor;
-        const isVisible = !shouldHide && !shouldShow;
-        // console.log(`Tab ${tab.name} visibility at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}:`, isVisible);
-        return isVisible;
-    });
 
     if (loading) {
         return null; // Delay rendering until userType is fetched
@@ -102,7 +94,7 @@ const TabsLayout = () => {
                 },
             }}
         >
-            {visibleTabs.map((tab) => (
+            {tabsConfig.map((tab) => (
                 <Tabs.Screen
                     key={tab.name}
                     name={tab.name}
@@ -112,7 +104,6 @@ const TabsLayout = () => {
                         tabBarIcon: ({ focused }) => (
                             <TabIcon focused={focused} name={tab.icon} title={tab.title} />
                         ),
-                        
                     }}
                 />
             ))}

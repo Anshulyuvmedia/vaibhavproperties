@@ -56,7 +56,7 @@ const EditProfile = () => {
                 return;
             }
 
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/userprofile?id=${parsedUserData.id}`);
+            const response = await axios.get(`https://landsquire.in/api/userprofile?id=${parsedUserData.id}`);
             const data = response.data.data;
 
             setUserId(data.id);
@@ -75,7 +75,7 @@ const EditProfile = () => {
             if (typeof profileImage === 'string' && profileImage.trim() !== '' && profileImage !== 'null' && profileImage !== 'undefined') {
                 profileImage = profileImage.startsWith('http')
                     ? profileImage
-                    : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${profileImage}`;
+                    : `https://landsquire.in/adminAssets/images/Users/${profileImage}`;
             } else {
                 profileImage = images.avatar;
             }
@@ -150,7 +150,7 @@ const EditProfile = () => {
                 return;
             }
 
-            const fileUrl = `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${fileName}`;
+            const fileUrl = `https://landsquire.in/adminAssets/images/Users/${fileName}`;
             await Linking.openURL(fileUrl);
         } catch (error) {
             console.error('Error opening file:', error);
@@ -191,7 +191,7 @@ const EditProfile = () => {
             }
 
             const response = await axios.post(
-                `https://vaibhavproperties.cigmafeed.in/api/updateuserprofile/${userId}`,
+                `https://landsquire.in/api/updateuserprofile/${userId}`,
                 formData,
                 {
                     headers: {

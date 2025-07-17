@@ -26,7 +26,7 @@ const Broker = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/brokerprofile?id=${id}`);
+            const response = await axios.get(`https://landsquire.in/api/brokerprofile?id=${id}`);
             if (response.data.success) {
                 if (response.data.brokerdata && response.data.brokerdata.length > 0) {
                     setBrokerData(response.data.brokerdata[0]);
@@ -83,7 +83,7 @@ const Broker = () => {
         let baseUri = brokerData?.profile
             ? brokerData.profile.startsWith('http')
                 ? brokerData.profile
-                : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${brokerData.profile}`
+                : `https://landsquire.in/adminAssets/images/Users/${brokerData.profile}`
             : images.avatar;
         return baseUri.toString();
     };

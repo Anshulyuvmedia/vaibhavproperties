@@ -92,7 +92,7 @@ const PropertyDetails = () => {
                 bidamount: bidAmount || "",
             };
 
-            const response = await axios.post("https://vaibhavproperties.cigmafeed.in/api/sendenquiry", enquiryData);
+            const response = await axios.post("https://landsquire.in/api/sendenquiry", enquiryData);
             if (response.status === 200 && !response.data.error) {
                 setBidStatus({ type: "success", message: "Enquiry submitted successfully!" });
                 if (bidAmount && rbSheetRef.current) {
@@ -110,7 +110,7 @@ const PropertyDetails = () => {
 
     const shareProperty = async () => {
         try {
-            const propertyUrl = `https://vaibhavproperties.cigmafeed.in/property-details/${propertyId}`;
+            const propertyUrl = `https://landsquire.in/property-details/${propertyId}`;
             const message = `View my property: ${propertyUrl}`;
             const result = await Share.share({ message, url: propertyUrl, title: "Check out this property!" });
             if (result.action === Share.sharedAction) {
@@ -129,8 +129,8 @@ const PropertyDetails = () => {
             setError(null);
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
             setLoggedinUserId(parsedUserData?.id || "");
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/property-details/${propertyId}`);
-            // console.log("API Response:", response.data); // Debug log
+            const response = await axios.get(`https://landsquire.in/api/property-details/${propertyId}`);
+            console.log("API Response:", response.data); // Debug log
             if (response.data && response.data.details) {
                 const apiData = response.data.details;
                 setPropertyData(apiData);
@@ -139,7 +139,7 @@ const PropertyDetails = () => {
                     thumbnail && typeof thumbnail === "string"
                         ? thumbnail.startsWith("http")
                             ? thumbnail
-                            : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${thumbnail}`
+                            : `https://landsquire.in/adminAssets/images/Listings/${thumbnail}`
                         : images.avatar;
                 // console.log("Thumbnail URI:", thumbnailUri, "Type:", typeof thumbnailUri);
                 setPropertyThumbnail(thumbnailUri);
@@ -155,7 +155,7 @@ const PropertyDetails = () => {
                                 image:
                                     typeof image === "string" && image.startsWith("http")
                                         ? image
-                                        : `https://vaibhavproperties.cigmafeed.in/${image.replace(/\\/g, "/")}` || images.avatar,
+                                        : `https://landsquire.in/${image.replace(/\\/g, "/")}` || images.avatar,
                             }))
                             : [];
                     }
@@ -174,7 +174,7 @@ const PropertyDetails = () => {
                         url:
                             typeof video === "string" && video.startsWith("http")
                                 ? video
-                                : `https://vaibhavproperties.cigmafeed.in/${video}` || "",
+                                : `https://landsquire.in/${video}` || "",
                         title: `Video ${index + 1}`,
                         thumbnail: images.videoPlaceholder || icons.videofile, // Use a valid image or URL
                     }));
@@ -218,7 +218,7 @@ const PropertyDetails = () => {
 
                 // Master plan documents
                 if (apiData.masterplandoc) {
-                    const fileUrl = `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${apiData.masterplandoc}`;
+                    const fileUrl = `https://landsquire.in/adminAssets/images/Listings/${apiData.masterplandoc}`;
                     setIsPdf(fileUrl.toLowerCase().endsWith(".pdf"));
                     setMasterPlanDocs([fileUrl]);
                 } else {
@@ -252,11 +252,11 @@ const PropertyDetails = () => {
         const profile = brokerData.profile;
         const uri =
             profile != null && typeof profile === "number"
-                ? `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${profile}.jpg`
+                ? `https://landsquire.in/adminAssets/images/Users/${profile}.jpg`
                 : profile && typeof profile === "string" && profile.startsWith("http")
                     ? profile
                     : profile && typeof profile === "string"
-                        ? `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${profile}`
+                        ? `https://landsquire.in/adminAssets/images/Users/${profile}`
                         : images.avatar;
         // console.log("Profile Image URI:", uri, "Type:", typeof uri);
         return uri;

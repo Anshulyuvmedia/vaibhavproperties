@@ -1,9 +1,12 @@
-import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator, RefreshControl, Dimensions } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+import RBSheet from 'react-native-raw-bottom-sheet';
+import { Switch } from 'react-native';
+import DatePicker from 'react-native-date-picker';
 import icons from '@/constants/icons';
 import PropertyNavigation from '@/components/PropertyNavigation';
 import { useTranslation } from 'react-i18next';
@@ -20,16 +23,78 @@ const formatINR = (amount) => {
   return '₹' + num.toLocaleString('en-IN');
 };
 
+// Get screen width for DatePicker
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 const Myproperties = () => {
   const { t, i18n } = useTranslation();
   const [userPropertyData, setUserPropertyData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState(null);
+  const [bidStatus, setBidStatus] = useState(false);
+  const [bidEndDate, setBidEndDate] = useState(new Date());
   const router = useRouter();
+  const rbSheetRef = useRef();
 
   const handleCardPress = (id) => router.push(`/properties/${id}`);
   const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
   const handleAddProperty = () => router.push('/addproperty');
+
+  const handleEditBidPress = (property) => {
+    setSelectedProperty(property);
+    setBidStatus(property.bidstatus?.toLowerCase() === 'on');
+    // Handle invalid or missing bid end date
+    const parsedDate = property.bidenddate
+      ? new Date(property.bidenddate.split('/').reverse().join('-'))
+      : new Date();
+    setBidEndDate(isNaN(parsedDate) ? new Date() : parsedDate);
+    rbSheetRef.current.open();
+  };
+
+  const handleSubmitBid = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post('https://landsquire.in/api/update-bid-status', {
+        propertyid: selectedProperty.id,
+        bidliveStatus: bidStatus ? 'on' : 'off',
+        bidEnddate: bidStatus ? bidEndDate.toISOString().split('T')[0] : null,
+      });
+      if (response.data.success) {
+        // Update local state
+        setUserPropertyData(prevData =>
+          prevData.map(item =>
+            item.id === selectedProperty.id
+              ? {
+                ...item,
+                bidstatus: bidStatus ? 'on' : 'off',
+                bidenddate: bidStatus ? formatDate(bidEndDate.toISOString()) : '',
+              }
+              : item
+          )
+        );
+        rbSheetRef.current.close();
+        alert(t('bidUpdatedSuccess'));
+      } else {
+        alert(t('bidUpdateFailed') + ': ' + (response.data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating bid:', error);
+      alert(t('bidUpdateFailed') + ': ' + (error.message || 'Network error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date)) return '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+  };
 
   const fetchUserData = async () => {
     setLoading(true);
@@ -39,7 +104,7 @@ const Myproperties = () => {
         console.error('User data or ID missing');
         return;
       }
-      const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/viewuserlistings?id=${parsedPropertyData.id}`);
+      const response = await axios.get(`https://landsquire.in/api/viewuserlistings?id=${parsedPropertyData.id}`);
       if (response.data && response.data.properties) {
         const formattedData = response.data.properties.map((item) => ({
           id: item.id,
@@ -47,12 +112,14 @@ const Myproperties = () => {
           address: item.address,
           price: item.price,
           status: item.status,
+          bidstatus: item.bidstatus,
+          bidenddate: formatDate(item.bidenddate),
           category: item.category,
           thumbnail: item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.startsWith('http')
             ? item.thumbnail
             : item.thumbnail
-              ? `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Listings/${item.thumbnail}`
-              : 'https://vaibhavproperties.cigmafeed.in/adminAssets/images/default-thumbnail.jpg',
+              ? `https://landsquire.in/adminAssets/images/Listings/${item.thumbnail}`
+              : 'https://landsquire.in/adminAssets/images/default-thumbnail.jpg',
           city: item.city,
         }));
         setUserPropertyData(formattedData);
@@ -94,8 +161,8 @@ const Myproperties = () => {
 
         <PropertyNavigation path={'myproperties'} />
 
-        <View className='mx-auto'>
-          <Text>All the properties listed by you.</Text>
+        <View style={styles.infoContainer}>
+          <Text style={styles.infoText}>{t('allPropertiesListed')}</Text>
         </View>
         {/* Content */}
         <View style={styles.content}>
@@ -132,14 +199,9 @@ const Myproperties = () => {
                   {/* Image Section */}
                   <View style={styles.imageContainer}>
                     <Image
-                      source={{ uri: item.thumbnail || 'https://vaibhavproperties.cigmafeed.in/adminAssets/images/default-thumbnail.jpg' }}
+                      source={{ uri: item.thumbnail || 'https://landsquire.in/adminAssets/images/default-thumbnail.jpg' }}
                       style={styles.propertyImage}
                     />
-                    {/* Heart Icon (placeholder, commented out as in original) */}
-                    {/* <View style={styles.heartIconContainer}>
-                      <Image source={icons.heart} style={styles.heartIcon} />
-                    </View> */}
-                    {/* Category Badge */}
                     <View style={styles.categoryBadge}>
                       <Text style={[styles.categoryText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
                         {item.category}
@@ -150,39 +212,58 @@ const Myproperties = () => {
                   {/* Text Content Section */}
                   <View style={styles.textContent}>
                     <Text style={[styles.propertyName, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                      {item.property_name}
+                      {item.property_name.length > 20
+                        ? item.property_name.slice(0, 20) + '...'
+                        : item.property_name}
                     </Text>
                     <View style={styles.locationRow}>
-                      <Image source={icons.location} style={styles.locationIcon} />
-                      <Text style={[styles.locationText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                        {item.city}
-                      </Text>
+                      <View style={styles.statusContainer}>
+                        <Image source={icons.location} style={styles.locationIcon} />
+                        <Text style={[styles.locationText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                          {item.city}
+                        </Text>
+                      </View>
                     </View>
                     <View style={styles.priceRow}>
                       <Text style={[styles.priceText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
                         {formatINR(item.price)}
                       </Text>
                       <View style={styles.statusContainer}>
-                        <View
-                          style={[
-                            styles.statusDot,
-                            {
-                              backgroundColor: item.status?.toLowerCase() === 'published' ? '#28A745' : '#DC3545',
-                            },
-                          ]}
-                        />
+                        <View style={[ styles.statusDot, { backgroundColor: item.status?.toLowerCase() === 'published' ? '#28A745' : '#DC3545', }, ]} />
                         <Text style={[styles.statusText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                          {item.status?.toLowerCase() === 'published' ? t('live') : t('offline')}
+                          {item.status?.toLowerCase() === 'published' ? t('Active') : t('Inactive')}
                         </Text>
                       </View>
                     </View>
-
-                    {/* Edit Button */}
-                    <TouchableOpacity style={styles.editButton} onPress={() => handleEditPress(item.id)}>
-                      <Text style={[styles.editText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                        {t('editProperty')}
-                      </Text>
-                    </TouchableOpacity>
+                    <View style={styles.priceRow}>
+                      <View>
+                        <Text style={styles.labelText}>{t('endDate')}</Text>
+                        <Text style={[styles.locationText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                          {item.bidenddate || t('notSet')}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text style={styles.labelText}>{t('bidStatus')}</Text>
+                        <View style={styles.statusContainer}>
+                          <View style={[styles.statusDot, { backgroundColor: item.bidstatus?.toLowerCase() === 'on' ? '#28A745' : '#DC3545' }]} />
+                          <Text style={[styles.statusText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {item.bidstatus?.toLowerCase() === 'on' ? t('biddingOn') : t('biddingOff')}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.buttonRow}>
+                      <TouchableOpacity style={styles.editButton} onPress={() => handleEditPress(item.id)}>
+                        <Text style={[styles.editText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                          {t('editProperty')}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.bidButton} onPress={() => handleEditBidPress(item)}>
+                        <Text style={[styles.editText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                          {t('editBid')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </TouchableOpacity>
               )}
@@ -198,6 +279,62 @@ const Myproperties = () => {
           )}
         </View>
       </View>
+
+      {/* RBSheet for Bid Editing */}
+      <RBSheet
+        ref={rbSheetRef}
+        closeOnDragDown
+        height={verticalScale(300)}
+        openDuration={250}
+        customStyles={{
+          container: {
+            borderTopLeftRadius: moderateScale(20),
+            borderTopRightRadius: moderateScale(20),
+            padding: moderateScale(20),
+            backgroundColor: '#fafafa',
+          },
+        }}
+      >
+        <View>
+          <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+            {t('editBid')}
+          </Text>
+          <View style={styles.switchContainer}>
+            <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              {t('bidStatus')}
+            </Text>
+            <Switch
+              value={bidStatus}
+              onValueChange={(value) => setBidStatus(value)}
+              trackColor={{ false: '#DC3545', true: '#28A745' }}
+              thumbColor={bidStatus ? '#FFFFFF' : '#FFFFFF'}
+            />
+          </View>
+          {bidStatus && (
+            <View style={styles.datePickerContainer}>
+              <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                {t('bidEndDate')}
+              </Text>
+              <DatePicker
+                date={bidEndDate}
+                onDateChange={setBidEndDate}
+                mode="date"
+                minimumDate={new Date()}
+                style={styles.datePicker}
+              />
+            </View>
+          )}
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            onPress={handleSubmitBid}
+            disabled={loading}
+          >
+            <Text style={[styles.submitButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              {loading ? t('submitting') : t('submit')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </RBSheet>
     </View>
   );
 };
@@ -230,12 +367,20 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: moderateScale(18),
-    fontFamily: 'Rubik-Bold',
     color: '#234F68',
   },
   bellIcon: {
     width: moderateScale(24),
     height: moderateScale(24),
+  },
+  infoContainer: {
+    alignItems: 'center',
+    marginBottom: verticalScale(3),
+  },
+  infoText: {
+    fontSize: moderateScale(14),
+    color: '#4A5568',
+    fontFamily: 'Rubik-Regular',
   },
   content: {
     flex: 1,
@@ -273,23 +418,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: verticalScale(16),
   },
-  addButton: {
-    backgroundColor: '#8bc83f',
-    paddingVertical: verticalScale(8),
-    paddingHorizontal: scale(20),
-    borderRadius: moderateScale(20),
-  },
-  addButtonText: {
-    fontSize: moderateScale(14),
-    fontWeight: '500',
-    color: '#000',
-  },
   listContent: {
     paddingBottom: verticalScale(75),
+    paddingHorizontal: scale(2),
   },
   card: {
     width: '100%',
-    height: verticalScale(120),
+    height: verticalScale(145),
     borderRadius: moderateScale(30),
     backgroundColor: '#f5f4f8',
     flexDirection: 'row',
@@ -313,19 +448,6 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(30),
     resizeMode: 'cover',
   },
-  heartIconContainer: {
-    position: 'absolute',
-    top: verticalScale(16),
-    left: scale(16),
-    backgroundColor: '#8BC83F',
-    borderRadius: moderateScale(20),
-    padding: moderateScale(6),
-  },
-  heartIcon: {
-    width: moderateScale(20),
-    height: moderateScale(20),
-    tintColor: '#FFFFFF',
-  },
   categoryBadge: {
     position: 'absolute',
     bottom: verticalScale(16),
@@ -343,27 +465,26 @@ const styles = StyleSheet.create({
   textContent: {
     flex: 1,
     padding: moderateScale(8),
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
   propertyName: {
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(14),
     fontWeight: '500',
     color: '#4A5568',
-    marginBottom: verticalScale(4),
     textTransform: 'capitalize',
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: verticalScale(4),
+    justifyContent: 'space-between',
+    width: '100%',
   },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    marginBottom: verticalScale(8),
   },
   locationIcon: {
     width: moderateScale(16),
@@ -397,11 +518,24 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#4A5568',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+  },
   editButton: {
     backgroundColor: '#8bc83f',
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
+    width: '48%',
+    height: verticalScale(25),
+    borderRadius: moderateScale(15),
+  },
+  bidButton: {
+    backgroundColor: '#234F68',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '48%',
     height: verticalScale(25),
     borderRadius: moderateScale(15),
   },
@@ -410,5 +544,45 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#FFFFFF',
     paddingHorizontal: scale(10),
+  },
+  sheetTitle: {
+    fontSize: moderateScale(18),
+    color: '#234F68',
+    marginBottom: verticalScale(16),
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(16),
+  },
+  switchLabel: {
+    fontSize: moderateScale(14),
+    color: '#4A5568',
+  },
+  datePickerContainer: {
+    marginBottom: verticalScale(16),
+  },
+  datePicker: {
+    width: SCREEN_WIDTH - scale(40), // Adjusted to account for padding
+    height: verticalScale(100),
+  },
+  submitButton: {
+    backgroundColor: '#8bc83f',
+    paddingVertical: verticalScale(10),
+    borderRadius: moderateScale(15),
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#a0a0a0',
+  },
+  submitButtonText: {
+    fontSize: moderateScale(14),
+    color: '#FFFFFF',
+  },
+  labelText: {
+    fontSize: moderateScale(10),
+    color: '#4A5568',
+    fontFamily: 'Rubik-Regular',
   },
 });

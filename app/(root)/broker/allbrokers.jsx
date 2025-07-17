@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking, RefreshControl } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import images from '@/constants/images';
@@ -6,48 +6,79 @@ import { useRouter } from 'expo-router';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import icons from '@/constants/icons';
+import { Picker } from '@react-native-picker/picker';
+import { useTranslation } from 'react-i18next';
 
 const PADDING_HORIZONTAL = scale(15);
 const GAP = scale(7);
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const Allbrokers = () => {
-    const [brokerList, setbrokerList] = useState([]);
+    const [brokerList, setBrokerList] = useState([]);
+    const [filteredBrokerList, setFilteredBrokerList] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [selectedCity, setSelectedCity] = useState('all');
+    const [cities, setCities] = useState([]);
     const router = useRouter();
+    const { t } = useTranslation();
 
-    const fetchAgenList = async () => {
+    const fetchAgentList = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/brokerlist`);
+            const response = await axios.get(`https://landsquire.in/api/brokerlist`);
             if (response.data && response.data.success && Array.isArray(response.data.data)) {
-                console.log(response.data.data);
-                const apiData = response.data.data.map((broker, index) => ({
+                const apiData = response.data.data.map((broker) => ({
                     id: broker.id,
-                    city: broker.city,
+                    city: broker.city || 'Unknown',
                     name: broker.username ? broker.username.split(' ')[0] : 'Unknown broker',
                     image: broker.profile
                         ? broker.profile.startsWith('http')
                             ? { uri: broker.profile }
-                            : { uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${broker.profile}` }
+                            : { uri: `https://landsquire.in/adminAssets/images/Users/${broker.profile}` }
                         : images.avatar,
-                    phone: broker.mobilenumber || `+91${Math.floor(1000000000 + Math.random() * 9000000000)}`, // Use mobilenumber from API
+                    phone: broker.mobilenumber || `+91${Math.floor(1000000000 + Math.random() * 9000000000)}`,
                 }));
-                setbrokerList(apiData);
+                setBrokerList(apiData);
+                setFilteredBrokerList(apiData);
+                // Extract unique cities
+                const uniqueCities = ['all', ...new Set(apiData.map(broker => broker.city).filter(city => city && city !== 'Unknown'))];
+                setCities(uniqueCities);
             } else {
                 console.error('Unexpected API response format:', response.data);
-                setbrokerList([]);
+                setBrokerList([]);
+                setFilteredBrokerList([]);
+                setCities(['all']);
             }
         } catch (error) {
             console.error('Error fetching broker data:', error.response ? `${error.response.status} - ${error.response.statusText}` : error.message, error.response ? error.response.data : {});
-            setbrokerList([]);
+            setBrokerList([]);
+            setFilteredBrokerList([]);
+            setCities(['all']);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
     useEffect(() => {
-        fetchAgenList();
+        fetchAgentList();
     }, []);
+
+    useEffect(() => {
+        // Filter brokers based on selected city
+        if (selectedCity === 'all') {
+            setFilteredBrokerList(brokerList);
+        } else {
+            setFilteredBrokerList(brokerList.filter(broker => broker.city === selectedCity));
+        }
+    }, [selectedCity, brokerList]);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        setSelectedCity('all'); // Reset filter on refresh
+        fetchAgentList();
+    };
 
     const handleCall = (phone) => {
         if (phone) {
@@ -58,9 +89,7 @@ const Allbrokers = () => {
     };
 
     const handleWhatsApp = (phone) => {
-        console.log('Attempting WhatsApp with phone:', phone); // Debug log
         if (phone) {
-            // Ensure phone number is formatted correctly (remove spaces, ensure country code if needed)
             const formattedPhone = phone.replace(/\s/g, '').startsWith('+') ? phone.replace(/\s/g, '') : `+91${phone.replace(/\s/g, '')}`;
             Linking.openURL(`https://wa.me/${formattedPhone}`).catch((err) => console.error('Error opening WhatsApp:', err));
         } else {
@@ -68,7 +97,7 @@ const Allbrokers = () => {
         }
     };
 
-    const renderbroker = ({ item }) => (
+    const renderBroker = ({ item }) => (
         <TouchableOpacity
             style={styles.card}
             onPress={() => {
@@ -100,7 +129,7 @@ const Allbrokers = () => {
         </TouchableOpacity>
     );
 
-    if (loading) {
+    if (loading && !refreshing) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#8bc83f" />
@@ -112,21 +141,46 @@ const Allbrokers = () => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.titleContainer}>
-                    <Text style={styles.title}>All Property Brokers</Text>
+                    <Text style={styles.title}>{t('allBrokers')}</Text>
                 </View>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Image source={icons.backArrow} style={styles.backIcon} />
                 </TouchableOpacity>
             </View>
 
+            <View style={styles.filterContainer}>
+                <Picker
+                    selectedValue={selectedCity}
+                    onValueChange={(itemValue) => setSelectedCity(itemValue)}
+                    style={styles.picker}
+                    itemStyle={styles.pickerItem}
+                >
+                    {cities.map((city) => (
+                        <Picker.Item
+                            key={city}
+                            label={city === 'all' ? t('allCities') : city}
+                            value={city}
+                        />
+                    ))}
+                </Picker>
+            </View>
+
             <FlatList
-                data={brokerList}
-                renderItem={renderbroker}
+                data={filteredBrokerList}
+                renderItem={renderBroker}
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={styles.flatListContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['#8bc83f']}
+                        tintColor="#8bc83f"
+                    />
+                }
                 ListEmptyComponent={() => (
-                    <Text style={styles.emptyText}>No brokers available</Text>
+                    <Text style={styles.emptyText}>{t('noBrokersAvailable')}</Text>
                 )}
             />
         </View>
@@ -146,12 +200,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: verticalScale(10),
+        marginTop: verticalScale(10),
     },
     backButton: {
         backgroundColor: '#E6F0FA',
         borderRadius: 9999,
-        width: scale(44),
-        height: scale(44),
+        width: scale(30),
+        height: scale(30),
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -161,6 +216,7 @@ const styles = StyleSheet.create({
     },
     titleContainer: {
         alignItems: 'center',
+        flex: 1,
     },
     title: {
         fontSize: moderateScale(20),
@@ -173,8 +229,25 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    filterContainer: {
+        marginBottom: verticalScale(10),
+        backgroundColor: '#fff',
+        borderRadius: moderateScale(8),
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    picker: {
+        width: '100%',
+        height: verticalScale(40),
+        color: '#234F68',
+    },
+    pickerItem: {
+        fontSize: moderateScale(14),
+        fontFamily: 'Rubik-Regular',
+        color: '#234F68',
+    },
     flatListContent: {
-        paddingBottom: verticalScale(20),
+        paddingBottom: verticalScale(50),
     },
     card: {
         flexDirection: 'row',
@@ -214,12 +287,6 @@ const styles = StyleSheet.create({
         fontFamily: 'Rubik-Regular',
         color: '#6B7280',
     },
-    salesText: {
-        marginLeft: scale(5),
-        fontSize: moderateScale(12),
-        fontFamily: 'Rubik-Regular',
-        color: '#6B7280',
-    },
     buttonContainer: {
         flexDirection: 'row',
         marginTop: verticalScale(5),
@@ -233,14 +300,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: scale(12),
         marginRight: scale(10),
     },
-    buttonText: {
-        color: '#fff',
-        fontSize: moderateScale(12),
-        fontFamily: 'Rubik-Regular',
-        marginLeft: scale(5),
-    },
     emptyText: {
         fontSize: moderateScale(16),
+        fontFamily: 'Rubik-Regular',
         color: '#6B7280',
         textAlign: 'center',
         marginTop: verticalScale(20),

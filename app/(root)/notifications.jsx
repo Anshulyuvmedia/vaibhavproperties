@@ -20,7 +20,7 @@ const Notifications = () => {
         setLoading(true);
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/usernotifications/?user_type=${parsedUserData.user_type}`);
+            const response = await axios.get(`https://landsquire.in/api/usernotifications/?user_type=${parsedUserData.user_type}`);
 
             if (response.data?.notifications) {
                 const apiData = response.data.notifications;
@@ -93,7 +93,7 @@ const Notifications = () => {
     const readCount = notificationData.length - unreadCount;
 
     const renderNotification = ({ item }) => {
-        const imageUrl = `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Notificaitons/${item.notificationimg}`;
+        const imageUrl = `https://landsquire.in/adminAssets/images/Notificaitons/${item.notificationimg}`;
         const isRead = readStatus[item.id] || false;
         const previewText = item.notificationdes.length > 50 ? `${item.notificationdes.substring(0, 50)}...` : item.notificationdes;
 
@@ -226,7 +226,7 @@ const Notifications = () => {
                     <>
                         <View className='flex-row'>
                             <Image
-                                source={{ uri: `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Notificaitons/${selectedNotification.notificationimg}` }}
+                                source={{ uri: `https://landsquire.in/adminAssets/images/Notificaitons/${selectedNotification.notificationimg}` }}
                                 style={styles.profileImage}
                             />
                             <View>

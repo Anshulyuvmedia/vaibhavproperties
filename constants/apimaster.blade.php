@@ -14,7 +14,7 @@ use Log;
 use Laravel\Socialite\Facades\Socialite;
 use Google_Client;
 use Illuminate\Support\Facades\Validator;
-
+use App\Notifications\BidLiveNotification;
 
 class ApiMasterController extends Controller
 {
@@ -35,30 +35,30 @@ class ApiMasterController extends Controller
                             'success' => true,
                             'token' => $token,
                             'data' => $user,
-                            'message' => 'Login Successfully..!!!!!'
+                            'message' => 'Login Successfully..!!!!!',
                         ];
                     } else {
                         $response = [
                             'success' => false,
-                            'message' => 'Invalid..!!!!!'
+                            'message' => 'Invalid..!!!!!',
                         ];
                     }
                 } else {
                     $response = [
                         'success' => false,
-                        'message' => 'Invalid Password..!!!'
+                        'message' => 'Invalid Password..!!!',
                     ];
                 }
             } else {
                 $response = [
                     'success' => false,
-                    'message' => 'Invalid Email..!!!'
+                    'message' => 'Invalid Email..!!!',
                 ];
             }
         } catch (Exception $e) {
             $response = [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
 
@@ -72,10 +72,13 @@ class ApiMasterController extends Controller
         try {
             // Check if email already exists
             if (RegisterUser::where('email', $rq->email)->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'This email is already registered. Please use a different email or log in.'
-                ], 400);
+                return response()->json(
+                    [
+                        'success' => false,
+                        'message' => 'This email is already registered. Please use a different email or log in.',
+                    ],
+                    400,
+                );
             }
 
             if ($rq->hasFile('company_document')) {
@@ -105,13 +108,16 @@ class ApiMasterController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'You have been Registered Successfully..!!!',
-                'data' => $attributes
+                'data' => $attributes,
             ]);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Registration failed: ' . $e->getMessage()
-            ], 500);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Registration failed: ' . $e->getMessage(),
+                ],
+                500,
+            );
         }
     }
 
@@ -125,10 +131,13 @@ class ApiMasterController extends Controller
 
         if ($validator->fails()) {
             Log::error('Validation failed:', $validator->errors()->toArray());
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first(),
-            ], 400);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                ],
+                400,
+            );
         }
 
         $credentials = $request->only('mobilenumber');
@@ -139,18 +148,24 @@ class ApiMasterController extends Controller
             $user->update(['otp' => $otp]);
 
             // Log::info('OTP generated for user ID:', ['id' => $user->id, 'otp' => $otp]);
-            return response()->json([
-                'success' => true,
-                'data' => ['id' => $user->id, 'otp' => $otp], // Remove otp in production
-                'message' => 'OTP generated successfully',
-            ], 200);
+            return response()->json(
+                [
+                    'success' => true,
+                    'data' => ['id' => $user->id, 'otp' => $otp], // Remove otp in production
+                    'message' => 'OTP generated successfully',
+                ],
+                200,
+            );
         }
 
         Log::warning('Mobile number not found:', $credentials);
-        return response()->json([
-            'success' => false,
-            'message' => 'Mobile number not found',
-        ], 404);
+        return response()->json(
+            [
+                'success' => false,
+                'message' => 'Mobile number not found',
+            ],
+            404,
+        );
     }
 
     public function verifyotp(Request $request)
@@ -167,10 +182,13 @@ class ApiMasterController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $validator->errors()->first(),
-                ], 400);
+                return response()->json(
+                    [
+                        'success' => false,
+                        'message' => $validator->errors()->first(),
+                    ],
+                    400,
+                );
             }
 
             $user = RegisterUser::find($request->input('loginformidval'));
@@ -182,35 +200,42 @@ class ApiMasterController extends Controller
                 Auth::guard('customer')->login($user);
                 $token = hash('sha256', $user->id . time() . $user->otp);
 
-                return response()->json([
-                    'success' => true,
-                    'token' => $token,
-                    'data' => $user,
-                    'message' => 'Login Successfully..!!!!!'
-                ], 200);
+                return response()->json(
+                    [
+                        'success' => true,
+                        'token' => $token,
+                        'data' => $user,
+                        'message' => 'Login Successfully..!!!!!',
+                    ],
+                    200,
+                );
             }
 
-            return response()->json([
-                'success' => false,
-                'message' => 'OTP not verified',
-            ], 401);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'OTP not verified',
+                ],
+                401,
+            );
         } catch (Exception $e) {
             Log::error('OTP verification error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred during OTP verification: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'An error occurred during OTP verification: ' . $e->getMessage(),
+                ],
+                500,
+            );
         }
     }
-
-
 
     public function blogs()
     {
         $blogs = Blog::orderBy('created_at', 'desc')->get();
         return response()->json([
             'success' => true,
-            'data' => $blogs
+            'data' => $blogs,
         ]);
     }
 
@@ -243,7 +268,7 @@ class ApiMasterController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $listings
+            'data' => $listings,
         ]);
     }
 
@@ -252,7 +277,7 @@ class ApiMasterController extends Controller
         $categories = Master::where('type', 'Property Categories')->get();
         return response()->json([
             'success' => true,
-            'categories' => $categories
+            'categories' => $categories,
         ]);
     }
 
@@ -260,11 +285,7 @@ class ApiMasterController extends Controller
     {
         $propertydetails = PropertyListing::find($id);
         $bokerId = $propertydetails->roleid;
-        $brokerdata = RegisterUser::select('username', 'profile', 'email', 'company_name', 'mobilenumber')
-            ->where('id', $bokerId)
-            ->where('user_type', 'broker')
-            ->where('verification_status', '1')
-            ->get();
+        $brokerdata = RegisterUser::select('username', 'profile', 'email', 'company_name', 'mobilenumber')->where('id', $bokerId)->where('user_type', 'broker')->where('verification_status', '1')->get();
         return response()->json([
             'success' => true,
             'brokerdata' => $brokerdata,
@@ -318,7 +339,6 @@ class ApiMasterController extends Controller
                 // \Log::info("🚨 No gallery images detected in request.");
             }
 
-
             // Handle multiple documents
             $documents = [];
             if ($request->hasFile('documents')) {
@@ -347,29 +367,29 @@ class ApiMasterController extends Controller
 
             // Create the property listing (Ensure all fields are checked)
             $data = PropertyListing::create([
-                'usertype' => $datareq['usertype'] ?? "agent",
-                'roleid' => $datareq['roleid'] ?? "4",
-                'property_name' => $datareq['property_name'] ?? "",
-                'nearbylocation' => $datareq['nearbylocation'] ?? "",
+                'usertype' => $datareq['usertype'] ?? 'agent',
+                'roleid' => $datareq['roleid'] ?? '4',
+                'property_name' => $datareq['property_name'] ?? '',
+                'nearbylocation' => $datareq['nearbylocation'] ?? '',
                 'approxrentalincome' => $datareq['approxrentalincome'],
-                'discription' => strip_tags($datareq['description'] ?? ""), // Remove HTML tags
-                'price' => $datareq['price'] ?? "",
-                'pricehistory' => json_encode(is_string($datareq['historydate']) ? json_decode($datareq['historydate'], true) : ($datareq['historydate'] ?? [])),
-                'squarefoot' => $datareq['sqfoot'] ?? "",
-                'bedroom' => $datareq['bedroom'] ?? "",
-                'bathroom' => $datareq['bathroom'] ?? "",
-                'floor' => $datareq['floor'] ?? "",
-                'city' => $datareq['city'] ?? "",
-                'address' => $datareq['officeaddress'] ?? "",
+                'discription' => strip_tags($datareq['description'] ?? ''), // Remove HTML tags
+                'price' => $datareq['price'] ?? '',
+                'pricehistory' => json_encode(is_string($datareq['historydate']) ? json_decode($datareq['historydate'], true) : $datareq['historydate'] ?? []),
+                'squarefoot' => $datareq['sqfoot'] ?? '',
+                'bedroom' => $datareq['bedroom'] ?? '',
+                'bathroom' => $datareq['bathroom'] ?? '',
+                'floor' => $datareq['floor'] ?? '',
+                'city' => $datareq['city'] ?? '',
+                'address' => $datareq['officeaddress'] ?? '',
                 'thumbnail' => $thumbnailFilename,
                 'masterplandoc' => $masterdoc,
-                'maplocations' => $datareq['location'] ?? ["Latitude" => "", "Longitude" => ""],
-                'category' => $datareq['category'] ?? "",
+                'maplocations' => $datareq['location'] ?? ['Latitude' => '', 'Longitude' => ''],
+                'category' => $datareq['category'] ?? '',
                 'gallery' => json_encode($galleryImages),
                 'documents' => json_encode($documents),
                 'amenties' => $datareq['amenities'] ?? [],
                 'videos' => json_encode($Videos),
-                'status' => "unpublished",
+                'status' => 'unpublished',
             ]);
 
             return response()->json(['data' => $data, 'message' => 'Listing inserted successfully!']);
@@ -377,7 +397,6 @@ class ApiMasterController extends Controller
             return response()->json(['error' => true, 'message' => $e->getMessage()]);
         }
     }
-
 
     public function filterlistings(Request $req)
     {
@@ -388,7 +407,6 @@ class ApiMasterController extends Controller
         $sqftfrom = $req->query('sqftfrom');
         $sqftto = $req->query('sqftto');
 
-
         // Log::info('Filters:', [
         //     'category' => $category,
         //     'city' => $city,
@@ -397,7 +415,6 @@ class ApiMasterController extends Controller
         //     'sqftfrom' => $sqftfrom,
         //     'sqftto' => $sqftto,
         // ]);
-
 
         $listings = PropertyListing::query();
 
@@ -428,10 +445,9 @@ class ApiMasterController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $listings
+            'data' => $listings,
         ]);
     }
-
 
     public function sendenquiry(Request $rq)
     {
@@ -440,35 +456,34 @@ class ApiMasterController extends Controller
             $currentdate = now();
 
             // Find existing lead
-            $lead = Lead::where('propertyid', $rq->propertyid)
-            ->where('userid', $rq->userid)
-            ->first();
+            $lead = Lead::where('propertyid', $rq->propertyid)->where('userid', $rq->userid)->first();
 
             // Get old bid history and append new bid
             $bidHistory = [];
             if ($lead && $lead->propertybid) {
-            $bidHistory = json_decode($lead->propertybid, true) ?? [];
+                $bidHistory = json_decode($lead->propertybid, true) ?? [];
             }
             $bidHistory[] = [
-            'date' => $currentdate->toDateTimeString(),
-            'bidamount' => $bidamount
+                'date' => $currentdate->toDateTimeString(),
+                'bidamount' => $bidamount,
             ];
 
             $data = Lead::updateOrCreate(
-            ['propertyid' => $rq->propertyid, 'userid' => $rq->userid],
-            [
-                'name' => $rq->customername,
-                'mobilenumber' => $rq->phone,
-                'email' => $rq->email,
-                'city' => $rq->city,
-                'state' => $rq->state,
-                'inwhichcity' => $rq->usercity,
-                'housecategory' => $rq->propertytype,
-                'propertyid' => $rq->propertyid,
-                'userid' => $rq->userid,
-                'agentid' => $rq->brokerid,
-                'propertybid' => json_encode($bidHistory),
-            ]);
+                ['propertyid' => $rq->propertyid, 'userid' => $rq->userid],
+                [
+                    'name' => $rq->customername,
+                    'mobilenumber' => $rq->phone,
+                    'email' => $rq->email,
+                    'city' => $rq->city,
+                    'state' => $rq->state,
+                    'inwhichcity' => $rq->usercity,
+                    'housecategory' => $rq->propertytype,
+                    'propertyid' => $rq->propertyid,
+                    'userid' => $rq->userid,
+                    'agentid' => $rq->brokerid,
+                    'propertybid' => json_encode($bidHistory),
+                ],
+            );
             return response()->json(['success' => true, 'data' => $data, 'message' => 'Enquiry Sent..!!!']);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
@@ -481,12 +496,11 @@ class ApiMasterController extends Controller
         return response()->json(['success' => true, 'data' => $userprofiledata]);
     }
 
-
     public function updateuserprofile(Request $request, $id)
     {
         try {
             $user = RegisterUser::find($id);
-            $filenameprofileimage = "";
+            $filenameprofileimage = '';
             $thumbnailFilename = null;
 
             if ($request->hasFile('myprofileimage')) {
@@ -547,9 +561,7 @@ class ApiMasterController extends Controller
 
     public function listingscitywise()
     {
-        $cityListings = PropertyListing::where('status', 'published')
-            ->get()
-            ->groupBy('city');
+        $cityListings = PropertyListing::where('status', 'published')->get()->groupBy('city');
 
         $listingsbycitys = Master::where('type', 'City')->get();
         foreach ($listingsbycitys as $city) {
@@ -564,13 +576,11 @@ class ApiMasterController extends Controller
         ]);
     }
 
-
     public function updatelisting(Request $request, $id)
     {
         $datareq = $request->all();
         // \Log::info('Received Data:', $request->all());
         try {
-
             $olddata = PropertyListing::find($id);
             // Handle the thumbnail image
             $thumbnailFilename = null;
@@ -635,9 +645,6 @@ class ApiMasterController extends Controller
                 }
             }
 
-
-
-
             $propertydata = PropertyListing::where('id', $id)->update([
                 'roleid' => $datareq['roleid'],
                 'property_name' => $datareq['property_name'],
@@ -645,7 +652,7 @@ class ApiMasterController extends Controller
                 'approxrentalincome' => $datareq['approxrentalincome'],
                 'discription' => strip_tags($datareq['description'] ?? ''), // Remove HTML tags
                 'price' => $datareq['price'],
-                'pricehistory' =>  $datareq['historydate'],
+                'pricehistory' => $datareq['historydate'],
                 'squarefoot' => $datareq['sqfoot'],
                 'bedroom' => $datareq['bedroom'],
                 'bathroom' => $datareq['bathroom'],
@@ -669,7 +676,6 @@ class ApiMasterController extends Controller
         }
     }
 
-
     public function deletefile(Request $request)
     {
         // Log::info("Delete request received:", $request->all());
@@ -678,7 +684,7 @@ class ApiMasterController extends Controller
             $request->validate([
                 'property_id' => 'required|exists:property_listings,id',
                 'file_type' => 'required|in:thumbnail,gallery,video,document,masterplan',
-                'file_path' => 'required|string'
+                'file_path' => 'required|string',
             ]);
 
             $property = PropertyListing::find($request->property_id);
@@ -697,7 +703,7 @@ class ApiMasterController extends Controller
                 unlink($absoluteFilePath);
                 // Log::info("File deleted successfully: " . $absoluteFilePath);
             } else {
-                Log::warning("File not found: " . $absoluteFilePath);
+                Log::warning('File not found: ' . $absoluteFilePath);
             }
 
             // Handle different file types and update the database
@@ -707,32 +713,40 @@ class ApiMasterController extends Controller
                     break;
                 case 'gallery':
                     $galleryImages = json_decode($property->gallery, true) ?? [];
-                    $galleryImages = array_values(array_filter($galleryImages, function ($img) use ($filePath) {
-                        return trim(str_replace('\/', '/', $img)) !== trim($filePath);
-                    }));
+                    $galleryImages = array_values(
+                        array_filter($galleryImages, function ($img) use ($filePath) {
+                            return trim(str_replace('\/', '/', $img)) !== trim($filePath);
+                        }),
+                    );
                     $property->gallery = json_encode($galleryImages);
                     break;
                 case 'video':
                     $videos = json_decode($property->videos, true) ?? [];
-                    $videos = array_values(array_filter($videos, function ($vid) use ($filePath) {
-                        return trim(str_replace('\/', '/', $vid)) !== trim($filePath);
-                    }));
+                    $videos = array_values(
+                        array_filter($videos, function ($vid) use ($filePath) {
+                            return trim(str_replace('\/', '/', $vid)) !== trim($filePath);
+                        }),
+                    );
                     $property->videos = json_encode($videos);
                     // Log::info("Updated videos list: " . json_encode($videos));
                     break;
                 case 'document':
                     $documents = json_decode($property->documents, true) ?? [];
-                    $documents = array_values(array_filter($documents, function ($doc) use ($filePath) {
-                        return trim(str_replace('\/', '/', $doc)) !== trim($filePath);
-                    }));
+                    $documents = array_values(
+                        array_filter($documents, function ($doc) use ($filePath) {
+                            return trim(str_replace('\/', '/', $doc)) !== trim($filePath);
+                        }),
+                    );
                     $property->documents = json_encode($documents);
                     // Log::info("Updated documents list: " . json_encode($documents));
                     break;
                 case 'masterplan':
                     $masterPlans = json_decode($property->masterplandoc, true) ?? [];
-                    $masterPlans = array_values(array_filter($masterPlans, function ($doc) use ($filePath) {
-                        return trim(str_replace('\/', '/', $doc)) !== trim($filePath);
-                    }));
+                    $masterPlans = array_values(
+                        array_filter($masterPlans, function ($doc) use ($filePath) {
+                            return trim(str_replace('\/', '/', $doc)) !== trim($filePath);
+                        }),
+                    );
                     $property->masterplandoc = json_encode($masterPlans);
                     // Log::info("Updated master plan list: " . json_encode($masterPlans));
                     break;
@@ -742,11 +756,10 @@ class ApiMasterController extends Controller
 
             return response()->json(['message' => 'File deleted successfully']);
         } catch (Exception $e) {
-            Log::error("File delete error: " . $e->getMessage());
+            Log::error('File delete error: ' . $e->getMessage());
             return response()->json(['error' => true, 'message' => 'Failed to delete file.']);
         }
     }
-
 
     // **WEB LOGIN - Redirects to Google for Authentication**
     public function googleLogin()
@@ -760,9 +773,7 @@ class ApiMasterController extends Controller
         try {
             $googleUser = Socialite::driver('google')->user();
 
-            $user = RegisterUser::where('google_id', $googleUser->id)
-                ->orWhere('email', $googleUser->email)
-                ->first();
+            $user = RegisterUser::where('google_id', $googleUser->id)->orWhere('email', $googleUser->email)->first();
 
             if ($user) {
                 Auth::guard('customer')->login($user);
@@ -772,7 +783,9 @@ class ApiMasterController extends Controller
 
             return redirect()->route('website.userlogin')->with('error', 'This user is not registered');
         } catch (Exception $exception) {
-            return redirect()->route('website.userlogin')->with('error', 'Something went wrong: ' . $exception->getMessage());
+            return redirect()
+                ->route('website.userlogin')
+                ->with('error', 'Something went wrong: ' . $exception->getMessage());
         }
     }
 
@@ -792,9 +805,7 @@ class ApiMasterController extends Controller
             }
 
             // Check if user exists
-            $user = RegisterUser::where('google_id', $googleUser['sub'])
-                ->orWhere('email', $googleUser['email'])
-                ->first();
+            $user = RegisterUser::where('google_id', $googleUser['sub'])->orWhere('email', $googleUser['email'])->first();
 
             if (!$user) {
                 // Register new user
@@ -815,12 +826,15 @@ class ApiMasterController extends Controller
             // Generate API token for mobile/web
             $apiToken = $user->createToken('authToken')->plainTextToken;
 
-            return response()->json([
-                'success' => true,
-                'message' => 'User authenticated successfully',
-                'token' => $apiToken,
-                'data' => $user
-            ], 200);
+            return response()->json(
+                [
+                    'success' => true,
+                    'message' => 'User authenticated successfully',
+                    'token' => $apiToken,
+                    'data' => $user,
+                ],
+                200,
+            );
         } catch (Exception $exception) {
             return response()->json(['success' => false, 'message' => 'Something went wrong', 'error' => $exception->getMessage()], 500);
         }
@@ -868,21 +882,14 @@ class ApiMasterController extends Controller
     public function brokerlist()
     {
         $brokerlistdata = RegisterUser::select('username', 'profile', 'id', 'mobilenumber', 'city')->where('user_type', 'broker')->where('verification_status', '1')->get();
+        
         return response()->json(['success' => true, 'data' => $brokerlistdata]);
     }
     public function brokerprofile(Request $rq)
     {
-        $brokerdata = RegisterUser::select('username', 'profile', 'email', 'company_name', 'mobilenumber')
-            ->where('id', $rq->id)
-            ->where('user_type', 'broker')
-            ->where('verification_status', '1')
-            ->get();
+        $brokerdata = RegisterUser::select('username', 'profile', 'email', 'company_name', 'mobilenumber')->where('id', $rq->id)->where('user_type', 'broker')->where('verification_status', '1')->get();
 
-        $allproperties = PropertyListing::select('property_name', 'id', 'price', 'city', 'thumbnail', 'category')
-            ->where('roleid', $rq->id)
-            ->where('status', 'published')
-            ->orderBy('created_at', 'DESC')
-            ->get();
+        $allproperties = PropertyListing::select('property_name', 'id', 'price', 'city', 'thumbnail', 'category')->where('roleid', $rq->id)->where('status', 'published')->orderBy('created_at', 'DESC')->get();
 
         return response()->json([
             'success' => true,
@@ -894,15 +901,11 @@ class ApiMasterController extends Controller
     public function fetchenquiries(Request $rq)
     {
         try {
-            $myenquiries = Lead::where('userid', $rq->id)
-            ->where('form_type','=','broker')
-            ->get();
+            $myenquiries = Lead::where('userid', $rq->id)->where('form_type', '=', 'broker')->get();
 
-            $brokerenquiries = Lead::where('agentid', $rq->id)
-            ->where('form_type','=','broker')
-            ->get();
+            $brokerenquiries = Lead::where('agentid', $rq->id)->where('form_type', '=', 'broker')->get();
 
-            $loanenquiries = Lead::where('form_type','=','bankagent')->get();
+            $loanenquiries = Lead::where('form_type', '=', 'bankagent')->get();
 
             return response()->json([
                 'success' => true,
@@ -915,7 +918,6 @@ class ApiMasterController extends Controller
         }
     }
 
-
     public function bankagentlist()
     {
         $bankagentlistdata = RegisterUser::select('username', 'profile', 'id')->where('user_type', 'bankagent')->where('verification_status', '1')->get();
@@ -923,12 +925,7 @@ class ApiMasterController extends Controller
     }
     public function bankagentprofile(Request $rq)
     {
-        $agentdata = RegisterUser::select('username', 'profile', 'email', 'company_name')
-            ->where('id', $rq->id)
-            ->where('user_type', 'bankagent')
-            ->where('verification_status', '1')
-            ->get();
-
+        $agentdata = RegisterUser::select('username', 'profile', 'email', 'company_name')->where('id', $rq->id)->where('user_type', 'bankagent')->where('verification_status', '1')->get();
 
         return response()->json([
             'success' => true,
@@ -978,24 +975,54 @@ class ApiMasterController extends Controller
                 'loan_amount' => $rq->loan_amount,
             ]);
 
-            return response()->json([
-                'success' => true,
-                'data' => $data,
-            ], 200);
+            return response()->json(
+                [
+                    'success' => true,
+                    'data' => $data,
+                ],
+                200,
+            );
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors(),
+                ],
+                422,
+            );
         } catch (\Exception $e) {
             \Log::error('Loan enquiry error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Server error occurred',
-            ], 500);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Server error occurred',
+                ],
+                500,
+            );
         }
+    }
 
+    public function UpdateBidStatus(Request $request)
+    {
+        try {
+            $property = PropertyListing::findOrFail($request->propertyid);
+            $property->update([
+                'bidstatus' => $request->bidliveStatus,
+                'bidenddate' => $request->bidEnddate ?? $property->bidenddate,
+            ]);
+
+            if ($request->bidliveStatus === 'on') {
+                $recipients = RegisterUser::whereIn('user_type', ['user', 'broker'])->get();
+                foreach ($recipients as $user) {
+                    $user->notify(new BidLiveNotification($property));
+                }
+                Log::info('Notifications are sent!');
+            }
+
+            return response()->json(['success' => true, 'message' => 'Bid is Live now'], 200);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'error' => 'Failed to update bid status: ' . $e->getMessage()], 500);
+        }
     }
 }
-

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator, Switch, RefreshControl } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 const Dashboard = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const [image, setImage] = useState(images.avatar);
   const { t, i18n } = useTranslation();
@@ -32,7 +33,7 @@ const Dashboard = () => {
         return;
       }
 
-      const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/userprofile?id=${parsedUserData.id}`);
+      const response = await axios.get(`https://landsquire.in/api/userprofile?id=${parsedUserData.id}`);
 
       if (response.data && response.data.data) {
         const apiData = response.data.data;
@@ -41,7 +42,7 @@ const Dashboard = () => {
           apiData.profile
             ? apiData.profile.startsWith('http')
               ? apiData.profile
-              : `https://vaibhavproperties.cigmafeed.in/adminAssets/images/Users/${apiData.profile}`
+              : `https://landsquire.in/adminAssets/images/Users/${apiData.profile}`
             : images.avatar
         );
       } else {
@@ -53,12 +54,18 @@ const Dashboard = () => {
       setImage(images.avatar);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchUserData();
+  };
 
   const handleLogout = async () => {
     try {
@@ -104,7 +111,7 @@ const Dashboard = () => {
     >
       <MaterialIcons name={icon} size={moderateScale(18, 0.3)} color={textColor} />
       <Text
-        className={`ml-2.5 text-lg ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} ${textColor === '#F75555' ? 'text-danger' : textColor === '#234F68' ? 'text-primary-300' : 'text-black-100'}`}
+        className={`ml-2.5 text-lg ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} ${textColor === '#000' ? 'text-danger' : textColor === '#234F68' ? 'text-primary-300' : 'text-black-300'}`}
       >
         {title}
       </Text>
@@ -116,8 +123,16 @@ const Dashboard = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: verticalScale(60), paddingHorizontal: scale(12) }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#234F68']} // Match the primary color used in the app
+            tintColor="#234F68"
+          />
+        }
       >
-        {loading ? (
+        {loading && !refreshing ? (
           <ActivityIndicator
             size="large"
             color="#234F68"
@@ -155,24 +170,24 @@ const Dashboard = () => {
                     {userData?.username || 'User'}
                   </Text>
                   <Text
-                    className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-black-100 `}
+                    className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-black-300 `}
                   >
                     {t('email')}: {userData?.email || 'N/A'}
                   </Text>
                   <View className="flex-row justify-between items-end mt-0.75">
                     <View>
                       <Text
-                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-black-100 capitalize`}
+                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-black-300 capitalize`}
                       >
                         {t('mobile')}: {userData?.mobilenumber || 'N/A'}
                       </Text>
                       <Text
-                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-black-100 capitalize`}
+                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-black-300 capitalize`}
                       >
                         {t('role')}: {userData?.user_type || 'N/A'}
                       </Text>
                       <Text
-                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-black-100 capitalize`}
+                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-black-300 capitalize`}
                       >
                         {t('city')}: {userData?.city || 'N/A'}
                       </Text>
@@ -182,7 +197,7 @@ const Dashboard = () => {
                       className="bg-primary-200 px-3 py-1.5 rounded-md"
                     >
                       <Text
-                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-primary-300`}
+                        className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-primary-300`}
                       >
                         {t('editProfile')}
                       </Text>
@@ -206,7 +221,7 @@ const Dashboard = () => {
               />
               <MenuItem
                 icon="attach-money"
-                title={t('Apply for loan')}
+                title={t('applyforloan')}
                 onPress={() => router.push('/loanenquiry')}
               />
               {/* Language Toggle */}
@@ -214,14 +229,14 @@ const Dashboard = () => {
                 <View className="flex-row items-center">
                   <MaterialIcons name="language" size={moderateScale(18, 0.3)} color="#234F68" />
                   <Text
-                    className={`ml-2.5 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} text-primary-300`}
+                    className={`ml-2.5 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'}`}
                   >
                     {t('changeLanguage')}
                   </Text>
                 </View>
                 <View className="flex-row items-center">
                   <Text
-                    className={`mr-2 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} ${i18n.language === 'en' ? 'text-primary-300' : 'text-black-100'}`}
+                    className={`mr-2 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} ${i18n.language === 'en' ? 'text-primary-300' : 'text-black-300'}`}
                   >
                     EN
                   </Text>
@@ -233,7 +248,7 @@ const Dashboard = () => {
                     ios_backgroundColor="#234F681A"
                   />
                   <Text
-                    className={`ml-2 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik-medium'} ${i18n.language === 'hi' ? 'text-primary-300' : 'text-black-100'}`}
+                    className={`ml-2 text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} ${i18n.language === 'hi' ? 'text-primary-300' : 'text-black-300'}`}
                   >
                     HI
                   </Text>

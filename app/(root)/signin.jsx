@@ -65,9 +65,9 @@ const Signin = () => {
     setLoading(true);
     setError(null);
     try {
-      // console.log('Sending request to:', 'https://vaibhavproperties.cigmafeed.in/api/generateotp');
+      // console.log('Sending request to:', 'https://landsquire.in/api/generateotp');
       // console.log('Request body:', { mobilenumber: mobileNumber });
-      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/generateotp', {
+      const response = await fetch('https://landsquire.in/api/generateotp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobilenumber: mobileNumber }),
@@ -122,7 +122,7 @@ const Signin = () => {
         6: otp[5],
       };
       // console.log('Verification payload:', payload);
-      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/verifyotp', {
+      const response = await fetch('https://landsquire.in/api/verifyotp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -177,7 +177,7 @@ const Signin = () => {
     setError(null);
     try {
       // console.log('Resending OTP for:', { mobilenumber: mobileNumber });
-      const response = await fetch('https://vaibhavproperties.cigmafeed.in/api/generateotp', {
+      const response = await fetch('https://landsquire.in/api/generateotp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobilenumber: mobileNumber }),

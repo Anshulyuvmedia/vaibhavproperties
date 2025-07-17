@@ -87,7 +87,7 @@ const Mapview = () => {
             const queryParams = new URLSearchParams();
             if (params.city) queryParams.append("filtercity", params.city);
 
-            const apiUrl = `https://vaibhavproperties.cigmafeed.in/api/filterlistings?${queryParams.toString()}`;
+            const apiUrl = `https://landsquire.in/api/filterlistings?${queryParams.toString()}`;
             const response = await axios({
                 method: "post",
                 url: apiUrl,
@@ -147,7 +147,7 @@ const Mapview = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get('https://vaibhavproperties.cigmafeed.in/api/property-listings', {
+            const response = await axios.get('https://landsquire.in/api/property-listings', {
                 params: {
                     latitude: mapRegion?.latitude || 26.4499,
                     longitude: mapRegion?.longitude || 74.6399,

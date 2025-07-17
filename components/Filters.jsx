@@ -35,7 +35,7 @@ const Filters = () => {
     const fetchCategories = async () => {
         setLoading(true);
         try {
-            const response = await axios.get("https://vaibhavproperties.cigmafeed.in/api/get-categories");
+            const response = await axios.get("https://landsquire.in/api/get-categories");
 
             if (response.data && response.data.categories) {
                 setCategoryData(response.data.categories);

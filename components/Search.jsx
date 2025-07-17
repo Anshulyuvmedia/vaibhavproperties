@@ -28,7 +28,7 @@ const Search = () => {
     const fetchCategories = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/get-categories`);
+            const response = await axios.get(`https://landsquire.in/api/get-categories`);
             if (response.data?.categories) {
                 setCategoryData(response.data.categories);
             } else {
@@ -44,7 +44,7 @@ const Search = () => {
     const fetchCityListing = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://vaibhavproperties.cigmafeed.in/api/listingscitywise`);
+            const response = await axios.get(`https://landsquire.in/api/listingscitywise`);
             if (response.data?.data) {
                 setCityData(response.data.data);
             } else {
@@ -153,7 +153,7 @@ const Search = () => {
                             editable={false}
                             placeholder={t('searchPlaceholder')}
                             placeholderTextColor="#999"
-                            className={`text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-black-200 ml-2 flex-1`}
+                            className={`text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-black-200 ml-2 flex-1`}
                         />
                     </View>
                     <Ionicons
@@ -219,7 +219,7 @@ const Search = () => {
                             keyboardType="numeric"
                             value={minPrice}
                             onChangeText={setMinPrice}
-                            className={`rounded-xl p-4 flex-1 bg-[#f4f2f7] text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-black-200`}
+                            className={`rounded-xl p-4 flex-1 bg-[#f4f2f7] text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-black-200`}
                             style={{ marginRight: 8 }}
                         />
                         <Text className="text-black-200">-</Text>
@@ -229,7 +229,7 @@ const Search = () => {
                             keyboardType="numeric"
                             value={maxPrice}
                             onChangeText={setMaxPrice}
-                            className={`rounded-xl p-4 flex-1 bg-[#f4f2f7] text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-black-200`}
+                            className={`rounded-xl p-4 flex-1 bg-[#f4f2f7] text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-black-200`}
                             style={{ marginLeft: 8 }}
                         />
                     </View>
@@ -244,7 +244,7 @@ const Search = () => {
                             keyboardType="numeric"
                             value={sqftfrom}
                             onChangeText={setsqftfrom}
-                            className={`rounded-xl p-4 flex-1 bg-[#f4f2f7] text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-black-200`}
+                            className={`rounded-xl p-4 flex-1 bg-[#f4f2f7] text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-black-200`}
                             style={{ marginRight: 8 }}
                         />
                         <Text className="text-black-200">-</Text>
@@ -254,7 +254,7 @@ const Search = () => {
                             keyboardType="numeric"
                             value={sqftto}
                             onChangeText={setsqftto}
-                            className={`rounded-xl p-4 flex-1 bg-[#f4f2f7] text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-regular' : 'font-rubik'} text-black-200`}
+                            className={`rounded-xl p-4 flex-1 bg-[#f4f2f7] text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-black-200`}
                             style={{ marginLeft: 8 }}
                         />
                     </View>
