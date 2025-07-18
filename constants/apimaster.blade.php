@@ -7,7 +7,7 @@ use App\Models\RegisterUser;
 use Auth, Hash, Exception;
 use App\Models\Blog;
 use App\Models\Lead;
-use App\Models\Nortification;
+use App\Models\Notification;
 use App\Models\PropertyListing;
 use App\Models\Master;
 use Log;
@@ -550,11 +550,56 @@ class ApiMasterController extends Controller
 
     public function usernotifications(Request $rq)
     {
-        $notifications = Nortification::where('sendto', $rq->user_type)->orWhere('sendto', 'all')->orderBy('created_at', 'DESC')->get();
-        $notifycnt = Nortification::where('sendto', $rq->user_type)->count();
+        // Fetch notifications with selected fields for the given user ID
+        $notifications = Notification::select('data', 'notifiable_id', 'read_at', 'created_at')
+            ->where('notifiable_id', $rq->id)
+            ->orderBy('created_at', 'DESC')
+            ->get();
+        $notifycnt = Notification::where('notifiable_id', $rq->id)->count();
+
+        // Collect unique property IDs
+        $propertyIds = [];
+        foreach ($notifications as $notification) {
+            $notificationData = json_decode($notification->data, true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($notificationData['property_id'])) {
+                $propertyIds[] = $notificationData['property_id'];
+            }
+        }
+        $propertyIds = array_unique($propertyIds);
+
+        // Fetch property data for all property IDs in one query
+        $properties = [];
+        if (!empty($propertyIds)) {
+            $properties = PropertyListing::select('thumbnail', 'id', 'property_name', 'bidenddate')
+                ->whereIn('id', $propertyIds)
+                ->get()
+                ->keyBy('id')
+                ->toArray();
+        }
+
+        // Merge notifications with their related property data
+        $mergedNotifications = $notifications->map(function ($notification) use ($properties) {
+            $notificationData = json_decode($notification->data, true);
+            $merged = $notification->toArray();
+            
+            // Add property data if property_id exists and property is found
+            if (json_last_error() === JSON_ERROR_NONE && isset($notificationData['property_id'])) {
+                $propertyId = $notificationData['property_id'];
+                if (isset($properties[$propertyId])) {
+                    $merged['property'] = $properties[$propertyId];
+                } else {
+                    $merged['property'] = null; // No property found for this ID
+                }
+            } else {
+                $merged['property'] = null; // No valid property_id in notification
+            }
+            
+            return $merged;
+        })->toArray();
+
         return response()->json([
             'success' => true,
-            'notifications' => $notifications,
+            'notifications' => $mergedNotifications,
             'count' => $notifycnt,
         ]);
     }

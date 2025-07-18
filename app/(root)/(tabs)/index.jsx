@@ -153,7 +153,7 @@ const Index = () => {
                         <View className="my-3">
                             <Filters />
                         </View>
-                        <HomeCarousel />
+                        {/* <HomeCarousel /> */}
 
                         <View className="my-5">
                             <View className="flex flex-row items-center justify-between mb-5">

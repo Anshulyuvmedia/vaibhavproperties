@@ -26,7 +26,7 @@ const FeaturedCard = ({ item, onPress, map }) => {
 
         <View className='flex flex-col items-start absolute bottom-5 inset-x-5'>
           <Text className='text-xl font-rubik-extrabold text-white' numberofLines={1}>{item.property_name}</Text>
-          <Text className='text-base font-rubik text-white' numberOfLines={1}>{item.city}, {item.address}</Text>
+          <Text className='text-base font-rubik text-white' numberOfLines={1}>{item.city}</Text>
           <View className='flex flex-row items-center justify-between w-full'>
             <Text className='text-xl font-rubik-extrabold text-white'>{item.category}</Text>
             {/* <Image source={icons.heart} className='size-5' /> */}
@@ -83,7 +83,7 @@ const Card = ({ item, onPress }) => {
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={moderateScale(16)} color="#234F68" />
           <Text style={styles.locationText} numberOfLines={1}>
-            {item.city}, {item.address}
+            {item.city}
           </Text>
         </View>
       </View>
@@ -228,7 +228,8 @@ const styles = StyleSheet.create({
   },
   propertyName: {
     fontSize: moderateScale(14),
-    fontFamily: 'Rubik-Medium',
+    fontWeight: 'bold',
+    textTransform: 'capitalize',
     color: '#000000',
     marginBottom: verticalScale(5),
   },

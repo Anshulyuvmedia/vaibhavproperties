@@ -10,6 +10,7 @@ import DatePicker from 'react-native-date-picker';
 import icons from '@/constants/icons';
 import PropertyNavigation from '@/components/PropertyNavigation';
 import { useTranslation } from 'react-i18next';
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 // Helper to format price in Indian Rupees
 const formatINR = (amount) => {
@@ -218,7 +219,7 @@ const Myproperties = () => {
                     </Text>
                     <View style={styles.locationRow}>
                       <View style={styles.statusContainer}>
-                        <Image source={icons.location} style={styles.locationIcon} />
+                        <Ionicons name="location-outline" size={16} color="#234F68" />
                         <Text style={[styles.locationText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                           {item.city}
                         </Text>
@@ -229,7 +230,7 @@ const Myproperties = () => {
                         {formatINR(item.price)}
                       </Text>
                       <View style={styles.statusContainer}>
-                        <View style={[ styles.statusDot, { backgroundColor: item.status?.toLowerCase() === 'published' ? '#28A745' : '#DC3545', }, ]} />
+                        <View style={[styles.statusDot, { backgroundColor: item.status?.toLowerCase() === 'published' ? '#28A745' : '#DC3545', },]} />
                         <Text style={[styles.statusText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                           {item.status?.toLowerCase() === 'published' ? t('Active') : t('Inactive')}
                         </Text>
@@ -320,7 +321,10 @@ const Myproperties = () => {
                 onDateChange={setBidEndDate}
                 mode="date"
                 minimumDate={new Date()}
+                textColor="#1F2937" // Explicitly set to dark color
                 style={styles.datePicker}
+                theme="light" // Force light theme to prevent white text
+                androidVariant="nativeAndroid" // Use native Android picker for consistency
               />
             </View>
           )}
@@ -445,7 +449,7 @@ const styles = StyleSheet.create({
   propertyImage: {
     width: '100%',
     height: '100%',
-    borderRadius: moderateScale(30),
+    borderRadius: moderateScale(25),
     resizeMode: 'cover',
   },
   categoryBadge: {
@@ -458,19 +462,19 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(4),
   },
   categoryText: {
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(10),
     color: '#FFFFFF',
     fontWeight: '500',
   },
   textContent: {
     flex: 1,
     padding: moderateScale(8),
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'start',
   },
   propertyName: {
     fontSize: moderateScale(14),
-    fontWeight: '500',
+    fontWeight: 'bold',
     color: '#4A5568',
     textTransform: 'capitalize',
   },
@@ -487,8 +491,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   locationIcon: {
-    width: moderateScale(16),
-    height: moderateScale(16),
+    width: moderateScale(14),
+    height: moderateScale(14),
     tintColor: '#234F68',
     marginRight: scale(4),
   },

@@ -175,6 +175,7 @@ const Explore = () => {
 
   return (
     <View style={styles.container}>
+    
       <FlatList
         data={filteredListingData}
         renderItem={({ item }) => <Card item={item} onPress={() => handleCardPress(item.id)} />}

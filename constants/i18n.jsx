@@ -109,6 +109,7 @@ const resources = {
             olderNotifications: 'Older notifications',
             noNotificationTitle: 'No Notification Yet',
             noNotificationMessage: 'You will receive all important notifications here',
+            viewPropertynoti: 'View Details',
             // All brokers page
             allBrokers: 'All Property Brokers',
             allCities: 'Select a city',
@@ -143,8 +144,8 @@ const resources = {
             noPropertiesTitle: 'अभी तक कोई प्रॉपर्टी नहीं',
             noPropertiesMessage: 'लगता है आपने कोई प्रॉपर्टी नहीं जोड़ी। अपनी पहली प्रॉपर्टी जोड़कर शुरू करें!',
             loadingProperties: 'प्रॉपर्टी लोड हो रही हैं...',
-            editProperty: 'संपादित करें',
-            editBid: 'बोली संपादित करें',
+            editProperty: 'एडिट',
+            editBid: 'एडिट बिड',
             bidStatus: 'बोली स्थिति',
             bidEndDate: 'बोली समाप्ति तिथि',
             submitting: 'सबमिट हो रहा है...',
@@ -221,6 +222,7 @@ const resources = {
             olderNotifications: 'पुरानी सूचनाएं',
             noNotificationTitle: 'अभी कोई सूचना नहीं',
             noNotificationMessage: 'आपको यहां सभी महत्वपूर्ण सूचनाएं मिलेंगी',
+            viewPropertynoti: 'संपत्ति विवरण देखें',
             // All brokers page
             allBrokers: 'सभी प्रॉपर्टी ब्रोकर',
             allCities: 'शहर चुनें',

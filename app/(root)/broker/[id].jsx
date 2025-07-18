@@ -12,6 +12,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const PADDING_HORIZONTAL = scale(0);
 const GAP = scale(10);
 const CARD_WIDTH = (screenWidth - 2 * PADDING_HORIZONTAL - GAP) / 2;
+const BUTTON_CONTAINER_HEIGHT = verticalScale(70); // Approximate height of the button container
 
 const Broker = () => {
     const { id } = useLocalSearchParams();
@@ -22,7 +23,7 @@ const Broker = () => {
     const [error, setError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchbrokerProfile = async () => {
+    const fetchBrokerProfile = async () => {
         setLoading(true);
         setError(null);
         try {
@@ -59,12 +60,12 @@ const Broker = () => {
     };
 
     useEffect(() => {
-        fetchbrokerProfile();
+        fetchBrokerProfile();
     }, [id]);
 
     const onRefresh = () => {
         setRefreshing(true);
-        fetchbrokerProfile();
+        fetchBrokerProfile();
     };
 
     const renderEmptyComponent = () => (
@@ -141,9 +142,9 @@ const Broker = () => {
                         renderItem={({ item }) => <Card item={item} onPress={() => handleCardPress(item.id)} style={styles.card} />}
                         keyExtractor={(item) => item.id.toString()}
                         numColumns={2}
-                        contentContainerStyle={[styles.flatListContent, { paddingBottom: verticalScale(80) }]} // Adjusted for button height
+                        contentContainerStyle={[styles.flatListContent, { paddingBottom: BUTTON_CONTAINER_HEIGHT + verticalScale(20) }]}
                         columnWrapperStyle={styles.flatListColumnWrapper}
-                        showsVerticalScrollIndicator={false}
+                        showsVerticalScrollIndicator={false} // Hide scroll bar
                         ListEmptyComponent={!loading && userPropertyData.length === 0 ? renderEmptyComponent : null}
                         refreshControl={
                             <RefreshControl
@@ -160,20 +161,27 @@ const Broker = () => {
             {/* Fixed Call and WhatsApp Buttons */}
             <View style={styles.buttonContainer}>
                 <TouchableOpacity
-                    style={[styles.actionButton, styles.callButton]}
+                    style={[styles.actionButton, styles.callButton, !brokerData?.mobilenumber && styles.disabledButton]}
                     onPress={handleCallPress}
                     activeOpacity={0.7}
                     disabled={!brokerData?.mobilenumber}
+                    accessible={true}
+                    accessibilityLabel="Call broker"
+                    accessibilityRole="button"
                 >
+                    <MaterialIcons name="phone" size={moderateScale(18, 0.3)} color="#fff" style={styles.buttonIcon} />
                     <Text style={styles.actionButtonText}>Call</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.actionButton, styles.whatsappButton]}
+                    style={[styles.actionButton, styles.whatsappButton, !brokerData?.mobilenumber && styles.disabledButton]}
                     onPress={handleWhatsAppPress}
                     activeOpacity={0.7}
                     disabled={!brokerData?.mobilenumber}
+                    accessible={true}
+                    accessibilityLabel="Message broker on WhatsApp"
+                    accessibilityRole="button"
                 >
-                    <FontAwesome5 name="whatsapp" size={moderateScale(16, 0.3)} color="#fff" style={styles.buttonIcon} />
+                    <FontAwesome5 name="whatsapp" size={moderateScale(18, 0.3)} color="#fff" style={styles.buttonIcon} />
                     <Text style={styles.actionButtonText}>WhatsApp</Text>
                 </TouchableOpacity>
             </View>
@@ -193,7 +201,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginVertical: verticalScale(12),
+        marginVertical: verticalScale(5),
     },
     headerText: {
         fontSize: moderateScale(18, 0.3),
@@ -213,7 +221,7 @@ const styles = StyleSheet.create({
         height: scale(75),
         borderRadius: moderateScale(50, 0.3),
         alignSelf: 'center',
-        marginBottom: verticalScale(10),
+        marginBottom: verticalScale(5),
     },
     name: {
         fontSize: moderateScale(22, 0.3),
@@ -226,19 +234,20 @@ const styles = StyleSheet.create({
         fontSize: moderateScale(14, 0.3),
         textAlign: 'center',
         color: '#666',
-        marginBottom: verticalScale(15),
+        marginBottom: verticalScale(5),
     },
     listingsSection: {
+        flex: 1,
         marginBottom: verticalScale(20),
     },
     listingsTitle: {
         fontSize: moderateScale(18, 0.3),
         fontWeight: 'bold',
         color: '#000',
+        textAlign: 'center',
         marginBottom: verticalScale(10),
     },
     flatListContent: {
-        paddingBottom: verticalScale(32),
         paddingHorizontal: PADDING_HORIZONTAL,
     },
     flatListColumnWrapper: {
@@ -299,31 +308,42 @@ const styles = StyleSheet.create({
         right: 0,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: scale(15),
-        paddingVertical: verticalScale(10),
+        paddingHorizontal: scale(20), // Increased for better spacing
+        paddingVertical: verticalScale(12),
         backgroundColor: '#fff',
-        elevation: 5,
+        elevation: 6, // Slightly increased for a more pronounced shadow
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: moderateScale(4, 0.3),
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.15,
+        shadowRadius: moderateScale(6, 0.3),
+        borderTopWidth: 1, // Subtle border for professional look
+        borderTopColor: '#e5e7eb', // Light gray border
     },
     actionButton: {
         flex: 1,
-        paddingVertical: verticalScale(12),
-        borderRadius: moderateScale(10, 0.3),
+        flexDirection: 'row', // Align icon and text horizontally
         alignItems: 'center',
-        marginHorizontal: scale(5),
+        justifyContent: 'center',
+        paddingVertical: verticalScale(12),
+        borderRadius: moderateScale(12, 0.3), // Slightly larger radius for modern look
+        marginHorizontal: scale(8), // Increased spacing between buttons
     },
     callButton: {
-        backgroundColor: '#234F68',
+        backgroundColor: '#234F68', // Darker blue for professional tone
     },
     whatsappButton: {
-        backgroundColor: '#25D366',
+        backgroundColor: '#25D366', // WhatsApp brand color
+    },
+    disabledButton: {
+        opacity: 0.5, // Visual feedback for disabled state
     },
     actionButtonText: {
         color: '#fff',
         fontSize: moderateScale(16, 0.3),
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Medium', // Use a medium weight font for professionalism
+        fontWeight: '500',
+    },
+    buttonIcon: {
+        marginRight: scale(6), // Consistent spacing between icon and text
     },
 });

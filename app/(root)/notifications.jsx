@@ -20,8 +20,8 @@ const Notifications = () => {
         setLoading(true);
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
-            const response = await axios.get(`https://landsquire.in/api/usernotifications/?user_type=${parsedUserData.user_type}`);
-
+            const response = await axios.get(`https://landsquire.in/api/usernotifications/?id=${parsedUserData.id}`);
+            // console.log('all response', response.data.notifications);
             if (response.data?.notifications) {
                 const apiData = response.data.notifications;
                 setNotificationData(apiData);
@@ -30,8 +30,8 @@ const Notifications = () => {
                     setReadStatus(JSON.parse(storedStatus));
                 } else {
                     const initialStatus = {};
-                    apiData.forEach((item) => {
-                        initialStatus[item.id] = false;
+                    apiData.forEach((item, index) => {
+                        initialStatus[item.id || index] = item.read_at !== null;
                     });
                     setReadStatus(initialStatus);
                 }
@@ -57,16 +57,17 @@ const Notifications = () => {
 
     const markAllAsRead = async () => {
         const updatedStatus = {};
-        notificationData.forEach((item) => {
-            updatedStatus[item.id] = true;
+        notificationData.forEach((item, index) => {
+            updatedStatus[item.id || index] = true;
         });
         setReadStatus(updatedStatus);
         await AsyncStorage.setItem('readStatus', JSON.stringify(updatedStatus));
     };
 
-    const handleOpenSheet = async (item) => {
-        if (!readStatus[item.id]) {
-            const updatedStatus = { ...readStatus, [item.id]: true };
+    const handleOpenSheet = async (item, index) => {
+        const key = item.id || index;
+        if (!readStatus[key]) {
+            const updatedStatus = { ...readStatus, [key]: true };
             setReadStatus(updatedStatus);
             await AsyncStorage.setItem('readStatus', JSON.stringify(updatedStatus));
         }
@@ -74,9 +75,12 @@ const Notifications = () => {
         refRBSheet.current.open();
     };
 
-    const filteredNotifications = notificationData.filter((item) => {
+    const handleCardPress = (id) => router.push(`/properties/${id}`);
+
+    const filteredNotifications = notificationData.filter((item, index) => {
+        const key = item.id || index;
         if (filter === t('all')) return true;
-        return readStatus[item.id] === (filter === t('read'));
+        return readStatus[key] === (filter === t('read'));
     });
 
     const groupByDate = (data) => {
@@ -87,26 +91,41 @@ const Notifications = () => {
         };
     };
 
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString().slice(-2); // get last 2 digits
+        return `${day}/${month}/${year}`;
+    };
+
+
     const { today, older } = groupByDate(filteredNotifications);
 
-    const unreadCount = notificationData.filter(item => !readStatus[item.id]).length;
+    const unreadCount = notificationData.filter((item, index) => !readStatus[item.id || index]).length;
     const readCount = notificationData.length - unreadCount;
 
-    const renderNotification = ({ item }) => {
-        const imageUrl = `https://landsquire.in/adminAssets/images/Notificaitons/${item.notificationimg}`;
-        const isRead = readStatus[item.id] || false;
-        const previewText = item.notificationdes.length > 50 ? `${item.notificationdes.substring(0, 50)}...` : item.notificationdes;
+    const renderNotification = ({ item, index }) => {
+        const notificationData = JSON.parse(item.data);
+        const key = item.id || index;
+        const imageUrl = item.property && item.property.thumbnail
+            ? `https://landsquire.in/adminAssets/images/Listings/${item.property.thumbnail}`
+            : 'https://via.placeholder.com/40';
+        const isRead = readStatus[key] || false;
+        const previewText = notificationData.message.length > 50
+            ? `${notificationData.message.substring(0, 50)}...`
+            : notificationData.message;
 
         return (
-            <TouchableOpacity onPress={() => handleOpenSheet(item)}>
+            <TouchableOpacity onPress={() => handleOpenSheet(item, index)}>
                 <View style={[styles.card, !isRead && styles.unreadCard]}>
                     <Image source={{ uri: imageUrl }} style={styles.profileImage} />
                     <View style={styles.details}>
                         <View style={styles.headerRow}>
                             <Text style={[styles.name, !isRead && styles.unreadText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                {item.notificationname}
+                                {notificationData.title}
                             </Text>
-                            <TouchableOpacity onPress={() => toggleReadStatus(item.id)}>
+                            <TouchableOpacity onPress={() => toggleReadStatus(key)}>
                                 <View style={[styles.statusDot, isRead ? styles.readDot : styles.unreadDot]} />
                             </TouchableOpacity>
                         </View>
@@ -181,7 +200,7 @@ const Notifications = () => {
                             </Text>
                             <FlatList
                                 data={today}
-                                keyExtractor={(item) => item.id.toString()}
+                                keyExtractor={(item, index) => (item.id || index).toString()}
                                 renderItem={renderNotification}
                                 showsVerticalScrollIndicator={false}
                             />
@@ -194,7 +213,7 @@ const Notifications = () => {
                             </Text>
                             <FlatList
                                 data={older}
-                                keyExtractor={(item) => item.id.toString()}
+                                keyExtractor={(item, index) => (item.id || index).toString()}
                                 renderItem={renderNotification}
                                 showsVerticalScrollIndicator={false}
                             />
@@ -208,49 +227,83 @@ const Notifications = () => {
                 closeOnDragDown={true}
                 closeOnPressMask={true}
                 customStyles={{
-                    wrapper: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                    },
+                    wrapper: { backgroundColor: 'rgba(0, 0, 0, 0.5)' },
                     container: {
                         borderTopLeftRadius: moderateScale(20),
                         borderTopRightRadius: moderateScale(20),
                         padding: moderateScale(16),
-                        height: 500,
+                        height: 400,
                     },
-                    draggableIcon: {
-                        backgroundColor: '#D1D5DB',
-                    },
+                    draggableIcon: { backgroundColor: '#D1D5DB' },
                 }}
             >
                 {selectedNotification && (
                     <>
                         <View className='flex-row'>
                             <Image
-                                source={{ uri: `https://landsquire.in/adminAssets/images/Notificaitons/${selectedNotification.notificationimg}` }}
+                                source={{
+                                    uri: selectedNotification.property && selectedNotification.property.thumbnail
+                                        ? `https://landsquire.in/adminAssets/images/Listings/${selectedNotification.property.thumbnail}`
+                                        : 'https://via.placeholder.com/40'
+                                }}
                                 style={styles.profileImage}
                             />
-                            <View>
+                            <View >
                                 <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
-                                    {selectedNotification.notificationname}
+                                    {JSON.parse(selectedNotification.data).title}
                                 </Text>
                                 <Text style={[styles.sheetTimestamp, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                                     {new Date(selectedNotification.created_at).toLocaleString()}
                                 </Text>
                             </View>
                         </View>
-                        <ScrollView>
+                        <ScrollView className='mt-3'>
+
+                            {selectedNotification.property && (
+                                <>
+                                    <View style={styles.highlightContainer}>
+                                        <Text style={[styles.highlightText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                                            Property: {selectedNotification.property.property_name}
+                                        </Text>
+                                    </View>
+                                    {selectedNotification.property.bidenddate && (
+                                        <View style={styles.highlightContainer}>
+
+                                            <Text style={[
+                                                styles.highlightText,
+                                                { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }
+                                            ]}>
+                                                Bid End Date: {formatDate(selectedNotification.property.bidenddate)}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </>
+                            )}
                             <Text style={[styles.sheetDescription, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                                {selectedNotification.notificationdes}
+                                {JSON.parse(selectedNotification.data).message}
                             </Text>
                         </ScrollView>
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={() => refRBSheet.current.close()}
-                        >
-                            <Text style={[styles.closeButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                                {t('close')}
-                            </Text>
-                        </TouchableOpacity>
+
+                        <View className=' flex-row g-5 justify-content-between'>
+                            {selectedNotification.property && (
+                                <TouchableOpacity
+                                    style={styles.viewPropertyButton}
+                                    onPress={() => handleCardPress(selectedNotification.property.id)}
+                                >
+                                    <Text style={[styles.viewPropertyButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                        {t('viewPropertynoti')}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => refRBSheet.current.close()}
+                            >
+                                <Text style={[styles.closeButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                    {t('close')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </>
                 )}
             </RBSheet>
@@ -258,6 +311,7 @@ const Notifications = () => {
     );
 };
 
+// Updated styles with new styles for highlighting and view property button
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -342,11 +396,10 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     profileImage: {
-        width: scale(40),
-        height: scale(40),
-        borderRadius: moderateScale(20),
+        width: scale(70),
+        height: scale(70),
+        borderRadius: moderateScale(5),
         marginRight: scale(12),
-        marginBottom: verticalScale(8),
     },
     details: {
         flex: 1,
@@ -409,12 +462,38 @@ const styles = StyleSheet.create({
         color: '#9CA3AF',
         marginBottom: verticalScale(16),
     },
+    highlightContainer: {
+        backgroundColor: '#F0F4F8',
+        padding: moderateScale(8),
+        borderRadius: moderateScale(6),
+        marginBottom: verticalScale(8),
+    },
+    highlightText: {
+        fontSize: moderateScale(14),
+        color: '#234F68',
+        fontWeight: '600',
+        textTransform: 'capitalize',
+    },
+    viewPropertyButton: {
+        backgroundColor: '#8bc83f',
+        paddingVertical: verticalScale(10),
+        borderRadius: moderateScale(12),
+        margin: moderateScale(5),
+        alignItems: 'center',
+        flex: 1 / 2,
+    },
+    viewPropertyButtonText: {
+        fontSize: moderateScale(14),
+        color: '#FFFFFF',
+        fontWeight: '500',
+    },
     closeButton: {
         backgroundColor: '#234F68',
         paddingVertical: verticalScale(10),
         borderRadius: moderateScale(12),
+        margin: moderateScale(5),
         alignItems: 'center',
-        marginTop: verticalScale(16),
+        flex: 1 / 2,
     },
     closeButtonText: {
         fontSize: moderateScale(14),

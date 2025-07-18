@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     },
     picker: {
         width: '100%',
-        height: verticalScale(40),
+        // height: verticalScale(50),
         color: '#234F68',
     },
     pickerItem: {
