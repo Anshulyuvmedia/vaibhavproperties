@@ -1,4 +1,4 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View, TextInput, FlatList, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, TextInput, FlatList, Platform, Modal, Alert, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import icons from '@/constants/icons';
 import { ProgressSteps, ProgressStep } from 'react-native-progress-steps';
@@ -14,13 +14,14 @@ import 'react-native-get-random-values';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast, { BaseToast } from 'react-native-toast-message';
 import { Ionicons, MaterialCommunityIcons, Feather, AntDesign, MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import RNPickerSelect from 'react-native-picker-select';
 
 const Addproperty = () => {
 
     const GOOGLE_MAPS_API_KEY = Constants.expoConfig.extra.GOOGLE_MAPS_API_KEY;
     const [step1Data, setStep1Data] = useState({ property_name: '', description: '', nearbylocation: '', });
     const [step2Data, setStep2Data] = useState({ approxrentalincome: '', historydate: [], price: '' });
-    const [step3Data, setStep3Data] = useState({ sqfoot: '', bathroom: '', floor: '', city: '', officeaddress: '', bedroom: '' });
+    const [step3Data, setStep3Data] = useState({ bathroom: '', floor: '', city: '', officeaddress: '', bedroom: '' });
     const [isValid, setIsValid] = useState(false);
 
     const [propertyDocuments, setPropertyDocuments] = useState([]);
@@ -51,6 +52,19 @@ const Addproperty = () => {
     const [show, setShow] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
     const [historyPrice, setHistoryPrice] = useState('');
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalType, setModalType] = useState(null); // 'mainImage', 'galleryImages', or 'video'
+    const [categoryData, setCategoryData] = useState([]);
+    const [landArea, setLandArea] = useState("");
+    const [selectedUnit, setSelectedUnit] = useState("sqft");
+
+    const units = [
+        { label: 'sqft', value: 'sqft' },
+        { label: 'sqm', value: 'sqm' },
+        { label: 'yards', value: 'yards' },
+        { label: 'bigha', value: 'bigha' },
+        { label: 'acre', value: 'acre' },
+    ];
     const buttonPreviousTextStyle = {
         paddingInline: 20,
         paddingBlock: 5,
@@ -65,14 +79,7 @@ const Addproperty = () => {
         backgroundColor: '#8bc83f',
         color: 'white',
     };
-    const categories = [
-        { label: 'Apartment', value: 'Apartment' },
-        { label: 'Villa', value: 'Villa' },
-        { label: 'Penthouse', value: 'Penthouse' },
-        { label: 'Residences', value: 'Residences' },
-        { label: 'Luxury House', value: 'Luxury House' },
-        { label: 'Bunglow', value: 'Bunglow' },
-    ];
+
     const toastConfig = {
         success: (props) => (
             <BaseToast
@@ -132,11 +139,11 @@ const Addproperty = () => {
         }
 
         if (step === 3) {
-            if (!step3Data?.sqfoot || !step3Data?.bathroom || !step3Data?.floor || !step3Data?.city || !step3Data?.officeaddress || !step3Data?.bedroom) {
+            if (!step3Data?.bathroom || !step3Data?.floor || !step3Data?.city || !step3Data?.officeaddress || !step3Data?.bedroom) {
                 Toast.show({
                     type: 'error',
                     text1: 'Step 3 Error',
-                    text2: 'Square Foot, Bathroom, Floor, City, Office Address, and Bedroom are required.',
+                    text2: 'Land Area, Bathroom, Floor, City, Office Address, and Bedroom are required.',
                 });
                 return false;
             }
@@ -201,20 +208,6 @@ const Addproperty = () => {
         }
     };
 
-
-    const requestPermissions = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: "Sorry, we need camera roll permissions to make this work!",
-            });
-            return false;
-        }
-        return true;
-    };
-
     const handleAddAmenity = () => {
         if (amenity.trim() !== '') {
             setAmenities([...amenities, amenity.trim()]);
@@ -222,75 +215,126 @@ const Addproperty = () => {
         }
     };
 
-    const pickMainImage = async () => {
-        if (!(await requestPermissions())) return;
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-        });
+    const requestPermissions = async (useCamera = false) => {
+        if (useCamera) {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Error',
+                    text2: 'Sorry, we need camera permissions to make this work!',
+                });
+                return false;
+            }
+        }
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Sorry, we need camera roll permissions to make this work!',
+            });
+            return false;
+        }
+        return true;
+    };
 
-        if (!result?.canceled) {
-            setMainImage(result.assets[0].uri);
+    const openSourceModal = (type) => {
+        setModalType(type);
+        setModalVisible(true);
+    };
+
+    const pickMainImage = async (source) => {
+        setModalVisible(false);
+        if (source === 'camera') {
+            if (!(await requestPermissions(true))) return;
+            let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                setMainImage(result.assets[0].uri);
+            }
+        } else {
+            if (!(await requestPermissions())) return;
+            let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                setMainImage(result.assets[0].uri);
+            }
         }
     };
 
-    const pickGalleryImages = async () => {
-        if (!(await requestPermissions())) return;
-
-        try {
+    const pickGalleryImages = async (source) => {
+        setModalVisible(false);
+        if (source === 'camera') {
+            if (!(await requestPermissions(true))) return;
+            let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                setGalleryImages(prevImages => [...prevImages, result.assets[0].uri]);
+            }
+        } else {
+            if (!(await requestPermissions())) return;
             let result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsMultipleSelection: true,
                 quality: 0.5,
             });
-
-            // console.log("🚀 Image Picker Result:", result); // Debugging log
-
-            if (!result.canceled && result.assets?.length) {
-                // Extract only the URI (ensuring no extra object nesting)
+            if (!result?.canceled && result.assets?.length) {
                 const selectedImages = result.assets.map(image => image.uri);
-
-                // console.log("✅ Processed Image URIs:", selectedImages);
-
-                // Ensure state only stores an array of URIs (not objects)
-                setGalleryImages(prevImages => [
-                    ...prevImages,
-                    ...selectedImages,
-                ]);
-            } else {
-                console.warn("⚠️ No images selected.");
+                setGalleryImages(prevImages => [...prevImages, ...selectedImages]);
             }
-        } catch (error) {
-            console.error("❌ Error picking images:", error);
         }
     };
 
-    const pickVideo = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-            allowsMultipleSelection: true,
-        });
-
-        if (!result.canceled) {
-            // console.log("Selected Videos:", result.assets);
-
-            const defaultThumbnail =
-                typeof icons.videofile === "number" // If it's a local import
-                    ? Image.resolveAssetSource(icons.videofile).uri
-                    : icons.videofile; // If it's a URL or valid string
-
-            const selectedVideos = result.assets.map(video => ({
-                id: video.uri,
-                uri: video.uri,
-                thumbnailImages: defaultThumbnail, // ✅ Make sure this is correct
-            }));
-
-            // console.log("Processed Videos:", selectedVideos);
-            setVideos(prevVideos => [...new Set([...prevVideos, ...selectedVideos])]);
+    const pickVideo = async (source) => {
+        setModalVisible(false);
+        const defaultThumbnail = typeof icons.videofile === "number" ? Image.resolveAssetSource(icons.videofile).uri : icons.videofile;
+        if (source === 'camera') {
+            if (!(await requestPermissions(true))) return;
+            let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                allowsEditing: true,
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                setVideos(prevVideos => [
+                    ...prevVideos,
+                    {
+                        id: result.assets[0].uri,
+                        uri: result.assets[0].uri,
+                        thumbnailImages: defaultThumbnail,
+                    },
+                ]);
+            }
+        } else {
+            if (!(await requestPermissions())) return;
+            let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                allowsMultipleSelection: true,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                const selectedVideos = result.assets.map(video => ({
+                    id: video.uri,
+                    uri: video.uri,
+                    thumbnailImages: defaultThumbnail,
+                }));
+                setVideos(prevVideos => [...new Set([...prevVideos, ...selectedVideos])]);
+            }
         }
     };
+
+
     // Handle Date Change
     const handleDateChange = (event, date) => {
         setShow(false);
@@ -322,7 +366,27 @@ const Addproperty = () => {
             setHistoryPrice('');
         }
     };
+
+    const fetchCategories = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.get(`https://landsquire.in/api/get-categories`);
+            if (response.data?.categories) {
+                setCategoryData(response.data.categories);
+                // console.log('categoryData', response.data.categories);
+            } else {
+                console.error("Unexpected API response format:", response.data);
+            }
+        } catch (error) {
+            console.error("Error fetching categories:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
     useEffect(() => {
+        fetchCategories();
         if (step2Data.historydate.length > 0) {
             setVisibleData(step2Data.historydate.slice(0, currentIndex));
         }
@@ -466,6 +530,7 @@ const Addproperty = () => {
             // ✅ Append additional fields
             formData.append("bedroom", step3Data?.bedroom ?? "");
             formData.append("category", selectedCategory ?? "");
+            formData.append("landarea", `${landArea} ${selectedUnit}` ?? ""); 
             // formData.append("status", selectedStatus ?? "");
             formData.append("roleid", id ?? "");
             formData.append("usertype", user_type ?? "");
@@ -563,7 +628,7 @@ const Addproperty = () => {
                 masterplandocument: masterPlanDoc.map((doc, index) => `masterplan-${index}.${safeFileName(doc.uri, "pdf")}`),
             };
             formData.append("fileData", JSON.stringify(fileData));
-            console.log("Uploading FormData add property:", formData);
+            // console.log("Uploading FormData add property:", formData);
 
             // Send API request
             const response = await axios.post("https://landsquire.in/api/insertlisting", formData, {
@@ -612,7 +677,6 @@ const Addproperty = () => {
 
         setStep3Data({
             amenities: '',
-            sqfoot: '',
             bathroom: '',
             floor: '',
             city: '',
@@ -646,6 +710,19 @@ const Addproperty = () => {
             setFullAddress("Unable to retrieve address");
         }
     };
+
+    // Utility function to format number in Indian style (e.g., 10,00,000)
+    const formatIndianNumber = (number) => {
+        if (!number) return '';
+        const numStr = number.toString().replace(/[^0-9]/g, ''); // Remove non-numeric characters
+        // If number is less than 1,000, no formatting needed
+        if (numStr.length <= 3) return numStr;
+        const lastThree = numStr.slice(-3);
+        const otherNumbers = numStr.slice(0, -3);
+        const formattedOther = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+        return `${formattedOther},${lastThree}`;
+    };
+
 
     return (
         <View style={{ backgroundColor: '#fafafa', height: '100%', paddingHorizontal: 20 }}>
@@ -703,7 +780,7 @@ const Addproperty = () => {
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Property Thumbnail</Text>
                             <View className="flex-row items-center">
-                                <TouchableOpacity onPress={pickMainImage} style={styles.dropbox}>
+                                <TouchableOpacity onPress={() => openSourceModal('mainImage')} style={styles.dropbox}>
                                     <Ionicons name="image-outline" size={24} color="#234F68" style={styles.inputIcon} />
                                     <Text style={{ marginStart: 10 }}>Upload Thumbnail</Text>
                                 </TouchableOpacity>
@@ -714,19 +791,23 @@ const Addproperty = () => {
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Select Category</Text>
                             <View style={styles.categoryContainer}>
-                                {categories.map((category) => (
+                                {Array.isArray(categoryData) && categoryData.map((category) => (
                                     <TouchableOpacity
-                                        key={category.value}
+                                        key={category.id}
                                         style={[
                                             styles.categoryButton,
-                                            selectedCategory === category.value && styles.categoryButtonSelected,
+                                            selectedCategory === category.label && styles.categoryButtonSelected,
                                         ]}
-                                        onPress={() => setSelectedCategory(category.value)}
+                                        onPress={() => setSelectedCategory(category.label)}
                                     >
-                                        <Text style={[
-                                            styles.categoryText,
-                                            selectedCategory === category.value && styles.categoryTextSelected,
-                                        ]}>{category.label}</Text>
+                                        <Text
+                                            style={[
+                                                styles.categoryText,
+                                                selectedCategory === category.label && styles.categoryTextSelected,
+                                            ]}
+                                        >
+                                            {category.label}
+                                        </Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -762,7 +843,7 @@ const Addproperty = () => {
                                     style={styles.input}
                                     keyboardType="numeric"
                                     placeholder="Enter approx rental income"
-                                    value={step2Data.approxrentalincome}
+                                    value={formatIndianNumber(step2Data.approxrentalincome)}
                                     onChangeText={text => {
                                         const numericText = text.replace(/[^0-9]/g, '');
                                         setStep2Data(prevState => ({ ...prevState, approxrentalincome: numericText }));
@@ -779,7 +860,7 @@ const Addproperty = () => {
                                     style={styles.input}
                                     keyboardType="numeric"
                                     placeholder="Enter current price"
-                                    value={step2Data.price}
+                                    value={formatIndianNumber(step2Data.price)}
                                     onChangeText={text => {
                                         const numericText = text.replace(/[^0-9]/g, '');
                                         setStep2Data(prevState => ({ ...prevState, price: numericText }));
@@ -796,7 +877,7 @@ const Addproperty = () => {
                                         <TextInput
                                             style={styles.input}
                                             placeholder="Historical Price"
-                                            value={historyPrice}
+                                            value={formatIndianNumber(historyPrice)}
                                             keyboardType="numeric"
                                             onChangeText={text => {
                                                 const numericText = text.replace(/[^0-9]/g, '');
@@ -919,55 +1000,66 @@ const Addproperty = () => {
                             </View>
                         </View>
 
-                        <View style={styles.stepContent}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <View style={{ flex: 1, marginRight: 5 }}>
-                                    <Text style={styles.label}>Floor</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="floor-plan" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
+                        {(selectedCategory !== 'Agricultural' && selectedCategory !== 'Commercial' && selectedCategory !== 'Industrial') && (
+                            <View style={styles.stepContent}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <View style={{ flex: 1, marginRight: 5 }}>
+                                        <Text style={styles.label}>Floor</Text>
+                                        <View style={styles.inputContainer}>
+                                            <MaterialCommunityIcons name="floor-plan" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
+                                        </View>
                                     </View>
-                                </View>
-                                <View style={{ flex: 1, marginRight: 5 }}>
-                                    <Text style={styles.label}>Bathroom</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
+                                    <View style={{ flex: 1, marginRight: 5 }}>
+                                        <Text style={styles.label}>Bathroom</Text>
+                                        <View style={styles.inputContainer}>
+                                            <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
+                                        </View>
                                     </View>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Bedroom</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.label}>Bedroom</Text>
+                                        <View style={styles.inputContainer}>
+                                            <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} placeholder="Bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
+                                        </View>
                                     </View>
                                 </View>
                             </View>
-                        </View>
+                        )}
 
                         <View style={styles.stepContent}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <View style={{ flex: 1, marginRight: 5 }}>
-                                    <Text style={styles.label}>Square Foot</Text>
+                                <View style={{ flex: 1, }}>
+                                    <Text style={styles.label}>Land Area</Text>
                                     <View style={styles.inputContainer}>
                                         <MaterialIcons name="zoom-out-map" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Square Foot" keyboardType="numeric" value={step3Data.sqfoot} onChangeText={text => setStep3Data({ ...step3Data, sqfoot: text })} />
-                                    </View>
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 5 }}>
-                                    <Text style={styles.label}>City</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
+                                        <TextInput style={styles.input} placeholder="Land area" keyboardType="numeric" value={landArea} onChangeText={(value) => setLandArea(value)} />
+                                        <View style={styles.unitpickerContainer}>
+                                            <RNPickerSelect
+                                                onValueChange={(value) => setSelectedUnit(value)}
+                                                items={units}
+                                                value={selectedUnit}
+                                                style={pickerSelectStyles}
+                                                placeholder={{ label: 'Choose an unit...', value: null }}
+                                            />
+                                        </View>
                                     </View>
                                 </View>
                             </View>
                         </View>
                         <View style={styles.stepContent}>
+                            <View style={{ flex: 1, marginLeft: 5 }}>
+                                <Text style={styles.label}>City</Text>
+                                <View style={styles.inputContainer}>
+                                    <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                    <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
+                                </View>
+                            </View>
                             <Text style={styles.label}>Property Address</Text>
                             <TextInput
                                 style={styles.textarea}
-                                placeholder="Property Address"
+                                placeholder="Enter complete address"
                                 value={step3Data.officeaddress}
                                 onChangeText={text => setStep3Data({ ...step3Data, officeaddress: text })}
                                 multiline
@@ -1044,10 +1136,10 @@ const Addproperty = () => {
                                         />
                                     )}
                                 </MapView>
-                                <View className='flex-col bg-primary-100 rounded-lg mt-2 p-2'>
+                                {/* <View className='flex-col bg-primary-100 rounded-lg mt-2 p-2'>
                                     <Text className='font-rubik-medium'>Latitude: {coordinates.latitude || "Not set"}</Text>
                                     <Text className='font-rubik-medium'>Longitude: {coordinates.longitude || "Not set"}</Text>
-                                </View>
+                                </View> */}
                             </View>
                         </View>
                     </ProgressStep>
@@ -1098,7 +1190,7 @@ const Addproperty = () => {
                                     )}
                                 />
                             </View>
-                            <TouchableOpacity onPress={pickGalleryImages} style={styles.dropbox}>
+                            <TouchableOpacity onPress={() => openSourceModal('galleryImages')} style={styles.dropbox}>
                                 <Ionicons name="images-outline" size={24} color="#234F68" style={styles.inputIcon} />
                                 <Text style={{ textAlign: 'center' }}>Pick property images</Text>
                             </TouchableOpacity>
@@ -1133,7 +1225,7 @@ const Addproperty = () => {
                                 />
                             </View>
 
-                            <TouchableOpacity onPress={pickVideo} style={styles.dropbox}>
+                            <TouchableOpacity onPress={() => openSourceModal('video')} style={styles.dropbox}>
                                 <FontAwesome name="file-video-o" size={24} color="#234F68" style={styles.inputIcon} />
                                 <Text style={{ textAlign: 'center' }}>Pick property videos</Text>
                             </TouchableOpacity>
@@ -1203,6 +1295,56 @@ const Addproperty = () => {
                     <ActivityIndicator />
                 </View>
             )}
+
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={modalVisible}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                {modalType === 'video' ? 'Select Video Source' : 'Select Image Source'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseButton}>
+                                <Text style={styles.modalCloseText}>×</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.modalContent}>
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                style={styles.modalOption}
+                                onPress={() => {
+                                    if (modalType === 'mainImage') pickMainImage('camera');
+                                    else if (modalType === 'galleryImages') pickGalleryImages('camera');
+                                    else if (modalType === 'video') pickVideo('camera');
+                                }}
+                            >
+                                <View style={styles.modalOptionBackground}>
+                                    <Ionicons name="camera-outline" size={40} color="#fff" style={styles.modalOptionIcon} />
+                                    <Text style={styles.modalOptionText}>Camera</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                style={styles.modalOption}
+                                onPress={() => {
+                                    if (modalType === 'mainImage') pickMainImage('gallery');
+                                    else if (modalType === 'galleryImages') pickGalleryImages('gallery');
+                                    else if (modalType === 'video') pickVideo('gallery');
+                                }}
+                            >
+                                <View style={styles.modalOptionBackground}>
+                                    <Ionicons name="images-outline" size={40} color="#fff" style={styles.modalOptionIcon} />
+                                    <Text style={styles.modalOptionText}>Gallery</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     )
 }
@@ -1212,7 +1354,7 @@ export default Addproperty
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        // paddingBottom: 40,
+        paddingBottom: 50,
         backgroundColor: '#fafafa',
     },
     stepContent: {
@@ -1375,6 +1517,12 @@ const styles = StyleSheet.create({
         borderColor: '#c7c7c7',
         fontWeight: 600,
     },
+    unitpickerContainer: {
+        width: 110,
+        borderRadius: 10,
+        overflow: 'hidden',
+        backgroundColor: '#f3f4f6',
+    },
     pickerContainer: {
         borderRadius: 10,
         overflow: 'hidden',
@@ -1407,6 +1555,70 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     categoryTextSelected: {
+        color: '#fff',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContainer: {
+        width: '90%',
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontFamily: 'Rubik-Bold',
+        color: '#234F68',
+    },
+    modalCloseButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#f4f2f7',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalCloseText: {
+        fontSize: 20,
+        color: '#234F68',
+        fontWeight: 'bold',
+    },
+    modalContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    modalOption: {
+        flex: 1,
+        marginHorizontal: 10,
+    },
+    modalOptionBackground: {
+        backgroundColor: '#234F68',
+        borderRadius: 15,
+        height: 120,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalOptionIcon: {
+        marginBottom: 10,
+    },
+    modalOptionText: {
+        fontSize: 16,
+        fontFamily: 'Rubik-Regular',
         color: '#fff',
     },
 });

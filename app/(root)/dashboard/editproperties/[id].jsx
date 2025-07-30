@@ -1,4 +1,4 @@
-import { Image, StyleSheet, Text, ScrollView, TouchableOpacity, View, TextInput, FlatList, Platform, ActivityIndicator } from 'react-native';
+import { Image, StyleSheet, Text, ScrollView, TouchableOpacity, View, TextInput, FlatList, Modal, Platform, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import icons from '@/constants/icons';
@@ -25,7 +25,7 @@ const Editproperty = () => {
     const GOOGLE_MAPS_API_KEY = Constants.expoConfig.extra.GOOGLE_MAPS_API_KEY;
     const [step1Data, setStep1Data] = useState({ property_name: '', description: '', nearbylocation: '' });
     const [step2Data, setStep2Data] = useState({ approxrentalincome: '', historydate: [], price: '' });
-    const [step3Data, setStep3Data] = useState({ sqfoot: '', bathroom: '', floor: '', city: '', officeaddress: '', bedroom: '' });
+    const [step3Data, setStep3Data] = useState({ bathroom: '', floor: '', city: '', officeaddress: '', bedroom: '' });
     const [isValid, setIsValid] = useState(false);
     const [loading, setLoading] = useState(false);
     const [propertyData, setPropertyData] = useState([]);
@@ -96,11 +96,41 @@ const Editproperty = () => {
         { label: 'Published', value: 'published' },
         { label: 'Unpublished', value: 'unpublished' },
     ];
+    const [landArea, setLandArea] = useState("");
+    const [selectedUnit, setSelectedUnit] = useState("sqft");
 
+    const units = [
+        { label: 'sqft', value: 'sqft' },
+        { label: 'sqm', value: 'sqm' },
+        { label: 'yards', value: 'yards' },
+        { label: 'bigha', value: 'bigha' },
+        { label: 'acre', value: 'acre' },
+    ];
     const [visibleData, setVisibleData] = useState(step2Data.historydate.slice(0, 10));
     const [currentIndex, setCurrentIndex] = useState(10);
+    const [categoryData, setCategoryData] = useState([]);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalType, setModalType] = useState(null); // 'mainImage', 'galleryImages', or 'video'
+
+    const fetchCategories = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.get(`https://landsquire.in/api/get-categories`);
+            if (response.data?.categories) {
+                setCategoryData(response.data.categories);
+                // console.log('categoryData', response.data.categories);
+            } else {
+                console.error("Unexpected API response format:", response.data);
+            }
+        } catch (error) {
+            console.error("Error fetching categories:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
+        fetchCategories();
         if (step2Data.historydate.length > 0) {
             setVisibleData(step2Data.historydate.slice(0, currentIndex));
         }
@@ -120,7 +150,6 @@ const Editproperty = () => {
             return true;
         }
         if (step === 2) {
-            if (!step3Data.sqfoot) { setErrorField('Square Foot'); setErrorVisible(true); return false; }
             if (!step3Data.bathroom) { setErrorField('Bathroom'); setErrorVisible(true); return false; }
             if (!step3Data.floor) { setErrorField('Floor'); setErrorVisible(true); return false; }
             if (!step3Data.city) { setErrorField('City'); setErrorVisible(true); return false; }
@@ -137,14 +166,32 @@ const Editproperty = () => {
         }
     };
 
-    const requestPermissions = async () => {
+    const requestPermissions = async (useCamera = false) => {
+        if (useCamera) {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Error',
+                    text2: 'Sorry, we need camera permissions to make this work!',
+                });
+                return false;
+            }
+        }
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            setErrorField('Permissions');
-            setErrorVisible(true);
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Sorry, we need camera roll permissions to make this work!',
+            });
             return false;
         }
         return true;
+    };
+    const openSourceModal = (type) => {
+        setModalType(type);
+        setModalVisible(true);
     };
 
     const updateFullAddress = async (latitude, longitude) => {
@@ -170,17 +217,93 @@ const Editproperty = () => {
         }
     };
 
-    const pickMainImage = async () => {
-        if (!(await requestPermissions())) return;
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-        });
+    const pickMainImage = async (source) => {
+        setModalVisible(false);
+        if (source === 'camera') {
+            if (!(await requestPermissions(true))) return;
+            let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                setMainImage(result.assets[0].uri);
+            }
+        } else {
+            if (!(await requestPermissions())) return;
+            let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                setMainImage(result.assets[0].uri);
+            }
+        }
+    };
 
-        if (!result?.canceled) {
-            setMainImage(result.assets[0].uri);
+    const pickGalleryImages = async (source) => {
+        setModalVisible(false);
+        if (source === 'camera') {
+            if (!(await requestPermissions(true))) return;
+            let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                setGalleryImages(prevImages => [...prevImages, result.assets[0].uri]);
+            }
+        } else {
+            if (!(await requestPermissions())) return;
+            let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsMultipleSelection: true,
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                const selectedImages = result.assets.map(image => image.uri);
+                setGalleryImages(prevImages => [...prevImages, ...selectedImages]);
+            }
+        }
+    };
+
+    const pickVideo = async (source) => {
+        setModalVisible(false);
+        const defaultThumbnail = typeof icons.videofile === "number" ? Image.resolveAssetSource(icons.videofile).uri : icons.videofile;
+        if (source === 'camera') {
+            if (!(await requestPermissions(true))) return;
+            let result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                allowsEditing: true,
+                quality: 0.5,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                setVideos(prevVideos => [
+                    ...prevVideos,
+                    {
+                        id: result.assets[0].uri,
+                        uri: result.assets[0].uri,
+                        thumbnailImages: defaultThumbnail,
+                    },
+                ]);
+            }
+        } else {
+            if (!(await requestPermissions())) return;
+            let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                allowsMultipleSelection: true,
+            });
+            if (!result?.canceled && result.assets?.length) {
+                const selectedVideos = result.assets.map(video => ({
+                    id: video.uri,
+                    uri: video.uri,
+                    thumbnailImages: defaultThumbnail,
+                }));
+                setVideos(prevVideos => [...new Set([...prevVideos, ...selectedVideos])]);
+            }
         }
     };
 
@@ -218,39 +341,6 @@ const Editproperty = () => {
             return { ...prevData, historydate: updatedHistory };
         });
         setVisibleData((prevData) => prevData.filter((_, i) => i !== index));
-    };
-
-    const pickGalleryImages = async () => {
-        if (!(await requestPermissions())) return;
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsMultipleSelection: true,
-            quality: 0.5,
-        });
-
-        if (!result.canceled && result.assets?.length) {
-            const selectedImages = result.assets.map(image => image.uri);
-            setGalleryImages(prevImages => [...prevImages, ...selectedImages]);
-        }
-    };
-
-    const pickVideo = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-            allowsMultipleSelection: true,
-        });
-
-        if (!result.canceled) {
-            const defaultThumbnail = typeof icons.videofile === "number"
-                ? Image.resolveAssetSource(icons.videofile).uri
-                : icons.videofile;
-            const selectedVideos = result.assets.map(video => ({
-                id: video.uri,
-                uri: video.uri,
-                thumbnailImages: defaultThumbnail,
-            }));
-            setVideos(prevVideos => [...new Set([...prevVideos, ...selectedVideos])]);
-        }
     };
 
     const pickDocument = async () => {
@@ -413,6 +503,7 @@ const Editproperty = () => {
                 });
             });
 
+            formData.append("landarea", `${landArea} ${selectedUnit}` ?? "");
             formData.append("bedroom", step3Data?.bedroom ?? "");
             formData.append("category", selectedCategory ?? "");
             formData.append("status", selectedStatus ?? "");
@@ -486,7 +577,7 @@ const Editproperty = () => {
                 masterplandocument: masterPlanDoc.filter(doc => doc.uri && !doc.uri.startsWith("http")),
             };
             formData.append("fileData", JSON.stringify(fileData));
-
+            console.log('formdata', formData);
             const response = await axios.post(`https://landsquire.in/api/updatelisting/${propertyId}`, formData, {
                 headers: {
                     "Accept": "application/json",
@@ -535,7 +626,6 @@ const Editproperty = () => {
                 });
 
                 setStep3Data({
-                    sqfoot: apiData.squarefoot || '',
                     bathroom: apiData.bathroom || '',
                     bedroom: apiData.bedroom || '',
                     floor: apiData.floor || '',
@@ -543,6 +633,15 @@ const Editproperty = () => {
                     officeaddress: apiData.address || '',
                 });
 
+                // Split squarefoot value like "5050 sqft" into land area and unit
+                if (apiData.squarefoot) {
+                    const [area, unit] = apiData.squarefoot.split(' ');
+                    setLandArea(area || '');
+                    setSelectedUnit(unit || '');
+                } else {
+                    setLandArea('');
+                    setSelectedUnit('');
+                }
                 setSelectedCategory(apiData.category || '');
                 setSelectedStatus(apiData.status || '');
 
@@ -743,6 +842,18 @@ const Editproperty = () => {
         return '₹' + num.toLocaleString('en-IN');
     };
 
+    // Utility function to format number in Indian style (e.g., 10,00,000)
+    const formatIndianNumber = (number) => {
+        if (!number) return '';
+        const numStr = number.toString().replace(/[^0-9]/g, ''); // Remove non-numeric characters
+        // If number is less than 1,000, no formatting needed
+        if (numStr.length <= 3) return numStr;
+        const lastThree = numStr.slice(-3);
+        const otherNumbers = numStr.slice(0, -3);
+        const formattedOther = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+        return `${formattedOther},${lastThree}`;
+    };
+
     return (
         <View style={{ backgroundColor: '#fafafa', height: '100%', paddingHorizontal: 20 }}>
             {/* Test button for debugging */}
@@ -781,11 +892,20 @@ const Editproperty = () => {
                     {mainImage && <Image source={{ uri: mainImage }} style={styles.image} />}
                     <View className='ms-2 flex-1'>
                         <Text className="font-rubik-medium text-base">{step1Data.property_name}</Text>
-                        <View className="flex-row items-center mt-1">
-                            <Ionicons name="location-outline" size={16} color="#234F68" />
-                            <Text className="text-base font-rubik text-black ml-1">
-                                {step3Data.city}
-                            </Text>
+                        <View className="flex-row items-center justify-between mt-1">
+                            <View className="flex-row">
+                                <Ionicons name="location-outline" size={16} color="#234F68" />
+                                <Text className="text-base font-rubik text-black ml-1">
+                                    {step3Data.city}
+                                </Text>
+                            </View>
+
+                            <View style={styles.statusContainer}>
+                                <View style={[styles.statusDot, { backgroundColor: selectedStatus?.toLowerCase() === 'published' ? '#28A745' : '#DC3545', },]} />
+                                <Text style={[styles.statusText,]}>
+                                    {selectedStatus?.toLowerCase() === 'published' ? 'Active' : 'Inactive'}
+                                </Text>
+                            </View>
                         </View>
                         <View className="flex-row items-center justify-between mt-1">
                             <Text className="text-base font-rubik text-black-300">
@@ -837,7 +957,7 @@ const Editproperty = () => {
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Property Thumbnail</Text>
                             <View className="flex-row items-center">
-                                <TouchableOpacity onPress={pickMainImage} style={styles.dropbox}>
+                                <TouchableOpacity onPress={() => openSourceModal('mainImage')} style={styles.dropbox}>
                                     <Ionicons name="image-outline" size={24} color="#234F68" style={styles.inputIcon} />
                                     <Text style={{ marginStart: 10 }}>Upload Thumbnail</Text>
                                 </TouchableOpacity>
@@ -847,19 +967,23 @@ const Editproperty = () => {
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Select Category</Text>
                             <View style={styles.categoryContainer}>
-                                {categories.map((category) => (
+                                {Array.isArray(categoryData) && categoryData.map((category) => (
                                     <TouchableOpacity
-                                        key={category.value}
+                                        key={category.id}
                                         style={[
                                             styles.categoryButton,
-                                            selectedCategory === category.value && styles.categoryButtonSelected,
+                                            selectedCategory === category.label && styles.categoryButtonSelected,
                                         ]}
-                                        onPress={() => setSelectedCategory(category.value)}
+                                        onPress={() => setSelectedCategory(category.label)}
                                     >
-                                        <Text style={[
-                                            styles.categoryText,
-                                            selectedCategory === category.value && styles.categoryTextSelected,
-                                        ]}>{category.label}</Text>
+                                        <Text
+                                            style={[
+                                                styles.categoryText,
+                                                selectedCategory === category.label && styles.categoryTextSelected,
+                                            ]}
+                                        >
+                                            {category.label}
+                                        </Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -895,7 +1019,7 @@ const Editproperty = () => {
                                     style={styles.input}
                                     keyboardType="numeric"
                                     placeholder="Enter approx rental income"
-                                    value={step2Data.approxrentalincome}
+                                    value={formatIndianNumber(step2Data.approxrentalincome)}
                                     onChangeText={text => {
                                         const numericText = text.replace(/[^0-9]/g, '');
                                         setStep2Data(prevState => ({ ...prevState, approxrentalincome: numericText }));
@@ -911,7 +1035,7 @@ const Editproperty = () => {
                                     style={styles.input}
                                     keyboardType="numeric"
                                     placeholder="Enter current price"
-                                    value={step2Data.price}
+                                    value={formatIndianNumber(step2Data.price)}
                                     onChangeText={text => {
                                         const numericText = text.replace(/[^0-9]/g, '');
                                         setStep2Data(prevState => ({ ...prevState, price: numericText }));
@@ -927,7 +1051,7 @@ const Editproperty = () => {
                                         <TextInput
                                             style={styles.input}
                                             placeholder="Historical Price"
-                                            value={historyPrice}
+                                            value={formatIndianNumber(historyPrice)}
                                             keyboardType="numeric"
                                             onChangeText={text => {
                                                 const numericText = text.replace(/[^0-9]/g, '');
@@ -1050,54 +1174,65 @@ const Editproperty = () => {
                                 />
                             </View>
                         </View>
-                        <View style={styles.stepContent}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <View style={{ flex: 1, marginRight: 5 }}>
-                                    <Text style={styles.label}>Floor</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="floor-plan" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
+                        {(selectedCategory !== 'Agricultural' && selectedCategory !== 'Commercial' && selectedCategory !== 'Industrial') && (
+                            <View style={styles.stepContent}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <View style={{ flex: 1, marginRight: 5 }}>
+                                        <Text style={styles.label}>Floor</Text>
+                                        <View style={styles.inputContainer}>
+                                            <MaterialCommunityIcons name="floor-plan" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
+                                        </View>
                                     </View>
-                                </View>
-                                <View style={{ flex: 1, marginRight: 5 }}>
-                                    <Text style={styles.label}>Bathroom</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
+                                    <View style={{ flex: 1, marginRight: 5 }}>
+                                        <Text style={styles.label}>Bathroom</Text>
+                                        <View style={styles.inputContainer}>
+                                            <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
+                                        </View>
                                     </View>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Bedroom</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.label}>Bedroom</Text>
+                                        <View style={styles.inputContainer}>
+                                            <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} placeholder="Bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
+                                        </View>
                                     </View>
                                 </View>
                             </View>
-                        </View>
+                        )}
                         <View style={styles.stepContent}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <View style={{ flex: 1, marginRight: 5 }}>
-                                    <Text style={styles.label}>Square Foot</Text>
+                                    <Text style={styles.label}>Land Area</Text>
                                     <View style={styles.inputContainer}>
                                         <MaterialIcons name="zoom-out-map" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Square Foot" keyboardType="numeric" value={step3Data.sqfoot} onChangeText={text => setStep3Data({ ...step3Data, sqfoot: text })} />
-                                    </View>
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 5 }}>
-                                    <Text style={styles.label}>City</Text>
-                                    <View style={styles.inputContainer}>
-                                        <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
+                                        <TextInput style={styles.input} placeholder="Land area" keyboardType="numeric" value={landArea} onChangeText={(value) => setLandArea(value)} />
+                                        <View style={styles.unitpickerContainer}>
+                                            <RNPickerSelect
+                                                onValueChange={(value) => setSelectedUnit(value)}
+                                                items={units}
+                                                value={selectedUnit}
+                                                style={pickerSelectStyles}
+                                                placeholder={{ label: 'Choose an unit...', value: null }}
+                                            />
+                                        </View>
                                     </View>
                                 </View>
                             </View>
                         </View>
                         <View style={styles.stepContent}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>City</Text>
+                                <View style={styles.inputContainer}>
+                                    <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                    <TextInput style={styles.input} placeholder="Enter property city" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
+                                </View>
+                            </View>
                             <Text style={styles.label}>Property Address</Text>
                             <TextInput
                                 style={styles.textarea}
-                                placeholder="Property Address"
+                                placeholder="Property complete address"
                                 value={step3Data.officeaddress}
                                 onChangeText={text => setStep3Data({ ...step3Data, officeaddress: text })}
                                 multiline
@@ -1174,10 +1309,10 @@ const Editproperty = () => {
                                         />
                                     )}
                                 </MapView>
-                                <View className='flex-col bg-primary-100 rounded-lg mt-2 p-2'>
+                                {/* <View className='flex-col bg-primary-100 rounded-lg mt-2 p-2'>
                                     <Text className='font-rubik-medium'>Latitude: {coordinates.latitude || "Not set"}</Text>
                                     <Text className='font-rubik-medium'>Longitude: {coordinates.longitude || "Not set"}</Text>
-                                </View>
+                                </View> */}
                             </View>
                         </View>
                     </ProgressStep>
@@ -1227,7 +1362,7 @@ const Editproperty = () => {
                                     )}
                                 />
                             </View>
-                            <TouchableOpacity onPress={pickGalleryImages} style={styles.dropbox}>
+                            <TouchableOpacity onPress={() => openSourceModal('galleryImages')} style={styles.dropbox}>
                                 <Ionicons name="images-outline" size={24} color="#234F68" style={styles.inputIcon} />
                                 <Text style={{ textAlign: 'center' }}>Pick property images</Text>
                             </TouchableOpacity>
@@ -1254,7 +1389,7 @@ const Editproperty = () => {
                                     )}
                                 />
                             </View>
-                            <TouchableOpacity onPress={pickVideo} style={styles.dropbox}>
+                            <TouchableOpacity onPress={() => openSourceModal('video')} style={styles.dropbox}>
                                 <FontAwesome name="file-video-o" size={24} color="#234F68" style={styles.inputIcon} />
                                 <Text style={{ textAlign: 'center' }}>Pick property videos</Text>
                             </TouchableOpacity>
@@ -1399,6 +1534,56 @@ const Editproperty = () => {
                     </TouchableOpacity>
                 </View>
             </RBSheet>
+
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={modalVisible}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                {modalType === 'video' ? 'Select Video Source' : 'Select Image Source'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseButton}>
+                                <Text style={styles.modalCloseText}>×</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.modalContent}>
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                style={styles.modalOption}
+                                onPress={() => {
+                                    if (modalType === 'mainImage') pickMainImage('camera');
+                                    else if (modalType === 'galleryImages') pickGalleryImages('camera');
+                                    else if (modalType === 'video') pickVideo('camera');
+                                }}
+                            >
+                                <View style={styles.modalOptionBackground}>
+                                    <Ionicons name="camera-outline" size={40} color="#fff" style={styles.modalOptionIcon} />
+                                    <Text style={styles.modalOptionText}>Camera</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                style={styles.modalOption}
+                                onPress={() => {
+                                    if (modalType === 'mainImage') pickMainImage('gallery');
+                                    else if (modalType === 'galleryImages') pickGalleryImages('gallery');
+                                    else if (modalType === 'video') pickVideo('gallery');
+                                }}
+                            >
+                                <View style={styles.modalOptionBackground}>
+                                    <Ionicons name="images-outline" size={40} color="#fff" style={styles.modalOptionIcon} />
+                                    <Text style={styles.modalOptionText}>Gallery</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -1569,11 +1754,32 @@ const styles = StyleSheet.create({
         borderColor: '#c7c7c7',
         fontWeight: 600,
     },
+    unitpickerContainer: {
+        width: 110,
+        borderRadius: 10,
+        overflow: 'hidden',
+        backgroundColor: '#f3f4f6',
+    },
     pickerContainer: {
         borderRadius: 10,
         overflow: 'hidden',
         backgroundColor: '#f3f4f6',
         marginTop: 10,
+    },
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: 4,
+    },
+    statusText: {
+        fontSize: 14,
+        fontWeight: '400',
+        color: '#4A5568',
     },
     categoryContainer: {
         flexDirection: 'row',
@@ -1603,6 +1809,71 @@ const styles = StyleSheet.create({
     categoryTextSelected: {
         color: '#fff',
     },
+
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContainer: {
+        width: '90%',
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontFamily: 'Rubik-Bold',
+        color: '#234F68',
+    },
+    modalCloseButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#f4f2f7',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalCloseText: {
+        fontSize: 20,
+        color: '#234F68',
+        fontWeight: 'bold',
+    },
+    modalContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    modalOption: {
+        flex: 1,
+        marginHorizontal: 10,
+    },
+    modalOptionBackground: {
+        backgroundColor: '#234F68',
+        borderRadius: 15,
+        height: 120,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalOptionIcon: {
+        marginBottom: 10,
+    },
+    modalOptionText: {
+        fontSize: 16,
+        fontFamily: 'Rubik-Regular',
+        color: '#fff',
+    },
 });
 
 const pickerSelectStyles = StyleSheet.create({
@@ -1622,4 +1893,6 @@ const pickerSelectStyles = StyleSheet.create({
         color: 'black',
         paddingRight: 30,
     },
+
+
 });

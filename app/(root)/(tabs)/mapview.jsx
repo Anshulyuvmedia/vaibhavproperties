@@ -1,13 +1,14 @@
 import { StyleSheet, View, FlatList, TextInput, TouchableOpacity, Text, ActivityIndicator, Pressable } from 'react-native';
 import React, { useRef, useState, useEffect, memo } from 'react';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, Callout } from 'react-native-maps';
 import axios from 'axios';
 import { HorizontalCard } from '@/components/Cards';
 import Constants from 'expo-constants';
 import debounce from 'lodash.debounce';
 import * as Location from 'expo-location';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Image } from 'react-native';
 
 // Define parseCoordinates outside Mapview
 const parseCoordinates = (maplocations) => {
@@ -24,21 +25,6 @@ const parseCoordinates = (maplocations) => {
         return { latitude: 26.4499, longitude: 74.6399 }; // Default coordinates (Ajmer)
     }
 };
-
-// Define CustomMarker component
-const CustomMarker = memo(({ property, isSelected, onPress }) => {
-    const { latitude, longitude } = parseCoordinates(property.maplocations);
-    return (
-        <Marker
-            key={property.id}
-            coordinate={{ latitude, longitude }}
-            title={property.property_name}
-            description={property.category}
-            onPress={onPress}
-            anchor={{ x: 0.5, y: 0.5 }}
-        />
-    );
-});
 
 const Mapview = () => {
     const GOOGLE_MAPS_API_KEY = Constants.expoConfig.extra.GOOGLE_MAPS_API_KEY;
@@ -60,7 +46,7 @@ const Mapview = () => {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [mapType, setMapType] = useState('hybrid'); // Default to hybrid mode
-
+    const [markerSize, setMarkerSize] = useState({ width: 0, height: 0 });
     const viewProperty = (id) => router.push(`/properties/${id}`);
 
     // Toggle map type
@@ -160,6 +146,8 @@ const Mapview = () => {
 
             if (response.data && response.data.data && Array.isArray(response.data.data.data)) {
                 const data = response.data.data.data;
+                // console.log('property data', data);
+
                 if (pageNum === 1) {
                     setListingData(data);
                     setFilteredData(data);
@@ -388,6 +376,8 @@ const Mapview = () => {
     const handleMarkerPress = (property) => {
         setSelectedPropertyId(property.id);
         const { latitude, longitude } = parseCoordinates(property.maplocations);
+
+        // Animate map to the marker's coordinates
         mapRef.current?.animateToRegion(
             {
                 latitude,
@@ -397,9 +387,23 @@ const Mapview = () => {
             },
             500
         );
-        const index = listingData.findIndex((p) => p.id === property.id);
+
+        // Find the index in filteredData (the FlatList's data source)
+        const index = filteredData.findIndex((p) => p.id === property.id);
         if (index !== -1) {
-            flatListRef.current?.scrollToIndex({ index, animated: true });
+            try {
+                flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 });
+            } catch (error) {
+                console.warn('Failed to scroll to index:', error);
+                // Fallback: Scroll to the beginning and try again
+                setTimeout(() => {
+                    flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 });
+                }, 100);
+            }
+        } else {
+            console.warn('Property not found in filteredData:', property.id);
+            // Optional: Provide user feedback or refetch data
+            setError('Selected property is not in the current list. Try searching or loading more.');
         }
     };
 
@@ -558,15 +562,40 @@ const Mapview = () => {
                 compassEnabled={true}
                 mapType={mapType}
             >
-                {visibleMarkers.map((property) => (
-                    <CustomMarker
-                        key={property.id}
-                        property={property}
-                        isSelected={selectedPropertyId === property.id}
-                        onPress={() => handleMarkerPress(property)}
-                    />
-                ))}
+                {visibleMarkers.map((property) => {
+                    const { latitude, longitude } = parseCoordinates(property.maplocations);
+                    const price =
+                        property.price != null && !isNaN(property.price)
+                            ? `₹${Number(property.price).toLocaleString('en-IN')}`
+                            : 'N/A';
+
+                    return (
+                        <Marker
+                            key={property.id}
+                            coordinate={{ latitude, longitude }}
+                            onPress={() => handleMarkerPress(property)}
+                            anchor={{ x: 0.5, y: 0.5 }}
+                        >
+                            {/* <View
+                                collapsable={false}
+                                style={[styles.markerWrap]}
+                                onLayout={(event) => {
+                                    const { width, height } = event.nativeEvent.layout;
+                                    setMarkerSize({ width, height });
+                                    console.log("Marker layout size:", width, height);
+                                }}
+                            >
+                                <View style={styles.markerContainer}>
+                                    <Feather name="home" size={16} color="black" />
+                                    <Text style={styles.markerText}>{price}</Text>
+                                </View>
+                                <View style={styles.trianglePointer} />
+                            </View> */}
+                        </Marker>
+                    );
+                })}
             </MapView>
+
 
             {error && !loading && (
                 <View style={styles.errorContainer}>
@@ -804,4 +833,49 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
     },
+    markerWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+        overflow: 'visible',
+        borderColor: 'red',
+        borderWidth: 1,
+        paddingBottom: 10,
+    },
+
+    markerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'white',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 20,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        maxWidth: 250,
+    },
+
+    markerText: {
+        marginLeft: 6,
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+
+    trianglePointer: {
+        width: 0,
+        height: 0,
+        borderLeftWidth: 6,
+        borderRightWidth: 6,
+        borderTopWidth: 8,
+        borderLeftColor: 'transparent',
+        borderRightColor: 'transparent',
+        borderTopColor: 'white',
+        marginTop: -1,
+    },
+
+
 });

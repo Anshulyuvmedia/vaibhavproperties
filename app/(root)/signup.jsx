@@ -320,9 +320,9 @@ const Signup = () => {
           </View>
 
           <View style={styles.optionsContainer}>
-            <TouchableOpacity onPress={() => Alert.alert('Terms of Service', 'Placeholder for Terms of Service')}>
+            {/* <TouchableOpacity onPress={() => Alert.alert('Terms of Service', 'Placeholder for Terms of Service')}>
               <Text style={styles.termsText}>Terms of service</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
               <Text style={styles.showPassword}>{showPassword ? 'Hide password' : 'Show password'}</Text>
             </TouchableOpacity>
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   scrollContainer: { flexGrow: 1, alignItems: 'center', paddingBottom: verticalScale(20) },
   headerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: verticalScale(10) },
   backgroundImage: { width: '100%', height: 100 },
-  applogo: { width: scale(50), height: scale(50), borderRadius: moderateScale(100), marginRight: scale(10) },
+  applogo: { width: scale(50), height: scale(50), borderRadius: moderateScale(10), marginRight: scale(10) },
   formContainer: { paddingInline: 20, width: '100%', alignItems: 'center' },
   title: { fontSize: scale(20), fontFamily: 'Rubik-Bold', color: '#1F4C6B', textAlign: 'left' },
   subtitle: { fontSize: scale(14), fontFamily: 'Rubik-Regular', color: '#555', textAlign: 'left', marginVertical: verticalScale(5) },
@@ -367,11 +367,11 @@ const styles = StyleSheet.create({
   uploadButton: { padding: moderateScale(10) },
   uploadText: { color: '#1e40af', fontFamily: 'Rubik-Medium' },
   optionsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: verticalScale(10) },
-  termsText: { color: '#1e40af', fontFamily: 'Rubik-Regular' },
-  showPassword: { color: '#1e40af', fontFamily: 'Rubik-Regular' },
+  termsText: { color: '#234F68', fontFamily: 'Rubik-Regular' },
+  showPassword: { color: '#234F68', fontFamily: 'Rubik-Regular' },
   registerButton: { backgroundColor: '#8BC83F', borderRadius: moderateScale(10), paddingVertical: verticalScale(14), alignItems: 'center', marginTop: verticalScale(10), width: '100%' },
   registerButtonText: { fontSize: scale(18), fontFamily: 'Rubik-Medium', color: 'white' },
   loginLink: { marginVertical: verticalScale(20), alignItems: 'center' },
   loginText: { fontSize: scale(16), fontFamily: 'Rubik-Regular', color: '#000' },
-  loginHighlight: { color: '#1e40af', fontFamily: 'Rubik-Bold' },
+  loginHighlight: { color: '#234F68', fontFamily: 'Rubik-Bold' },
 });

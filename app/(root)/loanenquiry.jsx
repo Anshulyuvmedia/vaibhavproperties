@@ -10,6 +10,7 @@ import images from "@/constants/images";
 
 const LoanEnquiry = () => {
     const [loanAmount, setLoanAmount] = useState('');
+    const [rawLoanAmount, setRawLoanAmount] = useState(''); // Store raw numeric value
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -95,12 +96,13 @@ const LoanEnquiry = () => {
         }
     };
 
-    const removeDocument = (index, type) => {
+    const removeDocument = (index) => {
         setPropertyDocuments((prev) => prev.filter((_, i) => i !== index));
     };
 
     const validateForm = () => {
-        if (!loanAmount || isNaN(loanAmount) || Number(loanAmount) <= 0) {
+        const cleanedText = rawLoanAmount.replace(/[^0-9]/g, '');
+        if (!cleanedText || isNaN(cleanedText) || Number(cleanedText) <= 0) {
             return 'Please enter a valid loan amount.';
         }
         if (propertyDocuments.length === 0) {
@@ -112,7 +114,7 @@ const LoanEnquiry = () => {
     const handleSubmit = async () => {
         const errorMessage = validateForm();
         if (errorMessage) {
-            Alert.alert('Validation Error', errorMessage);
+            // Alert.alert('Validation Error', errorMessage);
             errorSheetRef.current?.open();
             return;
         }
@@ -127,7 +129,7 @@ const LoanEnquiry = () => {
             formData.append('city', city);
             formData.append('state', 'Rajasthan');
             formData.append('form_type', 'bankagent');
-            formData.append('loan_amount', loanAmount);
+            formData.append('loan_amount', rawLoanAmount.replace(/[^0-9]/g, ''));
 
             for (const doc of propertyDocuments) {
                 formData.append('documents[]', {
@@ -136,18 +138,6 @@ const LoanEnquiry = () => {
                     type: doc.mimeType || 'application/octet-stream',
                 });
             }
-
-            // console.log('FormData before submit:', {
-            //     userid: loggedinUserId,
-            //     customername: name,
-            //     mobilenumber: phone,
-            //     email,
-            //     city,
-            //     state: 'Rajasthan',
-            //     form_type: 'bankagent',
-            //     loan_amount: loanAmount,
-            //     documents: propertyDocuments.map(doc => ({ name: doc.name, mimeType: doc.mimeType })),
-            // });
 
             const apiUrl = 'https://landsquire.in/api/sendloanenquiry';
             const response = await fetch(apiUrl, {
@@ -158,16 +148,13 @@ const LoanEnquiry = () => {
                 },
             });
 
-            // console.log('API response status:', response.status);
-            // console.log('API response headers:', JSON.stringify([...response.headers]));
-
             const contentType = response.headers.get('content-type');
             if (!response.ok) {
                 let errorMessage = `HTTP error ${response.status}: Failed to submit loan enquiry.`;
                 if (contentType && contentType.includes('application/json')) {
                     const errorData = await response.json();
                     errorMessage = errorData.message || errorMessage;
-                    console.log('API error response:', errorData);
+                    console.error('API error response:', errorData);
                 } else {
                     const errorText = await response.text();
                     console.error('Non-JSON error:', errorText);
@@ -181,8 +168,6 @@ const LoanEnquiry = () => {
             }
 
             const result = await response.json();
-            // console.log('API response body:', result);
-
             if (result.success) {
                 successSheetRef.current?.open();
             } else {
@@ -203,6 +188,23 @@ const LoanEnquiry = () => {
 
     const closeErrorSheet = () => {
         errorSheetRef.current?.close();
+    };
+
+    // Utility function to format number in Indian style (e.g., 10,00,000)
+    const formatIndianNumber = (number) => {
+        if (!number) return '';
+        const numStr = number.toString().replace(/[^0-9]/g, '');
+        if (numStr.length <= 3) return numStr;
+        const lastThree = numStr.slice(-3);
+        const otherNumbers = numStr.slice(0, -3);
+        const formattedOther = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+        return `${formattedOther},${lastThree}`;
+    };
+
+    const handleLoanAmountChange = (text) => {
+        const cleanedText = text.replace(/[^0-9]/g, '');
+        setRawLoanAmount(cleanedText);
+        setLoanAmount(formatIndianNumber(cleanedText));
     };
 
     return (
@@ -261,7 +263,7 @@ const LoanEnquiry = () => {
                                 style={styles.input}
                                 placeholder="Enter loan amount"
                                 value={loanAmount}
-                                onChangeText={setLoanAmount}
+                                onChangeText={handleLoanAmountChange}
                                 keyboardType="numeric"
                                 placeholderTextColor="#A0AEC0"
                             />
@@ -285,7 +287,7 @@ const LoanEnquiry = () => {
                                     />
                                     <Text style={styles.documentName} numberOfLines={1}>{item.name}</Text>
                                     <TouchableOpacity
-                                        onPress={() => removeDocument(index, 'property')}
+                                        onPress={() => removeDocument(index)}
                                         style={styles.deleteButton}
                                     >
                                         <MaterialIcons name="close" size={16} color="#FFFFFF" />
@@ -330,12 +332,6 @@ const LoanEnquiry = () => {
                         >
                             <Text style={styles.sheetButtonText}>Finish</Text>
                         </TouchableOpacity>
-                        {/* <TouchableOpacity
-                            onPress={closeSuccessSheet}
-                            style={[styles.sheetButton, styles.sheetSecondaryButton]}
-                        >
-                            <Text style={styles.sheetButtonText}>Add More</Text>
-                        </TouchableOpacity> */}
                     </View>
                 </View>
             </RBSheet>

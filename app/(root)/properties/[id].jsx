@@ -91,11 +91,13 @@ const PropertyDetails = () => {
                 propertyid: propertyId,
                 userid: parsedUserData.id,
                 brokerid: propertyData.roleid || "",
-                bidamount: bidAmount || "",
+                bidamount: bidAmount.toString().replace(/,/g, '') || "",
             };
-
+            // console.log('enquiryData', enquiryData);
             const response = await axios.post("https://landsquire.in/api/sendenquiry", enquiryData);
             if (response.status === 200 && !response.data.error) {
+                // console.log('response', response.data);
+
                 setBidStatus({ type: "success", message: "Enquiry submitted successfully!" });
                 if (bidAmount && rbSheetRef.current) {
                     successSheetRef.current.open();
@@ -305,7 +307,10 @@ const PropertyDetails = () => {
 
     const validateBidAmount = () => {
         const currentPrice = Number(propertyData?.price) || 0;
-        const bid = Number(bidAmount);
+        // Clean the bidAmount string: remove commas
+        const cleanedBidStr = bidAmount.toString().replace(/,/g, '');
+        const bid = Number(cleanedBidStr);
+        // console.log('bidAmount', bid);
         const minimumBid = currentPrice * 0.5;
         if (!bidAmount || isNaN(bid) || bid <= 0) {
             setBidError("Please enter a valid bid amount greater than zero.");
@@ -329,19 +334,37 @@ const PropertyDetails = () => {
     };
 
     const formatINR = (amount) => {
-        if (!amount) return "₹0";
+        if (!amount || isNaN(amount)) return "₹0";
+
         const num = Number(amount);
-        if (num >= 1e7) {
-            return "₹" + (num / 1e7).toFixed(2).replace(/\.00$/, "") + " Cr";
-        } else if (num >= 1e5) {
-            return "₹" + (num / 1e5).toFixed(2).replace(/\.00$/, "") + " Lakh";
+        const absNum = Math.abs(num);
+        const prefix = num < 0 ? "-₹" : "₹";
+
+        if (absNum >= 1e7) {
+            return prefix + (absNum / 1e7).toFixed(2).replace(/\.00$/, "") + " Cr";
+        } else if (absNum >= 1e5) {
+            return prefix + (absNum / 1e5).toFixed(2).replace(/\.00$/, "") + " Lakh";
         }
-        return "₹" + num.toLocaleString("en-IN");
+
+        return prefix + absNum.toLocaleString("en-IN");
     };
+
 
     if (loading || !propertyData) {
         return <ActivityIndicator size="large" color="#8bc83f" style={{ marginTop: 400 }} />;
     }
+
+    // Utility function to format number in Indian style (e.g., 10,00,000)
+    const formatIndianNumber = (number) => {
+        if (!number) return '';
+        const numStr = number.toString().replace(/[^0-9]/g, ''); // Remove non-numeric characters
+        // If number is less than 1,000, no formatting needed
+        if (numStr.length <= 3) return numStr;
+        const lastThree = numStr.slice(-3);
+        const otherNumbers = numStr.slice(0, -3);
+        const formattedOther = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+        return `${formattedOther},${lastThree}`;
+    };
 
     return (
         <View className="pb-24">
@@ -598,7 +621,7 @@ const PropertyDetails = () => {
                         <Text className="text-black-300 text-xl font-rubik-bold">Location</Text>
                         <View className="flex flex-row items-center justify-start my-4 gap-2 me-3">
                             <Ionicons name="location-outline" size={22} color="#234F68" />
-                            <Text className="text-black-200 text-sm font-rubik-medium text-wrap">{propertyData.address}.</Text>
+                            <Text className="text-black-200 text-sm font-rubik-medium text-wrap">{propertyData.address}</Text>
                         </View>
                         <View>
                             <MapView style={{ height: 350, borderRadius: 10 }} region={region} initialRegion={region}
@@ -740,7 +763,7 @@ const PropertyDetails = () => {
                     <View className="mb-4">
                         <Text className="text-black-200 text-sm font-rubik-medium">Your Bid Amount</Text>
                         <TextInput
-                            value={bidAmount}
+                            value={formatIndianNumber(bidAmount)}
                             onChangeText={(text) => {
                                 setBidAmount(text);
                                 setBidError("");

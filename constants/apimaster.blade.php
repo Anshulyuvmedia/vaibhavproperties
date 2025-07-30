@@ -264,7 +264,7 @@ class ApiMasterController extends Controller
             $listings->where('price', '<=', $maxprice);
         }
 
-        $listings = $listings->where('status', '=', 'published')->paginate(4);
+        $listings = $listings->where('status', '=', 'published')->orderBy('featuredstatus', 'desc')->paginate(4);
 
         return response()->json([
             'success' => true,
@@ -375,7 +375,7 @@ class ApiMasterController extends Controller
                 'discription' => strip_tags($datareq['description'] ?? ''), // Remove HTML tags
                 'price' => $datareq['price'] ?? '',
                 'pricehistory' => json_encode(is_string($datareq['historydate']) ? json_decode($datareq['historydate'], true) : $datareq['historydate'] ?? []),
-                'squarefoot' => $datareq['sqfoot'] ?? '',
+                'squarefoot' => $datareq['landarea'] ?? '',
                 'bedroom' => $datareq['bedroom'] ?? '',
                 'bathroom' => $datareq['bathroom'] ?? '',
                 'floor' => $datareq['floor'] ?? '',
@@ -441,7 +441,7 @@ class ApiMasterController extends Controller
         } elseif ($sqftto) {
             $listings->where('squarefoot', '<=', $sqftto);
         }
-        $listings = $listings->where('status', '=', 'published')->get();
+        $listings = $listings->where('status', '=', 'published')->orderBy('featuredstatus', 'desc')->get();
 
         return response()->json([
             'success' => true,
@@ -624,7 +624,7 @@ class ApiMasterController extends Controller
     public function updatelisting(Request $request, $id)
     {
         $datareq = $request->all();
-        // \Log::info('Received Data:', $request->all());
+        // Log::info('Received Data:', $request->all());
         try {
             $olddata = PropertyListing::find($id);
             // Handle the thumbnail image
@@ -698,7 +698,7 @@ class ApiMasterController extends Controller
                 'discription' => strip_tags($datareq['description'] ?? ''), // Remove HTML tags
                 'price' => $datareq['price'],
                 'pricehistory' => $datareq['historydate'],
-                'squarefoot' => $datareq['sqfoot'],
+                'squarefoot' => $datareq['landarea'],
                 'bedroom' => $datareq['bedroom'],
                 'bathroom' => $datareq['bathroom'],
                 'floor' => $datareq['floor'],
@@ -712,7 +712,7 @@ class ApiMasterController extends Controller
                 'documents' => !empty($documents) ? json_encode($documents) : $olddata->documents,
                 'amenties' => $datareq['amenities'] ?? $olddata->amenities,
                 'videos' => !empty($Videos) ? json_encode($Videos) : $olddata->videos,
-                'status' => 'unpublished',
+                'status' => $datareq['status'],
             ]);
             $updatedProperty = PropertyListing::where('id', $id)->first(); // Fetch updated record
             return response()->json(['data' => $updatedProperty, 'message' => 'Listing Updated successfully!']);

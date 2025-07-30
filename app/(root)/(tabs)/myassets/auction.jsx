@@ -17,6 +17,7 @@ const Auction = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [newBidAmount, setNewBidAmount] = useState('');
+  const [rawBidAmount, setRawBidAmount] = useState(''); // Store raw numeric value
   const [isUpdatingBid, setIsUpdatingBid] = useState(false);
   const rbSheetRef = useRef();
 
@@ -35,7 +36,7 @@ const Auction = () => {
         return;
       }
       const response = await axios.get(`https://landsquire.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
-      
+
       if (response.data && response.data.myenquiries) {
         const parsedEnquiries = response.data.myenquiries.map(enquiry => ({
           ...enquiry,
@@ -66,21 +67,22 @@ const Auction = () => {
     setSelectedEnquiry(enquiry);
     setIsUpdatingBid(isUpdateBid);
     setNewBidAmount('');
+    setRawBidAmount('');
     rbSheetRef.current?.open();
   };
 
   const updateBid = async () => {
-    if (!newBidAmount || isNaN(newBidAmount) || Number(newBidAmount) <= 0) {
+    const cleanedBidAmount = rawBidAmount.replace(/,/g, ''); // Remove commas
+    if (!cleanedBidAmount || isNaN(cleanedBidAmount) || Number(cleanedBidAmount) <= 0) {
       alert(t('invalidBidAmount') || 'Please enter a valid bid amount');
       return;
     }
 
     try {
       const latestBid = getLatestBid(selectedEnquiry.propertybid);
-      console.log('bidamount', selectedEnquiry.id, newBidAmount, latestBid.date)
       const response = await axios.post('https://landsquire.in/api/updatebidamount', {
         leadid: selectedEnquiry.id,
-        bidamount: Number(newBidAmount),
+        bidamount: Number(cleanedBidAmount),
         biddate: latestBid.date
       });
 
@@ -123,6 +125,23 @@ const Auction = () => {
     return { bidamount: t('notAvailable') || 'N/A', date: '' };
   };
 
+  // Utility function to format number in Indian style (e.g., 10,00,000)
+  const formatIndianNumber = (number) => {
+    if (!number) return '';
+    const numStr = number.toString().replace(/[^0-9]/g, ''); // Remove non-numeric characters
+    if (numStr.length <= 3) return numStr;
+    const lastThree = numStr.slice(-3);
+    const otherNumbers = numStr.slice(0, -3);
+    const formattedOther = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+    return `${formattedOther},${lastThree}`;
+  };
+
+  const handleBidAmountChange = (text) => {
+    const cleanedText = text.replace(/[^0-9]/g, ''); // Remove non-numeric characters
+    setRawBidAmount(cleanedText); // Store raw number
+    setNewBidAmount(formatIndianNumber(cleanedText)); // Display formatted number
+  };
+
   const renderEnquiry = ({ item }) => {
     const latestBid = getLatestBid(item.propertybid);
     const fontFamilyBold = i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold';
@@ -147,7 +166,7 @@ const Auction = () => {
         </View>
         <View style={styles.cardrow}>
           <View>
-            <Text style={styles.cardLabel}>{t('bid') || 'Bid Date'}:</Text>
+            <Text style={styles.cardLabel}>{t('bid') || 'Bid Amount'}:</Text>
             <Text style={[styles.cardText, { fontFamily: fontFamilyRegular }]}>
               {formatCurrency(latestBid.bidamount)}
             </Text>
@@ -173,7 +192,7 @@ const Auction = () => {
             >
               <Text style={[styles.actionButtonText, { fontFamily: fontFamilyMedium }]}>
                 {t('viewProperty') || 'View Property'}
-                </Text>
+              </Text>
             </TouchableOpacity>
           )}
           {item.agentid && (
@@ -264,7 +283,7 @@ const Auction = () => {
 
       <RBSheet
         ref={rbSheetRef}
-        height={verticalScale(400)}
+        height={verticalScale(250)}
         openDuration={250}
         customStyles={{
           container: styles.rbSheet,
@@ -294,7 +313,7 @@ const Auction = () => {
                   <TextInput
                     style={styles.bidInput}
                     value={newBidAmount}
-                    onChangeText={setNewBidAmount}
+                    onChangeText={handleBidAmountChange}
                     keyboardType="numeric"
                     placeholder={t('enterBidAmount') || 'Enter bid amount'}
                     placeholderTextColor="#999"
@@ -586,7 +605,6 @@ const styles = StyleSheet.create({
     paddingBottom: verticalScale(20),
   },
   sheetRow: {
-    flexDirection: 'row',
     marginVertical: verticalScale(5),
   },
   bidHistoryRow: {
@@ -630,7 +648,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Medium',
   },
   bidInput: {
-    flex: 1,
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: moderateScale(8),
@@ -638,5 +655,6 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(14),
     fontFamily: 'Rubik-Regular',
     color: '#000',
+    width: scale(200),
   },
 });

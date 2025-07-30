@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafafa', alignItems: 'center', justifyContent: 'center' },
   scrollContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'space-between', paddingBottom: verticalScale(20) },
   backgroundImage: { width: '100%', height: verticalScale(150) },
-  applogo: { width: scale(150), height: scale(150), borderRadius: moderateScale(100) },
+  applogo: { width: scale(150), height: scale(150), borderRadius: moderateScale(10) },
   formContainer: { paddingHorizontal: scale(20), width: '100%', alignItems: 'center' },
   title: { fontSize: moderateScale(24), textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#333', marginTop: verticalScale(20) },
   highlight: { color: '#1F4C6B', fontFamily: 'Rubik-Bold' },

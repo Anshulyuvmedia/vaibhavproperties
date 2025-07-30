@@ -156,16 +156,17 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
         </View>
 
         {/* Price */}
-        <Text className="text-base font-rubik text-black-300 mt-2">
-          {formatINR(item.price || 290)}
-        </Text>
-        {map && (
-          <TouchableOpacity onPress={onView} className='mt-2 py-1 px-3 bg-primary-400 rounded-full items-center'>
-            <Text className='font-rubik text-white'>
-              View Property
-            </Text>
-          </TouchableOpacity>
-        )}
+        <View className="w-[100%] flex-row items-center justify-between mt-2">
+
+          <Text className="text-base font-rubik text-black-300 ">
+            {formatINR(item.price || 290)}
+          </Text>
+          {map && (
+            <TouchableOpacity onPress={onView} className=' py-1 px-2 bg-primary-400 rounded-lg items-center'>
+              <Ionicons name="eye-outline" size={20} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
 

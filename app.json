@@ -4,7 +4,7 @@
     "slug": "vaibhavproperties",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/vplogo.png",
+    "icon": "./assets/images/applogo.png",
     "scheme": "vaibhavproperties",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -24,7 +24,7 @@
     "android": {
       "package": "com.vaibhav.properties",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/vplogo.png",
+        "foregroundImage": "./assets/images/applogo.png",
         "backgroundColor": "#ffffff"
       },
       "runtimeVersion": "1.0.0",
@@ -37,7 +37,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/vplogo.png",
+      "favicon": "./assets/images/applogo.png",
       "config": {
         "react-native-maps": {
           "web": "google"
@@ -54,7 +54,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/vplogo.png",
+          "image": "./assets/images/landsquire.png",
           "resizeMode": "cover",
           "backgroundColor": "#ffffff",
           "enableFullScreenImage_legacy": true

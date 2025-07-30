@@ -32,7 +32,7 @@ const resources = {
             noPropertiesMessage: 'It looks like you haven’t added any properties. Start by adding your first property to get started!',
             loadingProperties: 'Loading properties...',
             editProperty: 'Edit',
-            editBid: 'Edit Bid',
+            editBid: 'Bidding',
             bidStatus: 'Bid Status',
             bidEndDate: 'Bid End Date',
             submitting: 'Submitting...',

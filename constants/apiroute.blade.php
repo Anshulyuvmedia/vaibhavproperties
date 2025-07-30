@@ -21,7 +21,7 @@ Route::controller(ApiMasterController::class)->group(function () {
     Route::get('/property-listings', 'propertylistings')->name('api.propertylistings');
     Route::get('/get-categories', 'getcategories')->name('api.getcategories');
     Route::get('/property-details/{id}', 'propertydetails')->name('api.propertydetails');
-    Route::middleware('auth:sanctum')->post('/insertlisting', 'insertlisting')->name('api.insertlisting');
+    Route::post('/insertlisting', 'insertlisting')->name('api.insertlisting');
     Route::post('/filterlistings', 'filterlistings')->name('api.filterlistings');
     Route::post('/sendenquiry', 'sendenquiry')->name('api.sendenquiry');
     Route::get('/userprofile', 'userprofile')->name('api.userprofile');
