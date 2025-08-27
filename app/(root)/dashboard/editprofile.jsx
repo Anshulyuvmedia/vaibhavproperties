@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, Image, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import axios from 'axios';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast, { BaseToast } from 'react-native-toast-message';
+import RBSheet from 'react-native-raw-bottom-sheet';
 import { Ionicons, Octicons, Feather } from '@expo/vector-icons';
 
 const EditProfile = () => {
@@ -21,25 +21,9 @@ const EditProfile = () => {
     const [companyDocs, setCompanyDocs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [userId, setUserId] = useState(null);
-
-    const toastConfig = {
-        success: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "green" }}
-                text1Style={{ fontSize: 16, fontWeight: "bold" }}
-                text2Style={{ fontSize: 14 }}
-            />
-        ),
-        error: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "red" }}
-                text1Style={{ fontSize: 16, fontWeight: "bold" }}
-                text2Style={{ fontSize: 14 }}
-            />
-        ),
-    };
+    const [city, setCity] = useState(null);
+    const [sheetMessage, setSheetMessage] = useState({ type: '', title: '', message: '' });
+    const sheetRef = React.useRef();
 
     useEffect(() => {
         fetchProfileData();
@@ -49,7 +33,6 @@ const EditProfile = () => {
         try {
             setLoading(true);
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
-
             if (!parsedUserData || !parsedUserData.id) {
                 await AsyncStorage.removeItem('userData');
                 router.push('/signin');
@@ -63,6 +46,7 @@ const EditProfile = () => {
             setUsername(data.username);
             setUsertype(data.user_type);
             setEmail(data.email);
+            setCity(data.city);
             setPhoneNumber(data.mobilenumber);
             setCompanyName(data.company_name);
             setCompanyDocs(data.company_document ? [data.company_document] : []);
@@ -97,7 +81,7 @@ const EditProfile = () => {
         });
 
         if (!result.canceled) {
-            setImage(result.adminAssets[0].uri);
+            setImage(result.assets[0].uri);
         }
     };
 
@@ -111,42 +95,46 @@ const EditProfile = () => {
 
             if (result.canceled) return;
 
-            const { mimeType, uri, name } = result.adminAssets[0];
+            const { mimeType, uri, name } = result.assets[0];
 
             if (!['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'].includes(mimeType)) {
-                Toast.show({
+                setSheetMessage({
                     type: 'error',
-                    text1: 'Invalid File',
-                    text2: 'Please select a PDF or an image file (PNG, JPG, JPEG).',
+                    title: 'Invalid File',
+                    message: 'Please select a PDF or an image file (PNG, JPG, JPEG).',
                 });
+                sheetRef.current.open();
                 return;
             }
 
             setCompanyDocs([{ uri, name, mimeType }]);
 
-            Toast.show({
+            setSheetMessage({
                 type: 'success',
-                text1: 'File Added',
-                text2: `${name} has been successfully added.`,
+                title: 'File Added',
+                message: `${name} has been successfully added.`,
             });
+            sheetRef.current.open();
         } catch (error) {
             console.error('Document Picker Error:', error);
-            Toast.show({
+            setSheetMessage({
                 type: 'error',
-                text1: 'Error',
-                text2: 'An error occurred while selecting a document.',
+                title: 'Error',
+                message: 'An error occurred while selecting a document.',
             });
+            sheetRef.current.open();
         }
     };
 
     const openFileInBrowser = async (fileName) => {
         try {
             if (!fileName) {
-                Toast.show({
+                setSheetMessage({
                     type: 'error',
-                    text1: 'Error',
-                    text2: 'File not found.',
+                    title: 'Error',
+                    message: 'File not found.',
                 });
+                sheetRef.current.open();
                 return;
             }
 
@@ -154,11 +142,12 @@ const EditProfile = () => {
             await Linking.openURL(fileUrl);
         } catch (error) {
             console.error('Error opening file:', error);
-            Toast.show({
+            setSheetMessage({
                 type: 'error',
-                text1: 'Error',
-                text2: 'Could not open the file.',
+                title: 'Error',
+                message: 'Could not open the file.',
             });
+            sheetRef.current.open();
         }
     };
 
@@ -169,6 +158,7 @@ const EditProfile = () => {
             formData.append('name', username);
             formData.append('email', email);
             formData.append('mobile', phoneNumber);
+            formData.append('city', city);
             formData.append('company_name', companyName);
 
             if (image && image.startsWith('file://')) {
@@ -202,22 +192,24 @@ const EditProfile = () => {
             );
 
             if (response.status === 200) {
-                Toast.show({
+                setSheetMessage({
                     type: 'success',
-                    text1: 'Success',
-                    text2: 'Profile updated successfully!',
+                    title: 'Success',
+                    message: 'Profile updated successfully!',
                 });
+                sheetRef.current.open();
                 fetchProfileData();
             } else {
                 throw new Error('Unexpected server response.');
             }
         } catch (error) {
             console.error('Error updating profile:', error);
-            Toast.show({
+            setSheetMessage({
                 type: 'error',
-                text1: 'Update Failed',
-                text2: 'Could not update profile. Try again later.',
+                title: 'Update Failed',
+                message: 'Could not update profile. Try again later.',
             });
+            sheetRef.current.open();
         } finally {
             setLoading(false);
         }
@@ -233,7 +225,36 @@ const EditProfile = () => {
                 <View style={styles.placeholder} />
             </View>
 
-            <Toast config={toastConfig} position="top" />
+            <RBSheet
+                ref={sheetRef}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                customStyles={{
+                    container: {
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        padding: 20,
+                        backgroundColor: sheetMessage.type === 'success' ? '#E6F3E6' : '#FFE6E6',
+                    },
+                    draggableIcon: {
+                        backgroundColor: '#1F4C6B',
+                    },
+                }}
+                height={200}
+            >
+                <View style={styles.sheetContent}>
+                    <Text style={[styles.sheetTitle, { color: sheetMessage.type === 'success' ? 'green' : 'red' }]}>
+                        {sheetMessage.title}
+                    </Text>
+                    <Text style={styles.sheetMessage}>{sheetMessage.message}</Text>
+                    <TouchableOpacity
+                        style={[styles.sheetButton, { backgroundColor: sheetMessage.type === 'success' ? '#8BC83F' : '#FF4444' }]}
+                        onPress={() => sheetRef.current.close()}
+                    >
+                        <Text style={styles.sheetButtonText}>OK</Text>
+                    </TouchableOpacity>
+                </View>
+            </RBSheet>
 
             {loading ? (
                 <ActivityIndicator size="large" color="#1F4C6B" style={styles.loadingIndicator} />
@@ -272,7 +293,9 @@ const EditProfile = () => {
                                 placeholder="Email Address"
                                 keyboardType="email-address"
                                 autoCapitalize="none"
+                                editable={false}
                             />
+                            <Octicons name="lock" size={20} color="gray" style={styles.inputIcon} />
                         </View>
 
                         <View style={styles.inputContainer}>
@@ -283,6 +306,18 @@ const EditProfile = () => {
                                 onChangeText={setPhoneNumber}
                                 placeholder="Phone Number"
                                 keyboardType="phone-pad"
+                                editable={false}
+                            />
+                            <Octicons name="lock" size={20} color="gray" style={styles.inputIcon} />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Ionicons name="location-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={city}
+                                onChangeText={setCity}
+                                placeholder="City"
                             />
                         </View>
 
@@ -332,7 +367,6 @@ const EditProfile = () => {
                             </>
                         )}
                     </View>
-
                 </ScrollView>
             )}
             <View className='px-4'>
@@ -375,7 +409,7 @@ const styles = StyleSheet.create({
         color: '#1F4C6B',
     },
     placeholder: {
-        width: 40, // Placeholder to balance the header layout
+        width: 40,
     },
     loadingIndicator: {
         marginTop: 50,
@@ -400,13 +434,8 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 60,
         right: '35%',
-        // backgroundColor: '#1F4C6B',
         borderRadius: 15,
         padding: 5,
-    },
-    editIcon: {
-        width: 20,
-        height: 20,
     },
     usernameText: {
         fontSize: 18,
@@ -497,6 +526,33 @@ const styles = StyleSheet.create({
         marginVertical: 20,
     },
     submitButtonText: {
+        fontSize: 16,
+        fontFamily: 'Rubik-Medium',
+        color: 'white',
+    },
+    sheetContent: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+    },
+    sheetTitle: {
+        fontSize: 18,
+        fontFamily: 'Rubik-Bold',
+        marginBottom: 10,
+    },
+    sheetMessage: {
+        fontSize: 14,
+        fontFamily: 'Rubik-Regular',
+        color: '#333',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    sheetButton: {
+        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+    },
+    sheetButtonText: {
         fontSize: 16,
         fontFamily: 'Rubik-Medium',
         color: 'white',

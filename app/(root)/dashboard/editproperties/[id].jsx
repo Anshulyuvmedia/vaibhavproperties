@@ -1,6 +1,5 @@
 import { Image, StyleSheet, Text, ScrollView, TouchableOpacity, View, TextInput, FlatList, Modal, Platform, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import icons from '@/constants/icons';
 import { ProgressSteps, ProgressStep } from 'react-native-progress-steps';
 import * as ImagePicker from 'expo-image-picker';
@@ -59,6 +58,7 @@ const Editproperty = () => {
     // Use useRef for RBSheet
     const successSheetRef = useRef(null);
     const errorSheetRef = useRef(null);
+    const confirmDeleteRef = useRef(null);
 
     const buttonPreviousTextStyle = {
         paddingHorizontal: 20,
@@ -84,14 +84,6 @@ const Editproperty = () => {
         color: 'white',
         marginTop: 10, // Align with next button
     };
-    const categories = [
-        { label: 'Apartment', value: 'Apartment' },
-        { label: 'Villa', value: 'Villa' },
-        { label: 'Penthouse', value: 'Penthouse' },
-        { label: 'Residences', value: 'Residences' },
-        { label: 'Luxury House', value: 'Luxury House' },
-        { label: 'Bunglow', value: 'Bunglow' },
-    ];
     const status = [
         { label: 'Published', value: 'published' },
         { label: 'Unpublished', value: 'unpublished' },
@@ -111,6 +103,34 @@ const Editproperty = () => {
     const [categoryData, setCategoryData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState(null); // 'mainImage', 'galleryImages', or 'video'
+
+    const [selectedSubCategory, setSelectedSubCategory] = useState('');
+    const [selectedPropertyFor, setSelectedPropertyFor] = useState('');
+
+    const subcategoryOptions = {
+        Agriculture: [
+            { label: 'Plot', value: 'Plot' },
+            { label: 'House', value: 'House' },
+        ],
+        Approved: [
+            { label: 'Plot', value: 'Plot' },
+            { label: 'House', value: 'House' },
+            { label: 'Apartment', value: 'Apartment' },
+        ],
+        Commercial: [
+            { label: 'Plot', value: 'Plot' },
+            { label: 'Land', value: 'Land' },
+            { label: 'Shop', value: 'Shop' },
+            { label: 'Office', value: 'Office' },
+            { label: 'Other', value: 'Other' },
+        ],
+    };
+
+    const propertyfor = [
+        { label: 'Sell', value: 'Sell' },
+        { label: 'Rent', value: 'Rent' },
+    ];
+
 
     const fetchCategories = async () => {
         setLoading(true);
@@ -146,7 +166,7 @@ const Editproperty = () => {
         if (step === 1) {
             if (!step1Data.property_name) { setErrorField('Property Title'); setErrorVisible(true); return false; }
             if (!step1Data.description) { setErrorField('Property Description'); setErrorVisible(true); return false; }
-            if (!step1Data.nearbylocation) { setErrorField('Near By Locations'); setErrorVisible(true); return false; }
+            if (!step1Data.nearbylocation) { setErrorField('Nearbylocations'); setErrorVisible(true); return false; }
             return true;
         }
         if (step === 2) {
@@ -170,21 +190,15 @@ const Editproperty = () => {
         if (useCamera) {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Error',
-                    text2: 'Sorry, we need camera permissions to make this work!',
-                });
+                setErrorField('Sorry, we need camera permissions to make this work!');
+                setErrorVisible(true);
                 return false;
             }
         }
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'Sorry, we need camera roll permissions to make this work!',
-            });
+            setErrorField('Sorry, we need camera roll permissions to make this work!');
+            setErrorVisible(true);
             return false;
         }
         return true;
@@ -483,10 +497,42 @@ const Editproperty = () => {
         }
     };
 
+    const handleDeleteProperty = async () => {
+        confirmDeleteRef.current.close();
+        setLoading(true);
+        try {
+            const { userData, userToken } = await getUserData();
+            if (!userData || !userToken) {
+                throw new Error("User is not authenticated. Token missing.");
+            }
+            const { id: userId } = userData;
+
+
+            const response = await axios.post(`https://landsquire.in/api/deletelisting`, { property_id: id, roleid: userId, }, {
+                headers: {
+                    "Accept": "application/json",
+                    "Authorization": `Bearer ${userToken}`
+                },
+            });
+            // console.log('response', response);
+            if (response.status === 200 && !response.data.error) {
+                setSuccessVisible(true);
+            } else {
+                setErrorField(response.data.message || "Unknown error");
+                setErrorVisible(true);
+            }
+        } catch (error) {
+            console.error('handleDeleteProperty error:', error);
+            setErrorField(error.message || "Failed to delete property");
+            setErrorVisible(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSubmit = async () => {
         setLoading(true);
         try {
-            console.log('Starting handleSubmit, successSheetRef:', successSheetRef.current);
             const { userData, userToken } = await getUserData();
             if (!userData || !userToken) {
                 throw new Error("User is not authenticated. Token missing.");
@@ -506,6 +552,8 @@ const Editproperty = () => {
             formData.append("landarea", `${landArea} ${selectedUnit}` ?? "");
             formData.append("bedroom", step3Data?.bedroom ?? "");
             formData.append("category", selectedCategory ?? "");
+            formData.append("subcategory", selectedSubCategory ?? "");
+            formData.append("propertyfor", selectedPropertyFor ?? "");
             formData.append("status", selectedStatus ?? "");
             formData.append("roleid", userId ?? "");
             formData.append("usertype", user_type ?? "");
@@ -577,7 +625,7 @@ const Editproperty = () => {
                 masterplandocument: masterPlanDoc.filter(doc => doc.uri && !doc.uri.startsWith("http")),
             };
             formData.append("fileData", JSON.stringify(fileData));
-            console.log('formdata', formData);
+            // console.log('formdata', formData);
             const response = await axios.post(`https://landsquire.in/api/updatelisting/${propertyId}`, formData, {
                 headers: {
                     "Accept": "application/json",
@@ -588,10 +636,8 @@ const Editproperty = () => {
 
             // console.log('API response:', response.data);
             if (response.status === 200 && !response.data.error) {
-                console.log('Setting successVisible to true');
                 setSuccessVisible(true);
             } else {
-                console.log('Setting errorVisible to true, message:', response.data.message);
                 setErrorField(response.data.message || "Unknown error");
                 setErrorVisible(true);
             }
@@ -600,7 +646,6 @@ const Editproperty = () => {
             setErrorField(error.message || "Failed to update property");
             setErrorVisible(true);
         } finally {
-            console.log('Setting loading to false');
             setLoading(false);
         }
     };
@@ -611,6 +656,7 @@ const Editproperty = () => {
             const response = await axios.get(`https://landsquire.in/api/property-details/${id}`);
             if (response.data) {
                 const apiData = response.data.details;
+                // console.log('apiData', apiData);
                 setPropertyData(apiData);
 
                 setStep1Data({
@@ -643,6 +689,8 @@ const Editproperty = () => {
                     setSelectedUnit('');
                 }
                 setSelectedCategory(apiData.category || '');
+                setSelectedSubCategory(apiData.subcategory || '');
+                setSelectedPropertyFor(apiData.propertyfor || '');
                 setSelectedStatus(apiData.status || '');
 
                 const fetchedAmenities = apiData.amenties || apiData.amenities || [];
@@ -854,6 +902,12 @@ const Editproperty = () => {
         return `${formattedOther},${lastThree}`;
     };
 
+    const handleDelete = () => {
+        if (confirmDeleteRef.current) {
+            confirmDeleteRef.current.open();
+        }
+    };
+
     return (
         <View style={{ backgroundColor: '#fafafa', height: '100%', paddingHorizontal: 20 }}>
             {/* Test button for debugging */}
@@ -891,15 +945,8 @@ const Editproperty = () => {
                 <View className='flex-row justify-between items-center'>
                     {mainImage && <Image source={{ uri: mainImage }} style={styles.image} />}
                     <View className='ms-2 flex-1'>
-                        <Text className="font-rubik-medium text-base">{step1Data.property_name}</Text>
                         <View className="flex-row items-center justify-between mt-1">
-                            <View className="flex-row">
-                                <Ionicons name="location-outline" size={16} color="#234F68" />
-                                <Text className="text-base font-rubik text-black ml-1">
-                                    {step3Data.city}
-                                </Text>
-                            </View>
-
+                            <Text className="font-rubik-medium text-base">{step1Data.property_name}</Text>
                             <View style={styles.statusContainer}>
                                 <View style={[styles.statusDot, { backgroundColor: selectedStatus?.toLowerCase() === 'published' ? '#28A745' : '#DC3545', },]} />
                                 <Text style={[styles.statusText,]}>
@@ -908,12 +955,26 @@ const Editproperty = () => {
                             </View>
                         </View>
                         <View className="flex-row items-center justify-between mt-1">
+                            <View className="flex-row">
+                                <Ionicons name="location-outline" size={16} color="#234F68" />
+                                <Text className="text-base font-rubik text-black ml-1">
+                                    {step3Data.city}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={handleDelete} className="bg-red-600 rounded-3xl px-3">
+                                <Text className="text-base font-rubik text-white">
+                                    <AntDesign name="delete" size={14} color="white" /> Delete
+                                </Text>
+                            </TouchableOpacity>
+
+                        </View>
+                        <View className="flex-row items-center justify-between mt-1">
                             <Text className="text-base font-rubik text-black-300">
                                 {formatINR(step2Data.price)}
                             </Text>
                             <View className="bg-primary-300 rounded-3xl px-3">
                                 <Text className="text-base font-rubik text-white">
-                                    {selectedCategory}
+                                    {selectedCategory} - {selectedSubCategory}
                                 </Text>
                             </View>
                         </View>
@@ -965,29 +1026,89 @@ const Editproperty = () => {
                             </View>
                         </View>
                         <View style={styles.stepContent}>
+                            <Text style={styles.label}>Select Purpose</Text>
+                            <View style={styles.categoryContainer}>
+                                {Array.isArray(propertyfor) &&
+                                    propertyfor.map((item, index) => (
+                                        <TouchableOpacity
+                                            key={index} // using index since your array doesn’t have `id`
+                                            style={[
+                                                styles.categoryButton,
+                                                selectedPropertyFor === item.value && styles.categoryButtonSelected,
+                                            ]}
+                                            onPress={() => setSelectedPropertyFor(item.value)}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.categoryText,
+                                                    selectedPropertyFor === item.value && styles.categoryTextSelected,
+                                                ]}
+                                            >
+                                                {item.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </View>
+
                             <Text style={styles.label}>Select Category</Text>
                             <View style={styles.categoryContainer}>
-                                {Array.isArray(categoryData) && categoryData.map((category) => (
-                                    <TouchableOpacity
-                                        key={category.id}
-                                        style={[
-                                            styles.categoryButton,
-                                            selectedCategory === category.label && styles.categoryButtonSelected,
-                                        ]}
-                                        onPress={() => setSelectedCategory(category.label)}
-                                    >
-                                        <Text
+                                {Array.isArray(categoryData) &&
+                                    categoryData.map((category) => (
+                                        <TouchableOpacity
+                                            key={category.id}
                                             style={[
-                                                styles.categoryText,
-                                                selectedCategory === category.label && styles.categoryTextSelected,
+                                                styles.categoryButton,
+                                                selectedCategory === category.label && styles.categoryButtonSelected,
                                             ]}
+                                            onPress={() => {
+                                                setSelectedCategory(category.label);
+                                                setSelectedSubCategory(null); // reset subcategory when category changes
+                                            }}
                                         >
-                                            {category.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
+                                            <Text
+                                                style={[
+                                                    styles.categoryText,
+                                                    selectedCategory === category.label && styles.categoryTextSelected,
+                                                ]}
+                                            >
+                                                {category.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
                             </View>
+
+                            {/* Show subcategory only when category is selected */}
+                            {selectedCategory && (
+                                <>
+                                    <Text style={styles.label}>Select Sub Category</Text>
+                                    <View style={styles.categoryContainer}>
+                                        {Array.isArray(subcategoryOptions[selectedCategory]) &&
+                                            subcategoryOptions[selectedCategory].map((subcategory) => (
+                                                <TouchableOpacity
+                                                    key={subcategory.value}
+                                                    style={[
+                                                        styles.categoryButton,
+                                                        selectedSubCategory === subcategory.value &&
+                                                        styles.categoryButtonSelected,
+                                                    ]}
+                                                    onPress={() => setSelectedSubCategory(subcategory.value)}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.categoryText,
+                                                            selectedSubCategory === subcategory.value &&
+                                                            styles.categoryTextSelected,
+                                                        ]}
+                                                    >
+                                                        {subcategory.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                    </View>
+                                </>
+                            )}
                         </View>
+
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Near By Locations</Text>
                             <View style={styles.inputContainer}>
@@ -1449,11 +1570,13 @@ const Editproperty = () => {
                     </ProgressStep>
                 </ProgressSteps>
             </View>
-            {loading && (
-                <View className='absolute bottom-28 z-40 right-16'>
-                    <ActivityIndicator />
-                </View>
-            )}
+            {
+                loading && (
+                    <View className='absolute bottom-28 z-40 right-16'>
+                        <ActivityIndicator />
+                    </View>
+                )
+            }
 
             {/* Success RBSheet */}
             <RBSheet
@@ -1478,15 +1601,14 @@ const Editproperty = () => {
                         Success
                     </Text>
                     <Text style={{ fontSize: 16, textAlign: 'center', marginTop: 10 }}>
-                        Property updated successfully!
+                        Process successfull!
                     </Text>
                     <TouchableOpacity
                         style={{ backgroundColor: '#28a745', padding: 10, borderRadius: 10, marginTop: 20 }}
                         onPress={() => {
-                            // console.log('Closing success sheet');
                             setSuccessVisible(false);
                             if (successSheetRef.current) successSheetRef.current.close();
-                            // Optionally navigate: router.push('/some-route');
+                            router.push('/myassets/myproperties');
                         }}
                     >
                         <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
@@ -1525,13 +1647,55 @@ const Editproperty = () => {
                     <TouchableOpacity
                         style={{ backgroundColor: '#dc3545', padding: 10, borderRadius: 10, marginTop: 10 }}
                         onPress={() => {
-                            // console.log('Closing error sheet');
                             setErrorVisible(false);
                             if (errorSheetRef.current) errorSheetRef.current.close();
                         }}
                     >
                         <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>
                     </TouchableOpacity>
+                </View>
+            </RBSheet>
+
+            {/* Confirm Delete RBSheet */}
+            <RBSheet
+                ref={confirmDeleteRef}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                customStyles={{
+                    container: {
+                        backgroundColor: '#f4f2f7',
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        padding: 20,
+                    },
+                }}
+                height={300}
+                openDuration={250}
+            >
+                <View style={{ alignItems: 'center' }}>
+                    <Image source={icons.alertWarning} style={{ width: 100, height: 100 }} />
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'red', marginTop: 10 }}>
+                        Warning
+                    </Text>
+                    <Text style={{ fontSize: 16, textAlign: 'center', marginTop: 10 }}>
+                        Are you sure you want to delete this property? This action cannot be undone.
+                    </Text>
+                    <View style={{ flexDirection: 'row', marginTop: 20 }}>
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#6c757d', padding: 10, borderRadius: 10, marginRight: 10 }}
+                            onPress={() => {
+                                if (confirmDeleteRef.current) confirmDeleteRef.current.close();
+                            }}
+                        >
+                            <Text style={{ color: 'white', fontWeight: 'bold' }}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#dc3545', padding: 10, borderRadius: 10 }}
+                            onPress={handleDeleteProperty}
+                        >
+                            <Text style={{ color: 'white', fontWeight: 'bold' }}>Delete</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </RBSheet>
 
@@ -1584,7 +1748,7 @@ const Editproperty = () => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </View >
     );
 };
 

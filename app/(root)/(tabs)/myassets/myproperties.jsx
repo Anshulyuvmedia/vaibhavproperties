@@ -35,6 +35,7 @@ const Myproperties = () => {
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [bidStatus, setBidStatus] = useState(false);
   const [bidEndDate, setBidEndDate] = useState(new Date());
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const router = useRouter();
   const rbSheetRef = useRef();
 
@@ -45,7 +46,6 @@ const Myproperties = () => {
   const handleEditBidPress = (property) => {
     setSelectedProperty(property);
     setBidStatus(property.bidstatus?.toLowerCase() === 'on');
-    // Handle invalid or missing bid end date
     const parsedDate = property.bidenddate
       ? new Date(property.bidenddate.split('/').reverse().join('-'))
       : new Date();
@@ -62,26 +62,40 @@ const Myproperties = () => {
         bidEnddate: bidStatus ? bidEndDate.toISOString().split('T')[0] : null,
       });
       if (response.data.success) {
-        // Update local state
         setUserPropertyData(prevData =>
           prevData.map(item =>
             item.id === selectedProperty.id
               ? {
-                ...item,
-                bidstatus: bidStatus ? 'on' : 'off',
-                bidenddate: bidStatus ? formatDate(bidEndDate.toISOString()) : '',
-              }
+                  ...item,
+                  bidstatus: bidStatus ? 'on' : 'off',
+                  bidenddate: bidStatus ? formatDate(bidEndDate.toISOString()) : '',
+                }
               : item
           )
         );
         rbSheetRef.current.close();
-        alert(t('bidUpdatedSuccess'));
+        setSheetMessage({
+          type: 'success',
+          title: t('bidUpdatedSuccess'),
+          message: t('bidUpdatedSuccessMessage'),
+        });
+        rbSheetRef.current.open();
       } else {
-        alert(t('bidUpdateFailed') + ': ' + (response.data.error || 'Unknown error'));
+        setSheetMessage({
+          type: 'error',
+          title: t('bidUpdateFailed'),
+          message: response.data.error || t('unknownError'),
+        });
+        rbSheetRef.current.open();
       }
     } catch (error) {
       console.error('Error updating bid:', error);
-      alert(t('bidUpdateFailed') + ': ' + (error.message || 'Network error'));
+      setSheetMessage({
+        type: 'error',
+        title: t('bidUpdateFailed'),
+        message: error.message || t('networkError'),
+      });
+      rbSheetRef.current.open();
     } finally {
       setLoading(false);
     }
@@ -103,6 +117,12 @@ const Myproperties = () => {
       const parsedPropertyData = JSON.parse(await AsyncStorage.getItem('userData'));
       if (!parsedPropertyData?.id) {
         console.error('User data or ID missing');
+        setSheetMessage({
+          type: 'error',
+          title: t('error'),
+          message: t('userDataMissing'),
+        });
+        rbSheetRef.current.open();
         return;
       }
       const response = await axios.get(`https://landsquire.in/api/viewuserlistings?id=${parsedPropertyData.id}`);
@@ -116,6 +136,7 @@ const Myproperties = () => {
           bidstatus: item.bidstatus,
           bidenddate: formatDate(item.bidenddate),
           category: item.category,
+          subcategory: item.subcategory,
           thumbnail: item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.startsWith('http')
             ? item.thumbnail
             : item.thumbnail
@@ -126,9 +147,21 @@ const Myproperties = () => {
         setUserPropertyData(formattedData);
       } else {
         console.error('Unexpected API response format:', response.data);
+        setSheetMessage({
+          type: 'error',
+          title: t('error'),
+          message: t('unexpectedResponse'),
+        });
+        rbSheetRef.current.open();
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      setSheetMessage({
+        type: 'error',
+        title: t('error'),
+        message: t('fetchError'),
+      });
+      rbSheetRef.current.open();
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -139,10 +172,20 @@ const Myproperties = () => {
     fetchUserData();
   }, []);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
+    const now = Date.now();
+    // Prevent refreshing too frequently (minimum 2 seconds between refreshes)
+    if (now - lastRefreshTime < 2000) return;
+    
     setRefreshing(true);
-    fetchUserData();
+    setLastRefreshTime(now);
+    
+    // Add a minimum refresh duration for better UX
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await fetchUserData();
   };
+
+  const [sheetMessage, setSheetMessage] = useState({ type: '', title: '', message: '' });
 
   return (
     <View style={{ flex: 1 }}>
@@ -163,8 +206,50 @@ const Myproperties = () => {
         <PropertyNavigation path={'myproperties'} />
 
         <View style={styles.infoContainer}>
-          <Text style={styles.infoText}>{t('allPropertiesListed')}</Text>
+          <Text style={[styles.infoText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+            {t('allPropertiesListed')}
+          </Text>
         </View>
+
+        {/* Message RBSheet */}
+        <RBSheet
+          ref={rbSheetRef}
+          closeOnDragDown
+          closeOnPressMask
+          customStyles={{
+            container: {
+              borderTopLeftRadius: moderateScale(20),
+              borderTopRightRadius: moderateScale(20),
+              padding: moderateScale(20),
+              backgroundColor: sheetMessage.type === 'success' ? '#E6F3E6' : '#FFE6E6',
+            },
+            draggableIcon: {
+              backgroundColor: '#1F4C6B',
+            },
+          }}
+          height={verticalScale(200)}
+        >
+          <View style={styles.sheetContent}>
+            <Text style={[styles.sheetTitle, { 
+              fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold',
+              color: sheetMessage.type === 'success' ? 'green' : 'red'
+            }]}>
+              {sheetMessage.title}
+            </Text>
+            <Text style={[styles.sheetMessage, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              {sheetMessage.message}
+            </Text>
+            <TouchableOpacity
+              style={[styles.sheetButton, { backgroundColor: sheetMessage.type === 'success' ? '#8BC83F' : '#FF4444' }]}
+              onPress={() => rbSheetRef.current.close()}
+            >
+              <Text style={[styles.sheetButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                {t('ok')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </RBSheet>
+
         {/* Content */}
         <View style={styles.content}>
           {loading && !refreshing ? (
@@ -205,7 +290,7 @@ const Myproperties = () => {
                     />
                     <View style={styles.categoryBadge}>
                       <Text style={[styles.categoryText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                        {item.category}
+                        {item.category} - {item.subcategory}
                       </Text>
                     </View>
                   </View>
@@ -230,7 +315,7 @@ const Myproperties = () => {
                         {formatINR(item.price)}
                       </Text>
                       <View style={styles.statusContainer}>
-                        <View style={[styles.statusDot, { backgroundColor: item.status?.toLowerCase() === 'published' ? '#28A745' : '#DC3545', },]} />
+                        <View style={[styles.statusDot, { backgroundColor: item.status?.toLowerCase() === 'published' ? '#28A745' : '#DC3545' }]} />
                         <Text style={[styles.statusText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                           {item.status?.toLowerCase() === 'published' ? t('Active') : t('Inactive')}
                         </Text>
@@ -238,13 +323,17 @@ const Myproperties = () => {
                     </View>
                     <View style={styles.priceRow}>
                       <View>
-                        <Text style={styles.labelText}>{t('endDate')}</Text>
+                        <Text style={[styles.labelText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                          {t('endDate')}
+                        </Text>
                         <Text style={[styles.locationText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                           {item.bidenddate || t('notSet')}
                         </Text>
                       </View>
                       <View>
-                        <Text style={styles.labelText}>{t('bidStatus')}</Text>
+                        <Text style={[styles.labelText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                          {t('bidStatus')}
+                        </Text>
                         <View style={styles.statusContainer}>
                           <View style={[styles.statusDot, { backgroundColor: item.bidstatus?.toLowerCase() === 'on' ? '#28A745' : '#DC3545' }]} />
                           <Text style={[styles.statusText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
@@ -272,73 +361,80 @@ const Myproperties = () => {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={onRefresh}
-                  colors={['#4A90E2']}
-                  tintColor="#4A90E2"
+                  colors={['#8BC83F', '#234F68']} // Multiple colors for a more dynamic effect
+                  tintColor="#8BC83F"
+                  title={t('refreshing')}
+                  titleColor="#234F68"
+                  progressViewOffset={verticalScale(20)}
+                  progressBackgroundColor="#fafafa"
                 />
               }
             />
           )}
         </View>
-      </View>
 
-      {/* RBSheet for Bid Editing */}
-      <RBSheet
-        ref={rbSheetRef}
-        closeOnDragDown
-        height={verticalScale(300)}
-        openDuration={250}
-        customStyles={{
-          container: {
-            borderTopLeftRadius: moderateScale(20),
-            borderTopRightRadius: moderateScale(20),
-            padding: moderateScale(20),
-            backgroundColor: '#fafafa',
-          },
-        }}
-      >
-        <View>
-          <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-            {t('editBid')}
-          </Text>
-          <View style={styles.switchContainer}>
-            <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-              {t('bidStatus')}
+        {/* Bid Edit RBSheet */}
+        <RBSheet
+          ref={rbSheetRef}
+          closeOnDragDown
+          height={verticalScale(300)}
+          openDuration={250}
+          customStyles={{
+            container: {
+              borderTopLeftRadius: moderateScale(20),
+              borderTopRightRadius: moderateScale(20),
+              padding: moderateScale(20),
+              backgroundColor: '#fafafa',
+            },
+            draggableIcon: {
+              backgroundColor: '#1F4C6B',
+            },
+          }}
+        >
+          <View>
+            <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+              {t('editBid')}
             </Text>
-            <Switch
-              value={bidStatus}
-              onValueChange={(value) => setBidStatus(value)}
-              trackColor={{ false: '#DC3545', true: '#28A745' }}
-              thumbColor={bidStatus ? '#FFFFFF' : '#FFFFFF'}
-            />
-          </View>
-          {bidStatus && (
-            <View style={styles.datePickerContainer}>
+            <View style={styles.switchContainer}>
               <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                {t('bidEndDate')}
+                {t('bidStatus')}
               </Text>
-              <DatePicker
-                date={bidEndDate}
-                onDateChange={setBidEndDate}
-                mode="date"
-                minimumDate={new Date()}
-                textColor="#1F2937" // Explicitly set to dark color
-                style={styles.datePicker}
-                theme="light" // Force light theme to prevent white text
-                androidVariant="nativeAndroid" // Use native Android picker for consistency
+              <Switch
+                value={bidStatus}
+                onValueChange={(value) => setBidStatus(value)}
+                trackColor={{ false: '#DC3545', true: '#28A745' }}
+                thumbColor={bidStatus ? '#FFFFFF' : '#FFFFFF'}
               />
             </View>
-          )}
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            onPress={handleSubmitBid}
-            disabled={loading}
-          >
-            <Text style={[styles.submitButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-              {loading ? t('submitting') : t('submit')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </RBSheet>
+            {bidStatus && (
+              <View style={styles.datePickerContainer}>
+                <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  {t('bidEndDate')}
+                </Text>
+                <DatePicker
+                  date={bidEndDate}
+                  onDateChange={setBidEndDate}
+                  mode="date"
+                  minimumDate={new Date()}
+                  textColor="#1F2937"
+                  style={styles.datePicker}
+                  theme="light"
+                  androidVariant="nativeAndroid"
+                />
+              </View>
+            )}
+            <TouchableOpacity
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmitBid}
+              disabled={loading}
+            >
+              <Text style={[styles.submitButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                {loading ? t('submitting') : t('submit')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </RBSheet>
+      </View>
     </View>
   );
 };
@@ -384,7 +480,6 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: moderateScale(14),
     color: '#4A5568',
-    fontFamily: 'Rubik-Regular',
   },
   content: {
     flex: 1,
@@ -490,12 +585,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-  locationIcon: {
-    width: moderateScale(14),
-    height: moderateScale(14),
-    tintColor: '#234F68',
-    marginRight: scale(4),
-  },
   locationText: {
     fontSize: moderateScale(12),
     color: '#234F68',
@@ -568,7 +657,7 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(16),
   },
   datePicker: {
-    width: SCREEN_WIDTH - scale(40), // Adjusted to account for padding
+    width: SCREEN_WIDTH - scale(40),
     height: verticalScale(100),
   },
   submitButton: {
@@ -587,6 +676,25 @@ const styles = StyleSheet.create({
   labelText: {
     fontSize: moderateScale(10),
     color: '#4A5568',
-    fontFamily: 'Rubik-Regular',
+  },
+  sheetContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  sheetMessage: {
+    fontSize: moderateScale(14),
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: verticalScale(20),
+  },
+  sheetButton: {
+    borderRadius: moderateScale(10),
+    paddingVertical: verticalScale(10),
+    paddingHorizontal: scale(20),
+  },
+  sheetButtonText: {
+    fontSize: moderateScale(16),
+    color: '#FFFFFF',
   },
 });

@@ -214,13 +214,13 @@ const Dashboard = () => {
                 title={t('notifications')}
                 onPress={() => router.push('/notifications')}
               />
-              {userData?.user_type != 'bankagent' && (
+              {/* {userData?.user_type != 'bankagent' && (
                 <MenuItem
                   icon="house-siding"
                   title={t('myProperties')}
                   onPress={() => router.push('/myassets/myproperties')}
                 />
-              )}
+              )} */}
 
               {userData?.user_type == 'bankagent' && (
                 <MenuItem

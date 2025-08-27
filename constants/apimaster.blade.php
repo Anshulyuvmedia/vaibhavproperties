@@ -14,7 +14,9 @@ use Log;
 use Laravel\Socialite\Facades\Socialite;
 use Google_Client;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 use App\Notifications\BidLiveNotification;
+use Illuminate\Support\Facades\File;
 
 class ApiMasterController extends Controller
 {
@@ -198,6 +200,9 @@ class ApiMasterController extends Controller
 
             if ($user && $user->otp == $enteredOtp) {
                 Auth::guard('customer')->login($user);
+                $user->verification_status = 1;
+                $user->save();
+
                 $token = hash('sha256', $user->id . time() . $user->otp);
 
                 return response()->json(
@@ -385,6 +390,8 @@ class ApiMasterController extends Controller
                 'masterplandoc' => $masterdoc,
                 'maplocations' => $datareq['location'] ?? ['Latitude' => '', 'Longitude' => ''],
                 'category' => $datareq['category'] ?? '',
+                'propertyfor' => $datareq['propertyfor'] ?? '',
+                'subcategory' => $datareq['subcategory'] ?? '',
                 'gallery' => json_encode($galleryImages),
                 'documents' => json_encode($documents),
                 'amenties' => $datareq['amenities'] ?? [],
@@ -525,6 +532,7 @@ class ApiMasterController extends Controller
             $user->update([
                 'username' => $request->name,
                 'email' => $request->email,
+                'city' => $request->city,
                 'mobilenumber' => $request->mobile,
                 'company_name' => $request->company_name,
                 'profile' => $filenameprofileimage == null ? $user->profile : $filenameprofileimage,
@@ -708,6 +716,8 @@ class ApiMasterController extends Controller
                 'masterplandoc' => $masterdoc ?? $olddata->masterdoc,
                 'maplocations' => $datareq['location'] ?? $olddata->maplocations,
                 'category' => $datareq['category'],
+                'propertyfor' => $datareq['propertyfor'] ?? '',
+                'subcategory' => $datareq['subcategory'] ?? '',
                 'gallery' => !empty($galleryImages) ? json_encode($galleryImages) : $olddata->gallery,
                 'documents' => !empty($documents) ? json_encode($documents) : $olddata->documents,
                 'amenties' => $datareq['amenities'] ?? $olddata->amenities,
@@ -1090,6 +1100,113 @@ class ApiMasterController extends Controller
     return response()->json(['success' => true, 'message' => 'Bid Updated'], 200);
     } catch (Exception $e) {
             return response()->json(['success' => false, 'error' => 'Failed to update bid status: ' . $e->getMessage()], 500);
+        }
+    }
+
+
+    public function deleteListing(Request $request)
+    {
+        try {
+            // Validate the request
+            $request->validate([
+                'property_id' => 'required|integer|exists:property_listings,id',
+                'roleid' => 'required|integer|exists:register_users,id',
+            ]);
+
+            // Find the property
+            $property = PropertyListing::find($request->property_id);
+            if (!$property) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Property not found',
+                ], 404);
+            }
+            // Log::info('Property ' . $property->id . ' requested for deletion by user ID ' . $request->roleid);
+
+            // Check if the user is the owner or an admin
+            if ($property->roleid != $request->roleid) {
+                $user = RegisterUser::find($request->roleid);
+                if (!$user || $user->user_type != 'Admin') {
+                    // Log::info('Unauthorized: User ID ' . $request->roleid . ' is not owner or admin, user_type: ' . ($user ? $user->user_type : 'not found') . ', property owner roleid: ' . $property->roleid);
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'Unauthorized to delete this property',
+                    ], 403);
+                }
+            }
+
+            // Delete associated files
+            $basePath = public_path('adminAssets/images/Listings/');
+            if ($property->thumbnail) {
+                $thumbnailPath = $basePath . ltrim($property->thumbnail, '/');
+                File::exists($thumbnailPath) ? File::delete($thumbnailPath) : Log::warning('Thumbnail not found: ' . $thumbnailPath);
+            }
+
+            if ($property->gallery) {
+                $galleryImages = is_string($property->gallery) ? json_decode($property->gallery, true) : $property->gallery;
+                if (is_array($galleryImages)) {
+                    foreach ($galleryImages as $image) {
+                        $imagePath = $basePath . ltrim($image, '/');
+                        File::exists($imagePath) ? File::delete($imagePath) : Log::warning('Gallery image not found: ' . $imagePath);
+                    }
+                }
+            }
+
+            if ($property->videos) {
+                $videos = is_string($property->videos) ? json_decode($property->videos, true) : $property->videos;
+                if (is_array($videos)) {
+                    foreach ($videos as $video) {
+                        $videoPath = $basePath . ltrim($video, '/');
+                        File::exists($videoPath) ? File::delete($videoPath) : Log::warning('Video not found: ' . $videoPath);
+                    }
+                }
+            }
+
+            if ($property->documents) {
+                $documents = is_string($property->documents) ? json_decode($property->documents, true) : $property->documents;
+                if (is_array($documents)) {
+                    foreach ($documents as $document) {
+                        $documentPath = $basePath . ltrim($document, '/');
+                        File::exists($documentPath) ? File::delete($documentPath) : Log::warning('Document not found: ' . $documentPath);
+                    }
+                }
+            }
+
+            if ($property->masterplandoc) {
+                $masterPlanDocs = is_array($property->masterplandoc) ? $property->masterplandoc : [$property->masterplandoc];
+                foreach ($masterPlanDocs as $doc) {
+                    $docPath = $basePath . ltrim($doc, '/');
+                    File::exists($docPath) ? File::delete($docPath) : Log::warning('Master plan document not found: ' . $docPath);
+                }
+            }
+
+            // Delete the property
+            $property->delete();
+            // Log::info('Property deleted: ID ' . $property->id . ' by user ID ' . $request->roleid);
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Property deleted successfully',
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Database error deleting property ID ' . ($property->id ?? 'unknown') . ': ' . $e->getMessage());
+            return response()->json([
+                'error' => true,
+                'message' => 'Cannot delete property due to related records',
+            ], 409);
+        } catch (\Exception $e) {
+            Log::error('Error deleting property ID ' . ($property->id ?? 'unknown') . ': ' . $e->getMessage());
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to delete property',
+            ], 500);
         }
     }
 }

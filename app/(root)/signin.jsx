@@ -146,7 +146,7 @@ const Signin = () => {
         const token = data.token || '';
         const user = data.data || {}; // Use data.data directly as the user object
         if (!token || !user.id) {
-          throw new Error('Invalid token or user data');
+          console.log('Invalid token or user data');
         }
         await AsyncStorage.setItem('userToken', token);
         await AsyncStorage.setItem('userData', JSON.stringify(user));

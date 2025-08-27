@@ -57,6 +57,32 @@ const Addproperty = () => {
     const [categoryData, setCategoryData] = useState([]);
     const [landArea, setLandArea] = useState("");
     const [selectedUnit, setSelectedUnit] = useState("sqft");
+    const [selectedSubCategory, setSelectedSubCategory] = useState('');
+    const [selectedPropertyFor, setSelectedPropertyFor] = useState('Sell');
+
+    const subcategoryOptions = {
+        Agriculture: [
+            { label: 'Plot', value: 'Plot' },
+            { label: 'House', value: 'House' },
+        ],
+        Approved: [
+            { label: 'Plot', value: 'Plot' },
+            { label: 'House', value: 'House' },
+            { label: 'Apartment', value: 'Apartment' },
+        ],
+        Commercial: [
+            { label: 'Plot', value: 'Plot' },
+            { label: 'Land', value: 'Land' },
+            { label: 'Shop', value: 'Shop' },
+            { label: 'Office', value: 'Office' },
+            { label: 'Other', value: 'Other' },
+        ],
+    };
+
+    const propertyfor = [
+        { label: 'Sell', value: 'Sell' },
+        { label: 'Rent', value: 'Rent' },
+    ];
 
     const units = [
         { label: 'sqft', value: 'sqft' },
@@ -373,7 +399,7 @@ const Addproperty = () => {
             const response = await axios.get(`https://landsquire.in/api/get-categories`);
             if (response.data?.categories) {
                 setCategoryData(response.data.categories);
-                // console.log('categoryData', response.data.categories);
+                console.log('categoryData', response.data.categories);
             } else {
                 console.error("Unexpected API response format:", response.data);
             }
@@ -530,7 +556,9 @@ const Addproperty = () => {
             // ✅ Append additional fields
             formData.append("bedroom", step3Data?.bedroom ?? "");
             formData.append("category", selectedCategory ?? "");
-            formData.append("landarea", `${landArea} ${selectedUnit}` ?? ""); 
+            formData.append("subcategory", selectedSubCategory ?? "");
+            formData.append("propertyfor", selectedPropertyFor ?? "");
+            formData.append("landarea", `${landArea} ${selectedUnit}` ?? "");
             // formData.append("status", selectedStatus ?? "");
             formData.append("roleid", id ?? "");
             formData.append("usertype", user_type ?? "");
@@ -789,29 +817,90 @@ const Addproperty = () => {
                         </View>
 
                         <View style={styles.stepContent}>
+                            <Text style={styles.label}>Select Purpose</Text>
+                            <View style={styles.categoryContainer}>
+                                {Array.isArray(propertyfor) &&
+                                    propertyfor.map((item, index) => (
+                                        <TouchableOpacity
+                                            key={index} // using index since your array doesn’t have `id`
+                                            style={[
+                                                styles.categoryButton,
+                                                selectedPropertyFor === item.value && styles.categoryButtonSelected,
+                                            ]}
+                                            onPress={() => setSelectedPropertyFor(item.value)}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.categoryText,
+                                                    selectedPropertyFor === item.value && styles.categoryTextSelected,
+                                                ]}
+                                            >
+                                                {item.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </View>
+
+
                             <Text style={styles.label}>Select Category</Text>
                             <View style={styles.categoryContainer}>
-                                {Array.isArray(categoryData) && categoryData.map((category) => (
-                                    <TouchableOpacity
-                                        key={category.id}
-                                        style={[
-                                            styles.categoryButton,
-                                            selectedCategory === category.label && styles.categoryButtonSelected,
-                                        ]}
-                                        onPress={() => setSelectedCategory(category.label)}
-                                    >
-                                        <Text
+                                {Array.isArray(categoryData) &&
+                                    categoryData.map((category) => (
+                                        <TouchableOpacity
+                                            key={category.id}
                                             style={[
-                                                styles.categoryText,
-                                                selectedCategory === category.label && styles.categoryTextSelected,
+                                                styles.categoryButton,
+                                                selectedCategory === category.label && styles.categoryButtonSelected,
                                             ]}
+                                            onPress={() => {
+                                                setSelectedCategory(category.label);
+                                                setSelectedSubCategory(null); // reset subcategory when category changes
+                                            }}
                                         >
-                                            {category.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
+                                            <Text
+                                                style={[
+                                                    styles.categoryText,
+                                                    selectedCategory === category.label && styles.categoryTextSelected,
+                                                ]}
+                                            >
+                                                {category.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
                             </View>
+
+                            {/* Show subcategory only when category is selected */}
+                            {selectedCategory && (
+                                <>
+                                    <Text style={styles.label}>Select Sub Category</Text>
+                                    <View style={styles.categoryContainer}>
+                                        {Array.isArray(subcategoryOptions[selectedCategory]) &&
+                                            subcategoryOptions[selectedCategory].map((subcategory) => (
+                                                <TouchableOpacity
+                                                    key={subcategory.value}
+                                                    style={[
+                                                        styles.categoryButton,
+                                                        selectedSubCategory === subcategory.value &&
+                                                        styles.categoryButtonSelected,
+                                                    ]}
+                                                    onPress={() => setSelectedSubCategory(subcategory.value)}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.categoryText,
+                                                            selectedSubCategory === subcategory.value &&
+                                                            styles.categoryTextSelected,
+                                                        ]}
+                                                    >
+                                                        {subcategory.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                    </View>
+                                </>
+                            )}
                         </View>
+
 
                         <View style={styles.stepContent}>
                             <Text style={styles.label}>Near By Locations</Text>
@@ -1039,7 +1128,7 @@ const Addproperty = () => {
                                             <RNPickerSelect
                                                 onValueChange={(value) => setSelectedUnit(value)}
                                                 items={units}
-                                                value={selectedUnit}
+                                                value={selectedSubCategory}
                                                 style={pickerSelectStyles}
                                                 placeholder={{ label: 'Choose an unit...', value: null }}
                                             />
