@@ -107,6 +107,18 @@ const Editproperty = () => {
     const [selectedSubCategory, setSelectedSubCategory] = useState('');
     const [selectedPropertyFor, setSelectedPropertyFor] = useState('');
 
+    // State for tracking invalid fields
+    const [step1Errors, setStep1Errors] = useState({ property_name: false, description: false, nearbylocation: false });
+    const [step2Errors, setStep2Errors] = useState({ approxrentalincome: false, historydate: false, price: false });
+    const [step3Errors, setStep3Errors] = useState({ bathroom: false, floor: false, city: false, officeaddress: false, bedroom: false });
+    const [step4Errors, setStep4Errors] = useState({ category: false, mainImage: false, galleryImages: false, coordinates: false, documents: false });
+
+    // RBSheet ref
+    const rbSheetRef = useRef();
+    // State for RBSheet message
+    const [sheetMessage, setSheetMessage] = useState({ title: '', message: '', type: 'error' });
+
+
     const subcategoryOptions = {
         Agriculture: [
             { label: 'Plot', value: 'Plot' },
@@ -163,19 +175,114 @@ const Editproperty = () => {
     };
 
     const validateStep = (step) => {
+        let isValid = true;
+        let message = '';
+        let title = '';
+
         if (step === 1) {
-            if (!step1Data.property_name) { setErrorField('Property Title'); setErrorVisible(true); return false; }
-            if (!step1Data.description) { setErrorField('Property Description'); setErrorVisible(true); return false; }
-            if (!step1Data.nearbylocation) { setErrorField('Nearbylocations'); setErrorVisible(true); return false; }
-            return true;
+            const newErrors = {
+                property_name: !step1Data?.property_name,
+                description: !step1Data?.description,
+                nearbylocation: !step1Data?.nearbylocation,
+                purpose: !selectedPropertyFor,
+                category: !selectedCategory,
+                subcategory: !selectedSubCategory,
+                mainImage: !mainImage,
+            };
+            setStep1Errors(newErrors);
+            if (Object.values(newErrors).some(error => error)) {
+                isValid = false;
+                title = 'Step 1 Error';
+                message = [
+                    newErrors.property_name ? 'Please Enter Property Name.' : '',
+                    newErrors.description ? 'Please Enter Description' : '',
+                    newErrors.nearbylocation ? 'Please enter atleast one landmarks.' : '',
+                    newErrors.category ? 'Please select category.' : '',
+                    newErrors.subcategory ? 'Please select sub category.' : '',
+                    newErrors.mainImage ? 'Please upload at least one property image.' : '',
+                ].filter(msg => msg).join('\n');
+            }
         }
+
         if (step === 2) {
-            if (!step3Data.bathroom) { setErrorField('Bathroom'); setErrorVisible(true); return false; }
-            if (!step3Data.floor) { setErrorField('Floor'); setErrorVisible(true); return false; }
-            if (!step3Data.city) { setErrorField('City'); setErrorVisible(true); return false; }
-            return true;
+            const newErrors = {
+                approxrentalincome: !step2Data?.approxrentalincome,
+                // historydate: step2Data?.historydate.length === 0,
+                price: !step2Data?.price,
+            };
+            setStep2Errors(newErrors);
+            if (Object.values(newErrors).some(error => error)) {
+                isValid = false;
+                title = 'Step 2 Error';
+                message = 'Approx Rental Income, Price, and at least one History Date are required.';
+                message = [
+                    newErrors.approxrentalincome ? 'Please enter approx rental income.' : '',
+                    newErrors.price ? 'Please enter current property price.' : '',
+                    // newErrors.historydate ? 'Please enter price history' : '',
+                ].filter(msg => msg).join('\n');
+            }
         }
-        return true;
+
+        if (step === 3) {
+            const newErrors = {
+                amenities: amenities.length < 1,
+                floor: !step3Data?.floor,
+                bathroom: !step3Data?.bathroom,
+                bedroom: !step3Data?.bedroom,
+                city: !step3Data?.city,
+                officeaddress: !step3Data?.officeaddress,
+                landArea: !landArea,
+                fullAddress: !fullAddress,
+            };
+            setStep3Errors(newErrors);
+            if (Object.values(newErrors).some(error => error)) {
+                isValid = false;
+                title = 'Step 3 Error';
+                message = [
+                    newErrors.amenities ? 'Please enter amenities.' : '',
+                    newErrors.floor ? 'Please enter no. of floors' : '',
+                    newErrors.bathroom ? 'Please enter no. of bathroom.' : '',
+                    newErrors.bedroom ? 'Please enter no. of bathroom.' : '',
+                    newErrors.landArea ? 'Please enter land area.' : '',
+                    newErrors.city ? 'Please enter city.' : '',
+                    newErrors.officeaddress ? 'Please enter Property address.' : '',
+                    newErrors.fullAddress ? 'Please enter location on map' : '',
+                ].filter(msg => msg).join('\n');
+            }
+        }
+
+        if (step === 4) {
+            const newErrors = {
+                galleryImages: galleryImages.length < 3, // ✅ corrected to match message (at least 2)
+                // videos: videos.length < 1,
+                // propertyDocuments: propertyDocuments.length < 1,
+                // masterPlanDoc: masterPlanDoc.length < 1,
+            };
+
+            setStep4Errors(newErrors);
+
+            if (Object.values(newErrors).some(error => error)) {
+                isValid = false;
+                title = 'Step 4 Error';
+                message = [
+                    newErrors.galleryImages ? 'Please upload at least 3 gallery images.' : '',
+                    // newErrors.videos ? 'Please upload at least 1 video.' : '',
+                    // newErrors.propertyDocuments ? 'Please upload at least 1 property document.' : '',
+                    // newErrors.masterPlanDoc ? 'Please upload a master plan document.' : '',
+                ].filter(msg => msg).join('\n');
+            }
+        }
+
+
+        if (!isValid) {
+            setErrors(true);
+            setSheetMessage({ title, message, type: 'error' });
+            rbSheetRef.current.open();
+        } else {
+            setErrors(false);
+        }
+
+        return isValid;
     };
 
     const onNextStep = (step) => {
@@ -527,6 +634,13 @@ const Editproperty = () => {
             setErrorVisible(true);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleFormSubmission = async () => {
+        const isStepValid = validateStep(4); // Validate step 4 explicitly
+        if (isStepValid) {
+            await handleSubmit(); // Only call handleSubmit if validation passes
         }
     };
 
@@ -984,15 +1098,15 @@ const Editproperty = () => {
 
             <View style={styles.container}>
                 <ProgressSteps>
-                    <ProgressStep
-                        label="General"
+                    <ProgressStep label="General"
                         nextBtnTextStyle={buttonNextTextStyle}
                         nextBtnText="Next"
-                    // onNext={() => onNextStep(1)}
-                    // errors={errors}
+                        previousBtnText="Back"
+                        onNext={() => onNextStep(1)}
+                        errors={errors}
                     >
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Property Title</Text>
+                            <Text style={[styles.label, step1Errors.property_name && { color: 'red' }]}>Property Title</Text>
                             <View style={styles.inputContainer}>
                                 <AntDesign name="home" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
@@ -1004,7 +1118,7 @@ const Editproperty = () => {
                             </View>
                         </View>
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Property Description</Text>
+                            <Text style={[styles.label, step1Errors.description && { color: 'red' }]}>Property Description</Text>
                             <TextInput
                                 style={styles.textarea}
                                 value={step1Data.description}
@@ -1015,8 +1129,9 @@ const Editproperty = () => {
                                 numberOfLines={5}
                             />
                         </View>
+
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Property Thumbnail</Text>
+                            <Text style={[styles.label, step1Errors.mainImage && { color: 'red' }]}>Property Thumbnail</Text>
                             <View className="flex-row items-center">
                                 <TouchableOpacity onPress={() => openSourceModal('mainImage')} style={styles.dropbox}>
                                     <Ionicons name="image-outline" size={24} color="#234F68" style={styles.inputIcon} />
@@ -1025,8 +1140,9 @@ const Editproperty = () => {
                                 {mainImage && <Image source={{ uri: mainImage }} style={styles.image} />}
                             </View>
                         </View>
+
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Select Purpose</Text>
+                            <Text style={[styles.label, step1Errors.purpose && { color: 'red' }]}>Select Purpose</Text>
                             <View style={styles.categoryContainer}>
                                 {Array.isArray(propertyfor) &&
                                     propertyfor.map((item, index) => (
@@ -1050,7 +1166,8 @@ const Editproperty = () => {
                                     ))}
                             </View>
 
-                            <Text style={styles.label}>Select Category</Text>
+
+                            <Text style={[styles.label, step1Errors.category && { color: 'red' }]}>Select Category</Text>
                             <View style={styles.categoryContainer}>
                                 {Array.isArray(categoryData) &&
                                     categoryData.map((category) => (
@@ -1080,7 +1197,7 @@ const Editproperty = () => {
                             {/* Show subcategory only when category is selected */}
                             {selectedCategory && (
                                 <>
-                                    <Text style={styles.label}>Select Sub Category</Text>
+                                    <Text style={[styles.label, step1Errors.subcategory && { color: 'red' }]}>Select Sub Category</Text>
                                     <View style={styles.categoryContainer}>
                                         {Array.isArray(subcategoryOptions[selectedCategory]) &&
                                             subcategoryOptions[selectedCategory].map((subcategory) => (
@@ -1109,8 +1226,9 @@ const Editproperty = () => {
                             )}
                         </View>
 
+
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Near By Locations</Text>
+                            <Text style={[styles.label, step1Errors.nearbylocation && { color: 'red' }]}>Near By Locations</Text>
                             <View style={styles.inputContainer}>
                                 <Ionicons name="trail-sign-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
@@ -1123,17 +1241,16 @@ const Editproperty = () => {
                         </View>
                     </ProgressStep>
 
-                    <ProgressStep
-                        label="Price"
+                    <ProgressStep label="Price"
                         nextBtnText="Next"
                         previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                    // onNext={() => onNextStep(2)}
-                    // errors={errors}
+                        onNext={() => onNextStep(2)}
+                        errors={errors}
                     >
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Approx Rental Income</Text>
+                            <Text style={[styles.label, step2Errors.approxrentalincome && { color: 'red' }]}>Approx Rental Income</Text>
                             <View style={styles.inputContainer}>
                                 <Ionicons name="pricetag-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
@@ -1148,8 +1265,9 @@ const Editproperty = () => {
                                 />
                             </View>
                         </View>
+
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Current Property Price</Text>
+                            <Text style={[styles.label, step2Errors.price && { color: 'red' }]}>Current Property Price</Text>
                             <View style={styles.inputContainer}>
                                 <FontAwesome name="rupee" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
@@ -1164,10 +1282,11 @@ const Editproperty = () => {
                                 />
                             </View>
                         </View>
+
                         <View style={styles.stepContent}>
                             <View className='flex-row justify-between items-center'>
                                 <View style={{ flex: 1, marginRight: 10 }}>
-                                    <Text style={styles.label}>Historical Price</Text>
+                                    <Text style={[styles.label, step2Errors.historydate && { color: 'red' }]}>Historical Price</Text>
                                     <View style={styles.inputContainer}>
                                         <TextInput
                                             style={styles.input}
@@ -1182,7 +1301,7 @@ const Editproperty = () => {
                                     </View>
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Historical Date</Text>
+                                    <Text style={[styles.label, step2Errors.historydate && { color: 'red' }]}>Historical Date</Text>
                                     <View style={styles.inputContainer}>
                                         <TouchableOpacity onPress={() => setShow(true)}>
                                             <TextInput
@@ -1243,21 +1362,20 @@ const Editproperty = () => {
                                 </View>
                             )}
                         </View>
+
                     </ProgressStep>
 
-                    <ProgressStep
-                        label="Details"
+                    <ProgressStep label="Details"
                         nextBtnText="Next"
                         previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-
-                    // onNext={() => onNextStep(3)}
-                    // errors={errors}
+                        onNext={() => onNextStep(3)}
+                        errors={errors}
                     >
                         <View style={styles.stepContent}>
                             <View className='flex flex-row items-center'>
-                                <Text style={styles.label}>Features & Amenities</Text>
+                                <Text style={[styles.label, step3Errors.amenities && { color: 'red' }]}>Features & Amenities</Text>
                             </View>
                             <View className='flex flex-row align-center'>
                                 <View className='flex-grow'>
@@ -1295,25 +1413,26 @@ const Editproperty = () => {
                                 />
                             </View>
                         </View>
+
                         {(selectedCategory !== 'Agricultural' && selectedCategory !== 'Commercial' && selectedCategory !== 'Industrial') && (
                             <View style={styles.stepContent}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                     <View style={{ flex: 1, marginRight: 5 }}>
-                                        <Text style={styles.label}>Floor</Text>
+                                        <Text style={[styles.label, step3Errors.floor && { color: 'red' }]}>Floor</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="floor-plan" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
                                         </View>
                                     </View>
                                     <View style={{ flex: 1, marginRight: 5 }}>
-                                        <Text style={styles.label}>Bathroom</Text>
+                                        <Text style={[styles.label, step3Errors.bathroom && { color: 'red' }]}>Bathroom</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
                                         </View>
                                     </View>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={styles.label}>Bedroom</Text>
+                                        <Text style={[styles.label, step3Errors.bedroom && { color: 'red' }]}>Bedroom</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
@@ -1322,10 +1441,11 @@ const Editproperty = () => {
                                 </View>
                             </View>
                         )}
+
                         <View style={styles.stepContent}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <View style={{ flex: 1, marginRight: 5 }}>
-                                    <Text style={styles.label}>Land Area</Text>
+                                <View style={{ flex: 1, }}>
+                                    <Text style={[styles.label, step3Errors.landArea && { color: 'red' }]}>Land Area</Text>
                                     <View style={styles.inputContainer}>
                                         <MaterialIcons name="zoom-out-map" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                         <TextInput style={styles.input} placeholder="Land area" keyboardType="numeric" value={landArea} onChangeText={(value) => setLandArea(value)} />
@@ -1333,7 +1453,7 @@ const Editproperty = () => {
                                             <RNPickerSelect
                                                 onValueChange={(value) => setSelectedUnit(value)}
                                                 items={units}
-                                                value={selectedUnit}
+                                                value={selectedSubCategory}
                                                 style={pickerSelectStyles}
                                                 placeholder={{ label: 'Choose an unit...', value: null }}
                                             />
@@ -1343,17 +1463,17 @@ const Editproperty = () => {
                             </View>
                         </View>
                         <View style={styles.stepContent}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>City</Text>
+                            <View style={{ flex: 1, marginLeft: 5 }}>
+                                <Text style={[styles.label, step3Errors.city && { color: 'red' }]}>City</Text>
                                 <View style={styles.inputContainer}>
                                     <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                    <TextInput style={styles.input} placeholder="Enter property city" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
+                                    <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
                                 </View>
                             </View>
-                            <Text style={styles.label}>Property Address</Text>
+                            <Text style={[styles.label, step3Errors.officeaddress && { color: 'red' }]}>Property Address</Text>
                             <TextInput
                                 style={styles.textarea}
-                                placeholder="Property complete address"
+                                placeholder="Enter complete address"
                                 value={step3Data.officeaddress}
                                 onChangeText={text => setStep3Data({ ...step3Data, officeaddress: text })}
                                 multiline
@@ -1362,7 +1482,7 @@ const Editproperty = () => {
                             />
                         </View>
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Find Location on Google Map</Text>
+                            <Text style={[styles.label, step3Errors.fullAddress && { color: 'red' }]}>Find Location on Google Map</Text>
                             <View style={styles.inputContainer}>
                                 <MaterialCommunityIcons name="map-marker-radius-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <GooglePlacesAutocomplete
@@ -1438,42 +1558,43 @@ const Editproperty = () => {
                         </View>
                     </ProgressStep>
 
-                    <ProgressStep
-                        label="Files"
+                    <ProgressStep label="Files"
                         finishBtnText="Save"
                         previousBtnText="Back"
-                        nextBtnTextStyle={buttonFinishTextStyle}
+                        // nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-
-                        onSubmit={() => {
-                            console.log('ProgressSteps onSubmit triggered');
-                            handleSubmit();
-                        }}
-                    >
-                        <View style={styles.stepContent}>
+                        nextBtnTextStyle={buttonFinishTextStyle}
+                        onSubmit={handleFormSubmission}>
+                        {/* select status */}
+                        {/* <View style={styles.stepContent}>
                             <Text style={styles.label}>Select Status</Text>
                             <View style={styles.pickerContainer}>
                                 <RNPickerSelect
                                     onValueChange={(value) => setSelectedStatus(value)}
                                     items={status}
-                                    value={selectedStatus}
+                                    value={selectedStatus} // ✅ Ensures the default value is selected
                                     style={pickerSelectStyles}
                                     placeholder={{ label: 'Choose an option...', value: null }}
                                 />
                             </View>
-                        </View>
+                        </View> */}
+
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Property Gallery</Text>
+
+                            {/* upload gallery */}
+                            <Text style={[styles.label, step4Errors.galleryImages && { color: 'red' }]}>Property Gallery</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
                                     data={galleryImages}
                                     horizontal
                                     keyExtractor={(item, index) => index.toString()}
+                                    nestedScrollEnabled={true}
                                     contentContainerStyle={styles.fileContainer}
                                     renderItem={({ item, index }) => (
                                         <View style={styles.thumbnailBox} className="border border-gray-300">
                                             <Image source={{ uri: item }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik">Image: {index + 1}</Text>
+                                            <Text className="text-center font-rubik-bold">Image: {index + 1}</Text>
+
                                             <TouchableOpacity
                                                 onPress={() => removeGalleryImage(index, item)}
                                                 style={styles.deleteButton}>
@@ -1488,18 +1609,25 @@ const Editproperty = () => {
                                 <Text style={{ textAlign: 'center' }}>Pick property images</Text>
                             </TouchableOpacity>
                         </View>
-                        <View style={styles.stepContent}>
+
+                        {/* Upload video */}
+                        <View style={[styles.label, step4Errors.videos && { color: 'red' }]}>
                             <Text style={styles.label}>Upload Videos</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
                                     data={videos}
                                     horizontal
-                                    keyExtractor={(item, index) => index.toString()}
+                                    keyExtractor={(item) => item.id.toString()}
+                                    nestedScrollEnabled={true}
                                     contentContainerStyle={styles.fileContainer}
                                     renderItem={({ item, index }) => (
                                         <View style={styles.thumbnailBox} className="border border-gray-300">
-                                            <Image source={{ uri: `${item.thumbnailImages}?update=${new Date().getTime()}` }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik">Video {index + 1}</Text>
+                                            <Image
+                                                source={{ uri: `${item.thumbnailImages}?update=${new Date().getTime()}` }}
+                                                style={styles.thumbnail}
+                                            />
+                                            <Text className="text-center font-rubik-bold">Video {index + 1}</Text>
+
                                             <TouchableOpacity
                                                 onPress={() => removeVideo(index, item.uri)}
                                                 style={styles.deleteButton}
@@ -1510,23 +1638,29 @@ const Editproperty = () => {
                                     )}
                                 />
                             </View>
+
                             <TouchableOpacity onPress={() => openSourceModal('video')} style={styles.dropbox}>
                                 <FontAwesome name="file-video-o" size={24} color="#234F68" style={styles.inputIcon} />
                                 <Text style={{ textAlign: 'center' }}>Pick property videos</Text>
                             </TouchableOpacity>
+
                         </View>
-                        <View style={styles.stepContent}>
+
+                        {/* upload doc */}
+                        <View style={[styles.label, step4Errors.propertyDocuments && { color: 'red' }]}>
                             <Text style={styles.label}>Upload Property Documents</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
                                     data={propertyDocuments}
                                     horizontal
-                                    keyExtractor={(item, index) => index.toString()}
+                                    nestedScrollEnabled={true}
+                                    keyExtractor={(_, index) => index.toString()}
                                     contentContainerStyle={styles.fileContainer}
                                     renderItem={({ item, index }) => (
                                         <View style={styles.thumbnailBox} className="border border-gray-300">
                                             <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik">Doc {index + 1}</Text>
+                                            <Text className="text-center font-rubik-bold">Doc {index + 1}</Text>
+
                                             <TouchableOpacity
                                                 onPress={() => removeDocument(index, item.uri)}
                                                 style={styles.deleteButton}>
@@ -1541,18 +1675,22 @@ const Editproperty = () => {
                                 <Text style={{ textAlign: 'center' }}>Pick property documents</Text>
                             </TouchableOpacity>
                         </View>
+
+                        {/* upload marster plan */}
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Upload Master Plan of Property</Text>
+                            <Text style={[styles.label, step4Errors.masterPlanDoc && { color: 'red' }]}>Upload Property Master Plan</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
                                     data={masterPlanDoc}
                                     horizontal
-                                    keyExtractor={(item, index) => index.toString()}
+                                    nestedScrollEnabled={true}
+                                    keyExtractor={(_, index) => index.toString()}
                                     contentContainerStyle={styles.fileContainer}
                                     renderItem={({ item, index }) => (
                                         <View style={styles.thumbnailBox} className="border border-gray-300">
                                             <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik">Plan {index + 1}</Text>
+                                            <Text className="text-center font-rubik-bold">Plan {index + 1}</Text>
+
                                             <TouchableOpacity
                                                 onPress={() => removeMasterPlan(index, item.uri)}
                                                 style={styles.deleteButton}>
@@ -1570,13 +1708,11 @@ const Editproperty = () => {
                     </ProgressStep>
                 </ProgressSteps>
             </View>
-            {
-                loading && (
-                    <View className='absolute bottom-28 z-40 right-16'>
-                        <ActivityIndicator />
-                    </View>
-                )
-            }
+            {loading && (
+                <View className='absolute bottom-28 z-40 right-16'>
+                    <ActivityIndicator />
+                </View>
+            )}
 
             {/* Success RBSheet */}
             <RBSheet
@@ -1748,7 +1884,67 @@ const Editproperty = () => {
                     </View>
                 </View>
             </Modal>
-        </View >
+
+            <RBSheet
+                ref={rbSheetRef}
+                animationType="slide"
+                height={400}
+                openDuration={300}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                customStyles={{
+                    container: styles.sheetContainer,
+                    draggableIcon: styles.draggableIcon,
+                }}
+                onClose={() => {
+                    if (sheetMessage.type === 'success') {
+                        resetForm();
+                        router.back();
+                    }
+                }}
+            >
+                <View style={styles.sheetHeader}>
+                    <Text style={[
+                        styles.sheetTitle,
+                        { color: sheetMessage.type === 'success' ? '#4CAF50' : '#F44336' }
+                    ]}>
+                        {sheetMessage.title}
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.sheetCloseButton}
+                        onPress={() => rbSheetRef.current.close()}
+                    >
+                        <Feather name="x" size={24} color="#234F68" />
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.sheetContent}>
+                    <Feather
+                        name={sheetMessage.type === 'success' ? 'check-circle' : 'alert-circle'}
+                        size={48}
+                        color={sheetMessage.type === 'success' ? '#4CAF50' : '#F44336'}
+                        style={styles.sheetIcon}
+                    />
+                    <Text style={styles.sheetMessageText}>{sheetMessage.message}</Text>
+                    <TouchableOpacity
+                        style={[
+                            styles.sheetActionButton,
+                            { backgroundColor: sheetMessage.type === 'success' ? '#4CAF50' : '#F44336' }
+                        ]}
+                        onPress={() => {
+                            rbSheetRef.current.close();
+                            if (sheetMessage.type === 'success') {
+                                resetForm();
+                                router.back();
+                            }
+                        }}
+                    >
+                        <Text style={styles.sheetActionButtonText}>
+                            {sheetMessage.type === 'success' ? 'Continue' : 'Try Again'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </RBSheet>
+        </View>
     );
 };
 
@@ -2037,6 +2233,73 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontFamily: 'Rubik-Regular',
         color: '#fff',
+    },
+    sheetContainer: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    draggableIcon: {
+        backgroundColor: '#D3D3D3',
+        width: 40,
+        height: 5,
+        borderRadius: 3,
+        marginVertical: 10,
+        alignSelf: 'center',
+    },
+    sheetHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    sheetTitle: {
+        fontSize: 20,
+        fontFamily: 'Rubik-Bold',
+        color: '#234F68',
+    },
+    sheetCloseButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#F4F2F7',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    sheetContent: {
+        alignItems: 'center',
+        paddingVertical: 20,
+    },
+    sheetIcon: {
+        marginBottom: 16,
+    },
+    sheetMessageText: {
+        fontSize: 16,
+        fontFamily: 'Rubik-Regular',
+        color: '#333333',
+        textAlign: 'center',
+        marginBottom: 24,
+        paddingHorizontal: 16,
+    },
+    sheetActionButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 32,
+        borderRadius: 12,
+        width: '80%',
+        alignItems: 'center',
+    },
+    sheetActionButtonText: {
+        fontSize: 16,
+        fontFamily: 'Rubik-Medium',
+        color: '#FFFFFF',
     },
 });
 

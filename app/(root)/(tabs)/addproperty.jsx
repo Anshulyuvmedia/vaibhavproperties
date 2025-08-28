@@ -1,5 +1,5 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View, TextInput, FlatList, Platform, Modal, Alert, ActivityIndicator } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import icons from '@/constants/icons';
 import { ProgressSteps, ProgressStep } from 'react-native-progress-steps';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,9 +12,9 @@ import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplet
 import Constants from "expo-constants";
 import 'react-native-get-random-values';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import Toast, { BaseToast } from 'react-native-toast-message';
 import { Ionicons, MaterialCommunityIcons, Feather, AntDesign, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import RNPickerSelect from 'react-native-picker-select';
+import RBSheet from 'react-native-raw-bottom-sheet';
 
 const Addproperty = () => {
 
@@ -56,9 +56,22 @@ const Addproperty = () => {
     const [modalType, setModalType] = useState(null); // 'mainImage', 'galleryImages', or 'video'
     const [categoryData, setCategoryData] = useState([]);
     const [landArea, setLandArea] = useState("");
-    const [selectedUnit, setSelectedUnit] = useState("sqft");
+    const [selectedUnit, setSelectedUnit] = useState('sqft');
     const [selectedSubCategory, setSelectedSubCategory] = useState('');
     const [selectedPropertyFor, setSelectedPropertyFor] = useState('Sell');
+
+    // State for tracking invalid fields
+    const [step1Errors, setStep1Errors] = useState({ property_name: false, description: false, nearbylocation: false });
+    const [step2Errors, setStep2Errors] = useState({ approxrentalincome: false, historydate: false, price: false });
+    const [step3Errors, setStep3Errors] = useState({ bathroom: false, floor: false, city: false, officeaddress: false, bedroom: false });
+    const [step4Errors, setStep4Errors] = useState({ category: false, mainImage: false, galleryImages: false, coordinates: false, documents: false });
+
+    // RBSheet ref
+    const rbSheetRef = useRef();
+
+    // State for RBSheet message
+    const [sheetMessage, setSheetMessage] = useState({ title: '', message: '', type: 'error' });
+
 
     const subcategoryOptions = {
         Agriculture: [
@@ -106,123 +119,123 @@ const Addproperty = () => {
         color: 'white',
     };
 
-    const toastConfig = {
-        success: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "green" }}
-                text1Style={{
-                    fontSize: 16,
-                    fontWeight: "bold",
-                }}
-                text2Style={{
-                    fontSize: 14,
-                }}
-            />
-        ),
-        error: (props) => (
-            <BaseToast
-                {...props}
-                style={{ borderLeftColor: "red" }}
-                text1Style={{
-                    fontSize: 16,
-                    fontWeight: "bold",
-                }}
-                text2Style={{
-                    fontSize: 14,
-                }}
-            />
-        ),
-    };
+
     // const status = [
     //     { label: 'Unpublished', value: 'unpublished' },
     //     { label: 'Published', value: 'published' },
     // ];
     const [visibleData, setVisibleData] = useState(step2Data.historydate.slice(0, 10));
     const [currentIndex, setCurrentIndex] = useState(10);
-
+    // console.log('fullAddress', fullAddress);
     const validateStep = (step) => {
+        let isValid = true;
+        let message = '';
+        let title = '';
+
         if (step === 1) {
-            if (!step1Data?.property_name || !step1Data?.description || !step1Data?.nearbylocation) {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Step 1 Error',
-                    text2: 'Property Name, Description, and Nearby Location are required.',
-                });
-                return false;
+            const newErrors = {
+                property_name: !step1Data?.property_name,
+                description: !step1Data?.description,
+                nearbylocation: !step1Data?.nearbylocation,
+                purpose: !selectedPropertyFor,
+                category: !selectedCategory,
+                subcategory: !selectedSubCategory,
+                mainImage: !mainImage,
+            };
+            setStep1Errors(newErrors);
+            if (Object.values(newErrors).some(error => error)) {
+                isValid = false;
+                title = 'Step 1 Error';
+                message = [
+                    newErrors.property_name ? 'Please Enter Property Name.' : '',
+                    newErrors.description ? 'Please Enter Description' : '',
+                    newErrors.nearbylocation ? 'Please enter atleast one landmarks.' : '',
+                    newErrors.category ? 'Please select category.' : '',
+                    newErrors.subcategory ? 'Please select sub category.' : '',
+                    newErrors.mainImage ? 'Please upload at least one property image.' : '',
+                ].filter(msg => msg).join('\n');
             }
         }
 
         if (step === 2) {
-            if (!step2Data?.approxrentalincome || step2Data?.historydate.length === 0 || !step2Data?.price) {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Step 2 Error',
-                    text2: 'Approx Rental Income, Price, and at least one History Date are required.',
-                });
-                return false;
+            const newErrors = {
+                approxrentalincome: !step2Data?.approxrentalincome,
+                // historydate: step2Data?.historydate.length === 0,
+                price: !step2Data?.price,
+            };
+            setStep2Errors(newErrors);
+            if (Object.values(newErrors).some(error => error)) {
+                isValid = false;
+                title = 'Step 2 Error';
+                message = 'Approx Rental Income, Price, and at least one History Date are required.';
+                message = [
+                    newErrors.approxrentalincome ? 'Please enter approx rental income.' : '',
+                    newErrors.price ? 'Please enter current property price.' : '',
+                    // newErrors.historydate ? 'Please enter price history' : '',
+                ].filter(msg => msg).join('\n');
             }
         }
 
         if (step === 3) {
-            if (!step3Data?.bathroom || !step3Data?.floor || !step3Data?.city || !step3Data?.officeaddress || !step3Data?.bedroom) {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Step 3 Error',
-                    text2: 'Land Area, Bathroom, Floor, City, Office Address, and Bedroom are required.',
-                });
-                return false;
+            const newErrors = {
+                amenities: amenities.length < 1,
+                floor: !step3Data?.floor,
+                bathroom: !step3Data?.bathroom,
+                bedroom: !step3Data?.bedroom,
+                city: !step3Data?.city,
+                officeaddress: !step3Data?.officeaddress,
+                landArea: !landArea,
+                fullAddress: !fullAddress,
+            };
+            setStep3Errors(newErrors);
+            if (Object.values(newErrors).some(error => error)) {
+                isValid = false;
+                title = 'Step 3 Error';
+                message = [
+                    newErrors.amenities ? 'Please enter amenities.' : '',
+                    newErrors.floor ? 'Please enter no. of floors' : '',
+                    newErrors.bathroom ? 'Please enter no. of bathroom.' : '',
+                    newErrors.bedroom ? 'Please enter no. of bathroom.' : '',
+                    newErrors.landArea ? 'Please enter land area.' : '',
+                    newErrors.city ? 'Please enter city.' : '',
+                    newErrors.officeaddress ? 'Please enter Property address.' : '',
+                    newErrors.fullAddress ? 'Please enter location on map' : '',
+                ].filter(msg => msg).join('\n');
             }
         }
 
         if (step === 4) {
-            if (!selectedCategory) {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Category Required',
-                    text2: 'Please select a property category.',
-                });
-                return false;
-            }
+            const newErrors = {
+                galleryImages: galleryImages.length < 3, // ✅ corrected to match message (at least 2)
+                // videos: videos.length < 1,
+                // propertyDocuments: propertyDocuments.length < 1,
+                // masterPlanDoc: masterPlanDoc.length < 1,
+            };
 
-            if (!mainImage) {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Image Required',
-                    text2: 'Please upload a main property image.',
-                });
-                return false;
-            }
+            setStep4Errors(newErrors);
 
-            if (galleryImages.length < 2) {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Gallery Images Required',
-                    text2: 'Please upload at least 2 gallery images.',
-                });
-                return false;
-            }
-
-            if (!coordinates.latitude || !coordinates.longitude) {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Location Required',
-                    text2: 'Please provide a valid property location.',
-                });
-                return false;
-            }
-
-            if (propertyDocuments.length === 0) {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Documents Required',
-                    text2: 'Please upload at least one property document.',
-                });
-                return false;
+            if (Object.values(newErrors).some(error => error)) {
+                isValid = false;
+                title = 'Step 4 Error';
+                message = [
+                    newErrors.galleryImages ? 'Please upload at least 3 gallery images.' : '',
+                    // newErrors.videos ? 'Please upload at least 1 video.' : '',
+                    // newErrors.propertyDocuments ? 'Please upload at least 1 property document.' : '',
+                    // newErrors.masterPlanDoc ? 'Please upload a master plan document.' : '',
+                ].filter(msg => msg).join('\n');
             }
         }
 
-        return true;
+
+        if (!isValid) {
+            setErrors(true);
+            setSheetMessage({ title, message, type: 'error' });
+            rbSheetRef.current.open();
+        } else {
+            setErrors(false);
+        }
+
+        return isValid;
     };
 
 
@@ -245,21 +258,23 @@ const Addproperty = () => {
         if (useCamera) {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') {
-                Toast.show({
+                setSheetMessage({
+                    title: 'Error',
+                    message: 'Sorry, we need camera permissions to make this work!',
                     type: 'error',
-                    text1: 'Error',
-                    text2: 'Sorry, we need camera permissions to make this work!',
                 });
+                rbSheetRef.current.open();
                 return false;
             }
         }
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Toast.show({
+            setSheetMessage({
+                title: 'Error',
+                message: 'Sorry, we need camera roll permissions to make this work!',
                 type: 'error',
-                text1: 'Error',
-                text2: 'Sorry, we need camera roll permissions to make this work!',
             });
+            rbSheetRef.current.open();
             return false;
         }
         return true;
@@ -399,7 +414,7 @@ const Addproperty = () => {
             const response = await axios.get(`https://landsquire.in/api/get-categories`);
             if (response.data?.categories) {
                 setCategoryData(response.data.categories);
-                console.log('categoryData', response.data.categories);
+                // console.log('categoryData', response.data.categories);
             } else {
                 console.error("Unexpected API response format:", response.data);
             }
@@ -526,12 +541,20 @@ const Addproperty = () => {
             };
         } catch (error) {
             console.error("Error fetching user data:", error);
-            Toast.show({
+            setSheetMessage({
+                title: 'Error',
+                message: 'Could not retrieve user data.',
                 type: 'error',
-                text1: 'Error',
-                text2: "Could not retrieve user data.",
             });
+            rbSheetRef.current.open();
             return null;
+        }
+    };
+
+    const handleFormSubmission = async () => {
+        const isStepValid = validateStep(4); // Validate step 4 explicitly
+        if (isStepValid) {
+            await handleSubmit(); // Only call handleSubmit if validation passes
         }
     };
 
@@ -668,26 +691,29 @@ const Addproperty = () => {
 
             // console.log("API Response:", response.data);
             if (response.status === 200 && !response.data.error) {
-                Toast.show({
+                setSheetMessage({
+                    title: 'Success',
+                    message: 'Property added successfully!',
                     type: 'success',
-                    text1: 'Success',
-                    text2: "Property added successfully!",
                 });
+                rbSheetRef.current.open();
             } else {
                 console.error("Error", response.data.message || "Failed to add property.");
-                Toast.show({
+                setSheetMessage({
+                    title: 'Error',
+                    message: 'Failed to add property.',
                     type: 'error',
-                    text1: 'Error',
-                    text2: "Failed to add property.",
                 });
+                rbSheetRef.current.open();
             }
         } catch (error) {
             console.error("API Error:", error?.response?.data || error);
-            Toast.show({
+            setSheetMessage({
+                title: 'Error',
+                message: 'Something went wrong. Please try again.',
                 type: 'error',
-                text1: 'Error',
-                text2: "Something went wrong. Please try again.",
             });
+            rbSheetRef.current.open();
         } finally {
             setLoading(false);
         }
@@ -769,19 +795,16 @@ const Addproperty = () => {
             </View>
 
             <View style={styles.container}>
-                <View style={{ position: 'absolute', top: 10, left: 0, right: 0, zIndex: 9999 }}>
-                    <Toast config={toastConfig} position="top" />
-                </View>
                 <ProgressSteps>
                     <ProgressStep label="General"
                         nextBtnTextStyle={buttonNextTextStyle}
                         nextBtnText="Next"
                         previousBtnText="Back"
-                    // onNext={() => onNextStep(1)}
-                    // errors={errors}
+                        onNext={() => onNextStep(1)}
+                        errors={errors}
                     >
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Property Title</Text>
+                            <Text style={[styles.label, step1Errors.property_name && { color: 'red' }]}>Property Title</Text>
                             <View style={styles.inputContainer}>
                                 <AntDesign name="home" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
@@ -793,7 +816,7 @@ const Addproperty = () => {
                             </View>
                         </View>
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Property Description</Text>
+                            <Text style={[styles.label, step1Errors.description && { color: 'red' }]}>Property Description</Text>
                             <TextInput
                                 style={styles.textarea}
                                 value={step1Data.description}
@@ -806,7 +829,7 @@ const Addproperty = () => {
                         </View>
 
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Property Thumbnail</Text>
+                            <Text style={[styles.label, step1Errors.mainImage && { color: 'red' }]}>Property Thumbnail</Text>
                             <View className="flex-row items-center">
                                 <TouchableOpacity onPress={() => openSourceModal('mainImage')} style={styles.dropbox}>
                                     <Ionicons name="image-outline" size={24} color="#234F68" style={styles.inputIcon} />
@@ -817,7 +840,7 @@ const Addproperty = () => {
                         </View>
 
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Select Purpose</Text>
+                            <Text style={[styles.label, step1Errors.purpose && { color: 'red' }]}>Select Purpose</Text>
                             <View style={styles.categoryContainer}>
                                 {Array.isArray(propertyfor) &&
                                     propertyfor.map((item, index) => (
@@ -842,7 +865,7 @@ const Addproperty = () => {
                             </View>
 
 
-                            <Text style={styles.label}>Select Category</Text>
+                            <Text style={[styles.label, step1Errors.category && { color: 'red' }]}>Select Category</Text>
                             <View style={styles.categoryContainer}>
                                 {Array.isArray(categoryData) &&
                                     categoryData.map((category) => (
@@ -872,7 +895,7 @@ const Addproperty = () => {
                             {/* Show subcategory only when category is selected */}
                             {selectedCategory && (
                                 <>
-                                    <Text style={styles.label}>Select Sub Category</Text>
+                                    <Text style={[styles.label, step1Errors.subcategory && { color: 'red' }]}>Select Sub Category</Text>
                                     <View style={styles.categoryContainer}>
                                         {Array.isArray(subcategoryOptions[selectedCategory]) &&
                                             subcategoryOptions[selectedCategory].map((subcategory) => (
@@ -903,7 +926,7 @@ const Addproperty = () => {
 
 
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Near By Locations</Text>
+                            <Text style={[styles.label, step1Errors.nearbylocation && { color: 'red' }]}>Near By Locations</Text>
                             <View style={styles.inputContainer}>
                                 <Ionicons name="trail-sign-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
@@ -921,11 +944,11 @@ const Addproperty = () => {
                         previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                    // onNext={() => onNextStep(2)}
-                    // errors={errors}
+                        onNext={() => onNextStep(2)}
+                        errors={errors}
                     >
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Approx Rental Income</Text>
+                            <Text style={[styles.label, step2Errors.approxrentalincome && { color: 'red' }]}>Approx Rental Income</Text>
                             <View style={styles.inputContainer}>
                                 <Ionicons name="pricetag-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
@@ -942,7 +965,7 @@ const Addproperty = () => {
                         </View>
 
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Current Property Price</Text>
+                            <Text style={[styles.label, step2Errors.price && { color: 'red' }]}>Current Property Price</Text>
                             <View style={styles.inputContainer}>
                                 <FontAwesome name="rupee" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <TextInput
@@ -961,7 +984,7 @@ const Addproperty = () => {
                         <View style={styles.stepContent}>
                             <View className='flex-row justify-between items-center'>
                                 <View style={{ flex: 1, marginRight: 10 }}>
-                                    <Text style={styles.label}>Historical Price</Text>
+                                    <Text style={[styles.label, step2Errors.historydate && { color: 'red' }]}>Historical Price</Text>
                                     <View style={styles.inputContainer}>
                                         <TextInput
                                             style={styles.input}
@@ -976,7 +999,7 @@ const Addproperty = () => {
                                     </View>
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Historical Date</Text>
+                                    <Text style={[styles.label, step2Errors.historydate && { color: 'red' }]}>Historical Date</Text>
                                     <View style={styles.inputContainer}>
                                         <TouchableOpacity onPress={() => setShow(true)}>
                                             <TextInput
@@ -1045,12 +1068,12 @@ const Addproperty = () => {
                         previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                    // onNext={() => onNextStep(3)}
-                    // errors={errors}
+                        onNext={() => onNextStep(3)}
+                        errors={errors}
                     >
                         <View style={styles.stepContent}>
                             <View className='flex flex-row items-center'>
-                                <Text style={styles.label}>Features & Amenities</Text>
+                                <Text style={[styles.label, step3Errors.amenities && { color: 'red' }]}>Features & Amenities</Text>
                             </View>
                             <View className='flex flex-row align-center'>
                                 <View className='flex-grow'>
@@ -1093,21 +1116,21 @@ const Addproperty = () => {
                             <View style={styles.stepContent}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                     <View style={{ flex: 1, marginRight: 5 }}>
-                                        <Text style={styles.label}>Floor</Text>
+                                        <Text style={[styles.label, step3Errors.floor && { color: 'red' }]}>Floor</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="floor-plan" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
                                         </View>
                                     </View>
                                     <View style={{ flex: 1, marginRight: 5 }}>
-                                        <Text style={styles.label}>Bathroom</Text>
+                                        <Text style={[styles.label, step3Errors.bathroom && { color: 'red' }]}>Bathroom</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
                                         </View>
                                     </View>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={styles.label}>Bedroom</Text>
+                                        <Text style={[styles.label, step3Errors.bedroom && { color: 'red' }]}>Bedroom</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
@@ -1120,7 +1143,7 @@ const Addproperty = () => {
                         <View style={styles.stepContent}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <View style={{ flex: 1, }}>
-                                    <Text style={styles.label}>Land Area</Text>
+                                    <Text style={[styles.label, step3Errors.landArea && { color: 'red' }]}>Land Area</Text>
                                     <View style={styles.inputContainer}>
                                         <MaterialIcons name="zoom-out-map" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                         <TextInput style={styles.input} placeholder="Land area" keyboardType="numeric" value={landArea} onChangeText={(value) => setLandArea(value)} />
@@ -1139,13 +1162,13 @@ const Addproperty = () => {
                         </View>
                         <View style={styles.stepContent}>
                             <View style={{ flex: 1, marginLeft: 5 }}>
-                                <Text style={styles.label}>City</Text>
+                                <Text style={[styles.label, step3Errors.city && { color: 'red' }]}>City</Text>
                                 <View style={styles.inputContainer}>
                                     <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                     <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
                                 </View>
                             </View>
-                            <Text style={styles.label}>Property Address</Text>
+                            <Text style={[styles.label, step3Errors.officeaddress && { color: 'red' }]}>Property Address</Text>
                             <TextInput
                                 style={styles.textarea}
                                 placeholder="Enter complete address"
@@ -1157,7 +1180,7 @@ const Addproperty = () => {
                             />
                         </View>
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Find Location on Google Map</Text>
+                            <Text style={[styles.label, step3Errors.fullAddress && { color: 'red' }]}>Find Location on Google Map</Text>
                             <View style={styles.inputContainer}>
                                 <MaterialCommunityIcons name="map-marker-radius-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <GooglePlacesAutocomplete
@@ -1238,7 +1261,7 @@ const Addproperty = () => {
                         previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
                         previousBtnTextStyle={buttonPreviousTextStyle}
-                        onSubmit={handleSubmit}>
+                        onSubmit={handleFormSubmission}>
                         {/* select status */}
                         {/* <View style={styles.stepContent}>
                             <Text style={styles.label}>Select Status</Text>
@@ -1256,7 +1279,7 @@ const Addproperty = () => {
                         <View style={styles.stepContent}>
 
                             {/* upload gallery */}
-                            <Text style={styles.label}>Property Gallery</Text>
+                            <Text style={[styles.label, step4Errors.galleryImages && { color: 'red' }]}>Property Gallery</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
                                     data={galleryImages}
@@ -1286,7 +1309,7 @@ const Addproperty = () => {
                         </View>
 
                         {/* Upload video */}
-                        <View style={styles.stepContent}>
+                        <View style={[styles.label, step4Errors.videos && { color: 'red' }]}>
                             <Text style={styles.label}>Upload Videos</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
@@ -1322,7 +1345,7 @@ const Addproperty = () => {
                         </View>
 
                         {/* upload doc */}
-                        <View style={styles.stepContent}>
+                        <View style={[styles.label, step4Errors.propertyDocuments && { color: 'red' }]}>
                             <Text style={styles.label}>Upload Property Documents</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
@@ -1351,7 +1374,7 @@ const Addproperty = () => {
 
                         {/* upload marster plan */}
                         <View style={styles.stepContent}>
-                            <Text style={styles.label}>Upload Property Master Plan</Text>
+                            <Text style={[styles.label, step4Errors.masterPlanDoc && { color: 'red' }]}>Upload Property Master Plan</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
                                     data={masterPlanDoc}
@@ -1434,6 +1457,66 @@ const Addproperty = () => {
                     </View>
                 </View>
             </Modal>
+
+            <RBSheet
+                ref={rbSheetRef}
+                animationType="slide"
+                height={400}
+                openDuration={300}
+                closeOnDragDown={true}
+                closeOnPressMask={true}
+                customStyles={{
+                    container: styles.sheetContainer,
+                    draggableIcon: styles.draggableIcon,
+                }}
+                onClose={() => {
+                    if (sheetMessage.type === 'success') {
+                        resetForm();
+                        router.back();
+                    }
+                }}
+            >
+                <View style={styles.sheetHeader}>
+                    <Text style={[
+                        styles.sheetTitle,
+                        { color: sheetMessage.type === 'success' ? '#4CAF50' : '#F44336' }
+                    ]}>
+                        {sheetMessage.title}
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.sheetCloseButton}
+                        onPress={() => rbSheetRef.current.close()}
+                    >
+                        <Feather name="x" size={24} color="#234F68" />
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.sheetContent}>
+                    <Feather
+                        name={sheetMessage.type === 'success' ? 'check-circle' : 'alert-circle'}
+                        size={48}
+                        color={sheetMessage.type === 'success' ? '#4CAF50' : '#F44336'}
+                        style={styles.sheetIcon}
+                    />
+                    <Text style={styles.sheetMessageText}>{sheetMessage.message}</Text>
+                    <TouchableOpacity
+                        style={[
+                            styles.sheetActionButton,
+                            { backgroundColor: sheetMessage.type === 'success' ? '#4CAF50' : '#F44336' }
+                        ]}
+                        onPress={() => {
+                            rbSheetRef.current.close();
+                            if (sheetMessage.type === 'success') {
+                                resetForm();
+                                router.back();
+                            }
+                        }}
+                    >
+                        <Text style={styles.sheetActionButtonText}>
+                            {sheetMessage.type === 'success' ? 'Continue' : 'Try Again'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </RBSheet>
         </View>
     )
 }
@@ -1527,15 +1610,6 @@ const styles = StyleSheet.create({
         height: 50,
         backgroundColor: "#f3f4f6",
     },
-    editor: {
-        flex: 1,
-        padding: 0,
-        borderColor: 'gray',
-        borderWidth: 1,
-        marginHorizontal: 30,
-        marginVertical: 5,
-        backgroundColor: 'white',
-    },
     textarea: {
         textAlignVertical: 'top',
         height: 110,
@@ -1578,26 +1652,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         flex: 1,
     },
-    map: {
-        width: '100%',
-        height: 150,
-        marginTop: 10
-    },
     addButton: {
         backgroundColor: '#234F68',
         padding: 10,
         marginTop: 10,
-        borderRadius: 5
+        borderRadius: 5,
     },
     addButtonText: {
         color: 'white',
         textAlign: 'center',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
     },
     tableRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        padding: 10
+        padding: 10,
     },
     tableCell: {
         flex: 1,
@@ -1610,7 +1679,7 @@ const styles = StyleSheet.create({
         width: 110,
         borderRadius: 10,
         overflow: 'hidden',
-        backgroundColor: '#f3f4f6',
+        backgroundColor: '# Conception: f3f4f6',
     },
     pickerContainer: {
         borderRadius: 10,
@@ -1709,6 +1778,73 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontFamily: 'Rubik-Regular',
         color: '#fff',
+    },
+    sheetContainer: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    draggableIcon: {
+        backgroundColor: '#D3D3D3',
+        width: 40,
+        height: 5,
+        borderRadius: 3,
+        marginVertical: 10,
+        alignSelf: 'center',
+    },
+    sheetHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    sheetTitle: {
+        fontSize: 20,
+        fontFamily: 'Rubik-Bold',
+        color: '#234F68',
+    },
+    sheetCloseButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#F4F2F7',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    sheetContent: {
+        alignItems: 'center',
+        paddingVertical: 20,
+    },
+    sheetIcon: {
+        marginBottom: 16,
+    },
+    sheetMessageText: {
+        fontSize: 16,
+        fontFamily: 'Rubik-Regular',
+        color: '#333333',
+        textAlign: 'center',
+        marginBottom: 24,
+        paddingHorizontal: 16,
+    },
+    sheetActionButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 32,
+        borderRadius: 12,
+        width: '80%',
+        alignItems: 'center',
+    },
+    sheetActionButtonText: {
+        fontSize: 16,
+        fontFamily: 'Rubik-Medium',
+        color: '#FFFFFF',
     },
 });
 
