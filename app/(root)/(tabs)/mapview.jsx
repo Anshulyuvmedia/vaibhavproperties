@@ -132,6 +132,8 @@ const Mapview = () => {
     const fetchListingData = async (mapRegion, pageNum = 1) => {
         setLoading(true);
         setError(null);
+        const token = await AsyncStorage.getItem('authToken');
+
         try {
             const response = await axios.get('https://landsquire.in/api/property-listings', {
                 params: {
@@ -141,6 +143,9 @@ const Mapview = () => {
                     longitudeDelta: mapRegion?.longitudeDelta || 5.0,
                     limit: 8,
                     page: pageNum,
+                },
+                headers: {
+                    Authorization: `Bearer ${token}`,
                 },
             });
 

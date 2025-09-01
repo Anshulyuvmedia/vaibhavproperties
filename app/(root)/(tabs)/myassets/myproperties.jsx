@@ -66,10 +66,10 @@ const Myproperties = () => {
           prevData.map(item =>
             item.id === selectedProperty.id
               ? {
-                  ...item,
-                  bidstatus: bidStatus ? 'on' : 'off',
-                  bidenddate: bidStatus ? formatDate(bidEndDate.toISOString()) : '',
-                }
+                ...item,
+                bidstatus: bidStatus ? 'on' : 'off',
+                bidenddate: bidStatus ? formatDate(bidEndDate.toISOString()) : '',
+              }
               : item
           )
         );
@@ -125,25 +125,33 @@ const Myproperties = () => {
         rbSheetRef.current.open();
         return;
       }
-      const response = await axios.get(`https://landsquire.in/api/viewuserlistings?id=${parsedPropertyData.id}`);
+      const token = await AsyncStorage.getItem('authToken');
+
+      const response = await axios.get(`https://landsquire.in/api/viewuserlistings?id=${parsedPropertyData.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.data && response.data.properties) {
-        const formattedData = response.data.properties.map((item) => ({
-          id: item.id,
-          property_name: item.property_name,
-          address: item.address,
-          price: item.price,
-          status: item.status,
-          bidstatus: item.bidstatus,
-          bidenddate: formatDate(item.bidenddate),
-          category: item.category,
-          subcategory: item.subcategory,
-          thumbnail: item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.startsWith('http')
-            ? item.thumbnail
-            : item.thumbnail
-              ? `https://landsquire.in/adminAssets/images/Listings/${item.thumbnail}`
-              : 'https://landsquire.in/adminAssets/images/default-thumbnail.jpg',
-          city: item.city,
-        }));
+        const formattedData = response.data.properties
+          .filter(item => item.propertyfor === 'Sell')
+          .map((item) => ({
+            id: item.id,
+            property_name: item.property_name,
+            address: item.address,
+            price: item.price,
+            status: item.status,
+            bidstatus: item.bidstatus,
+            bidenddate: formatDate(item.bidenddate),
+            category: item.category,
+            subcategory: item.subcategory,
+            thumbnail: item.thumbnail && typeof item.thumbnail === 'string' && item.thumbnail.startsWith('http')
+              ? item.thumbnail
+              : item.thumbnail
+                ? `https://landsquire.in/adminAssets/images/Listings/${item.thumbnail}`
+                : 'https://landsquire.in/adminAssets/images/default-thumbnail.jpg',
+            city: item.city,
+          }));
         setUserPropertyData(formattedData);
       } else {
         console.error('Unexpected API response format:', response.data);
@@ -176,10 +184,10 @@ const Myproperties = () => {
     const now = Date.now();
     // Prevent refreshing too frequently (minimum 2 seconds between refreshes)
     if (now - lastRefreshTime < 2000) return;
-    
+
     setRefreshing(true);
     setLastRefreshTime(now);
-    
+
     // Add a minimum refresh duration for better UX
     await new Promise(resolve => setTimeout(resolve, 1000));
     await fetchUserData();
@@ -191,7 +199,7 @@ const Myproperties = () => {
     <View style={{ flex: 1 }}>
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Image source={icons.backArrow} style={styles.backIcon} />
           </TouchableOpacity>
@@ -203,7 +211,7 @@ const Myproperties = () => {
           </TouchableOpacity>
         </View>
 
-        <PropertyNavigation path={'myproperties'} />
+        <PropertyNavigation path={'myproperties'} /> */}
 
         <View style={styles.infoContainer}>
           <Text style={[styles.infoText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
@@ -230,7 +238,7 @@ const Myproperties = () => {
           height={verticalScale(200)}
         >
           <View style={styles.sheetContent}>
-            <Text style={[styles.sheetTitle, { 
+            <Text style={[styles.sheetTitle, {
               fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold',
               color: sheetMessage.type === 'success' ? 'green' : 'red'
             }]}>
@@ -393,7 +401,10 @@ const Myproperties = () => {
         >
           <View>
             <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-              {t('editBid')}
+              {t('bidrequest')}
+            </Text>
+            <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              After approval from admin bidding will be on.
             </Text>
             <View style={styles.switchContainer}>
               <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
@@ -476,6 +487,7 @@ const styles = StyleSheet.create({
   infoContainer: {
     alignItems: 'center',
     marginBottom: verticalScale(3),
+    marginTop: 10,
   },
   infoText: {
     fontSize: moderateScale(14),

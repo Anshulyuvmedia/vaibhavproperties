@@ -10,7 +10,7 @@ import PropertyNavigation from '@/components/PropertyNavigation';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
 
-const Myleads = () => {
+const RentLeads = () => {
     const { t, i18n } = useTranslation();
     const router = useRouter();
     const [enquiries, setEnquiries] = useState([]);
@@ -247,7 +247,7 @@ const Myleads = () => {
                     <Image source={icons.bell} style={styles.bellIcon} />
                 </TouchableOpacity>
             </View>
-            <PropertyNavigation path={'myleads'} /> */}
+            <PropertyNavigation path={'RentLeads'} /> */}
             <View className='mx-auto mt-3'>
                 <Text>All the leads on your properties.</Text>
             </View>
@@ -385,7 +385,7 @@ const Myleads = () => {
     );
 };
 
-export default Myleads;
+export default RentLeads;
 
 const styles = StyleSheet.create({
     container: {

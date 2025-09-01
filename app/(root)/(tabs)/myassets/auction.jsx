@@ -237,7 +237,7 @@ const Auction = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Image source={icons.backArrow} style={styles.backIcon} />
         </TouchableOpacity>
@@ -249,7 +249,9 @@ const Auction = () => {
         </TouchableOpacity>
       </View>
 
-      <PropertyNavigation path={'auction'} />
+      <PropertyNavigation path={'auction'} /> */}
+
+
       <View style={styles.auctionDescription}>
         <Text>{t('auctionDescription') || 'All the Auctions that you have participated in.'}</Text>
       </View>

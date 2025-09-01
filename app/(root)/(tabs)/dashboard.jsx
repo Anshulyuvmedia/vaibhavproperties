@@ -33,7 +33,12 @@ const Dashboard = () => {
         return;
       }
 
-      const response = await axios.get(`https://landsquire.in/api/userprofile?id=${parsedUserData.id}`);
+      const token = await AsyncStorage.getItem('authToken');
+      const response = await axios.get(`https://landsquire.in/api/userprofile?id=${parsedUserData.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (response.data && response.data.data) {
         const apiData = response.data.data;
@@ -221,6 +226,13 @@ const Dashboard = () => {
                   onPress={() => router.push('/myassets/myproperties')}
                 />
               )} */}
+              {userData?.user_type != 'bankagent' && (
+                <MenuItem
+                  icon="house-siding"
+                  title="Rented Property"
+                  onPress={() => router.push('/Rent/rentscreen')}
+                />
+              )}
 
               {userData?.user_type == 'bankagent' && (
                 <MenuItem

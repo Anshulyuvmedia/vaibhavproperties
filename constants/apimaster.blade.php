@@ -201,9 +201,11 @@ class ApiMasterController extends Controller
             if ($user && $user->otp == $enteredOtp) {
                 Auth::guard('customer')->login($user);
                 $user->verification_status = 1;
-                $user->save();
 
                 $token = hash('sha256', $user->id . time() . $user->otp);
+
+                $user->api_token = $token;
+                $user->save();
 
                 return response()->json(
                     [
@@ -246,10 +248,39 @@ class ApiMasterController extends Controller
 
     public function propertylistings(Request $req)
     {
+        $token = $req->header('Authorization'); // fixed typo
+
+        if (!$token) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Authorization token missing',
+                ],
+                401,
+            );
+        }
+
+        // Remove "Bearer " prefix if exists
+        $token = str_replace('Bearer ', '', $token);
+
+        $user = RegisterUser::where('api_token', $token)->first();
+
+        if (!$user) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Invalid or expired token',
+                ],
+                401,
+            );
+        }
+
         $category = $req->query('filtercategory');
         $city = $req->query('filtercity');
         $minprice = $req->query('filterminprice');
         $maxprice = $req->query('filtermaxprice');
+        $limit = $req->query('limit', 8); // default 8 per page
+        $page = $req->query('page', 1);
 
         $listings = PropertyListing::query();
 
@@ -269,7 +300,10 @@ class ApiMasterController extends Controller
             $listings->where('price', '<=', $maxprice);
         }
 
-        $listings = $listings->where('status', '=', 'published')->orderBy('featuredstatus', 'desc')->paginate(4);
+        $listings = $listings
+            ->where('status', 'published')
+            ->orderBy('featuredstatus', 'desc')
+            ->paginate($limit, ['*'], 'page', $page);
 
         return response()->json([
             'success' => true,
@@ -376,7 +410,7 @@ class ApiMasterController extends Controller
                 'roleid' => $datareq['roleid'] ?? '4',
                 'property_name' => $datareq['property_name'] ?? '',
                 'nearbylocation' => $datareq['nearbylocation'] ?? '',
-                'approxrentalincome' => $datareq['approxrentalincome'],
+                'approxrentalincome' => $datareq['approxrentalincome'] ?? '',
                 'discription' => strip_tags($datareq['description'] ?? ''), // Remove HTML tags
                 'price' => $datareq['price'] ?? '',
                 'pricehistory' => json_encode(is_string($datareq['historydate']) ? json_decode($datareq['historydate'], true) : $datareq['historydate'] ?? []),
@@ -386,8 +420,8 @@ class ApiMasterController extends Controller
                 'floor' => $datareq['floor'] ?? '',
                 'city' => $datareq['city'] ?? '',
                 'address' => $datareq['officeaddress'] ?? '',
-                'thumbnail' => $thumbnailFilename,
-                'masterplandoc' => $masterdoc,
+                'thumbnail' => $thumbnailFilename ?? '',
+                'masterplandoc' => $masterdoc ?? '',
                 'maplocations' => $datareq['location'] ?? ['Latitude' => '', 'Longitude' => ''],
                 'category' => $datareq['category'] ?? '',
                 'propertyfor' => $datareq['propertyfor'] ?? '',
@@ -395,7 +429,7 @@ class ApiMasterController extends Controller
                 'gallery' => json_encode($galleryImages),
                 'documents' => json_encode($documents),
                 'amenties' => $datareq['amenities'] ?? [],
-                'videos' => json_encode($Videos),
+                'videos' => json_encode($Videos) ?? [],
                 'status' => 'unpublished',
             ]);
 
@@ -499,6 +533,32 @@ class ApiMasterController extends Controller
 
     public function userprofile(Request $rq)
     {
+        $token = $rq->header('Authorization'); // expecting "Bearer token_here"
+
+        if (!$token) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Authorization token missing',
+                ],
+                401,
+            );
+        }
+        // Remove "Bearer " prefix if exists
+        $token = str_replace('Bearer ', '', $token);
+
+        $user = RegisterUser::where('api_token', $token)->first();
+
+        if (!$user) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Invalid or expired token',
+                ],
+                401,
+            );
+        }
+
         $userprofiledata = RegisterUser::find($rq->id);
         return response()->json(['success' => true, 'data' => $userprofiledata]);
     }
@@ -547,8 +607,38 @@ class ApiMasterController extends Controller
 
     public function viewuserlistings(Request $rq)
     {
-        $allproperties = PropertyListing::where('roleid', $rq->id)->orderBy('created_at', 'DESC')->get();
-        $allpropertiescnt = PropertyListing::where('roleid', $rq->id)->count();
+        $token = $rq->header('Authorization'); // expecting "Bearer token_here"
+
+        if (!$token) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Authorization token missing',
+                ],
+                401,
+            );
+        }
+
+        // Remove "Bearer " prefix if exists
+        $token = str_replace('Bearer ', '', $token);
+
+        $user = RegisterUser::where('api_token', $token)->first();
+
+        if (!$user) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Invalid or expired token',
+                ],
+                401,
+            );
+        }
+
+        // Now safe to fetch listings
+        $allproperties = PropertyListing::where('roleid', $user->id)->orderBy('created_at', 'DESC')->get();
+
+        $allpropertiescnt = $allproperties->count();
+
         return response()->json([
             'success' => true,
             'properties' => $allproperties,
@@ -559,10 +649,7 @@ class ApiMasterController extends Controller
     public function usernotifications(Request $rq)
     {
         // Fetch notifications with selected fields for the given user ID
-        $notifications = Notification::select('data', 'notifiable_id', 'read_at', 'created_at')
-            ->where('notifiable_id', $rq->id)
-            ->orderBy('created_at', 'DESC')
-            ->get();
+        $notifications = Notification::select('data', 'notifiable_id', 'read_at', 'created_at')->where('notifiable_id', $rq->id)->orderBy('created_at', 'DESC')->get();
         $notifycnt = Notification::where('notifiable_id', $rq->id)->count();
 
         // Collect unique property IDs
@@ -578,32 +665,30 @@ class ApiMasterController extends Controller
         // Fetch property data for all property IDs in one query
         $properties = [];
         if (!empty($propertyIds)) {
-            $properties = PropertyListing::select('thumbnail', 'id', 'property_name', 'bidenddate')
-                ->whereIn('id', $propertyIds)
-                ->get()
-                ->keyBy('id')
-                ->toArray();
+            $properties = PropertyListing::select('thumbnail', 'id', 'property_name', 'bidenddate')->whereIn('id', $propertyIds)->get()->keyBy('id')->toArray();
         }
 
         // Merge notifications with their related property data
-        $mergedNotifications = $notifications->map(function ($notification) use ($properties) {
-            $notificationData = json_decode($notification->data, true);
-            $merged = $notification->toArray();
-            
-            // Add property data if property_id exists and property is found
-            if (json_last_error() === JSON_ERROR_NONE && isset($notificationData['property_id'])) {
-                $propertyId = $notificationData['property_id'];
-                if (isset($properties[$propertyId])) {
-                    $merged['property'] = $properties[$propertyId];
+        $mergedNotifications = $notifications
+            ->map(function ($notification) use ($properties) {
+                $notificationData = json_decode($notification->data, true);
+                $merged = $notification->toArray();
+
+                // Add property data if property_id exists and property is found
+                if (json_last_error() === JSON_ERROR_NONE && isset($notificationData['property_id'])) {
+                    $propertyId = $notificationData['property_id'];
+                    if (isset($properties[$propertyId])) {
+                        $merged['property'] = $properties[$propertyId];
+                    } else {
+                        $merged['property'] = null; // No property found for this ID
+                    }
                 } else {
-                    $merged['property'] = null; // No property found for this ID
+                    $merged['property'] = null; // No valid property_id in notification
                 }
-            } else {
-                $merged['property'] = null; // No valid property_id in notification
-            }
-            
-            return $merged;
-        })->toArray();
+
+                return $merged;
+            })
+            ->toArray();
 
         return response()->json([
             'success' => true,
@@ -937,7 +1022,7 @@ class ApiMasterController extends Controller
     public function brokerlist()
     {
         $brokerlistdata = RegisterUser::select('username', 'profile', 'id', 'mobilenumber', 'city')->where('user_type', 'broker')->where('verification_status', '1')->get();
-        
+
         return response()->json(['success' => true, 'data' => $brokerlistdata]);
     }
     public function brokerprofile(Request $rq)
@@ -1083,26 +1168,25 @@ class ApiMasterController extends Controller
 
     public function UpdateBidAmount(Request $request)
     {
-    try {
-        $leads = Lead::findOrFail($request->leadid);
-        $existingBids = json_decode($leads->propertybid, true);
+        try {
+            $leads = Lead::findOrFail($request->leadid);
+            $existingBids = json_decode($leads->propertybid, true);
 
-        foreach ($existingBids as &$bid) {
+            foreach ($existingBids as &$bid) {
                 if ($bid['date'] == $request->biddate) {
-                $bid['bidamount'] = $request->bidamount;
-                $bid['date'] = now()->toDateString();
+                    $bid['bidamount'] = $request->bidamount;
+                    $bid['date'] = now()->toDateString();
+                }
             }
-        }
-        $leads->update([
-        'propertybid' => json_encode($existingBids),
-        ]);
+            $leads->update([
+                'propertybid' => json_encode($existingBids),
+            ]);
 
-    return response()->json(['success' => true, 'message' => 'Bid Updated'], 200);
-    } catch (Exception $e) {
+            return response()->json(['success' => true, 'message' => 'Bid Updated'], 200);
+        } catch (Exception $e) {
             return response()->json(['success' => false, 'error' => 'Failed to update bid status: ' . $e->getMessage()], 500);
         }
     }
-
 
     public function deleteListing(Request $request)
     {
@@ -1116,10 +1200,13 @@ class ApiMasterController extends Controller
             // Find the property
             $property = PropertyListing::find($request->property_id);
             if (!$property) {
-                return response()->json([
-                    'error' => true,
-                    'message' => 'Property not found',
-                ], 404);
+                return response()->json(
+                    [
+                        'error' => true,
+                        'message' => 'Property not found',
+                    ],
+                    404,
+                );
             }
             // Log::info('Property ' . $property->id . ' requested for deletion by user ID ' . $request->roleid);
 
@@ -1128,10 +1215,13 @@ class ApiMasterController extends Controller
                 $user = RegisterUser::find($request->roleid);
                 if (!$user || $user->user_type != 'Admin') {
                     // Log::info('Unauthorized: User ID ' . $request->roleid . ' is not owner or admin, user_type: ' . ($user ? $user->user_type : 'not found') . ', property owner roleid: ' . $property->roleid);
-                    return response()->json([
-                        'error' => true,
-                        'message' => 'Unauthorized to delete this property',
-                    ], 403);
+                    return response()->json(
+                        [
+                            'error' => true,
+                            'message' => 'Unauthorized to delete this property',
+                        ],
+                        403,
+                    );
                 }
             }
 
@@ -1184,29 +1274,40 @@ class ApiMasterController extends Controller
             $property->delete();
             // Log::info('Property deleted: ID ' . $property->id . ' by user ID ' . $request->roleid);
 
-            return response()->json([
-                'error' => false,
-                'message' => 'Property deleted successfully',
-            ], 200);
-
+            return response()->json(
+                [
+                    'error' => false,
+                    'message' => 'Property deleted successfully',
+                ],
+                200,
+            );
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'error' => true,
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
+            return response()->json(
+                [
+                    'error' => true,
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors(),
+                ],
+                422,
+            );
         } catch (\Illuminate\Database\QueryException $e) {
             Log::error('Database error deleting property ID ' . ($property->id ?? 'unknown') . ': ' . $e->getMessage());
-            return response()->json([
-                'error' => true,
-                'message' => 'Cannot delete property due to related records',
-            ], 409);
+            return response()->json(
+                [
+                    'error' => true,
+                    'message' => 'Cannot delete property due to related records',
+                ],
+                409,
+            );
         } catch (\Exception $e) {
             Log::error('Error deleting property ID ' . ($property->id ?? 'unknown') . ': ' . $e->getMessage());
-            return response()->json([
-                'error' => true,
-                'message' => 'Failed to delete property',
-            ], 500);
+            return response()->json(
+                [
+                    'error' => true,
+                    'message' => 'Failed to delete property',
+                ],
+                500,
+            );
         }
     }
 }

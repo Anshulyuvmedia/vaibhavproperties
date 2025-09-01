@@ -1,31 +1,25 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View, TextInput, FlatList, Platform, Modal, Alert, ActivityIndicator } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, TextInput, FlatList, Modal, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import icons from '@/constants/icons';
 import { ProgressSteps, ProgressStep } from 'react-native-progress-steps';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import * as DocumentPicker from 'expo-document-picker';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker } from "react-native-maps";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import Constants from "expo-constants";
 import 'react-native-get-random-values';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons, MaterialCommunityIcons, Feather, AntDesign, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import RNPickerSelect from 'react-native-picker-select';
 import RBSheet from 'react-native-raw-bottom-sheet';
 
-const Addproperty = () => {
+const RentProperty = () => {
 
     const GOOGLE_MAPS_API_KEY = Constants.expoConfig.extra.GOOGLE_MAPS_API_KEY;
-    const [step1Data, setStep1Data] = useState({ property_name: '', description: '', nearbylocation: '', });
-    const [step2Data, setStep2Data] = useState({ approxrentalincome: '', historydate: [], price: '' });
+    const [step1Data, setStep1Data] = useState({ property_name: '', description: '', nearbylocation: '', price: '' });
     const [step3Data, setStep3Data] = useState({ bathroom: '', floor: '', city: '', officeaddress: '', bedroom: '' });
     const [isValid, setIsValid] = useState(false);
-
-    const [propertyDocuments, setPropertyDocuments] = useState([]);
-    const [masterPlanDoc, setMasterPlanDoc] = useState([]);
 
     const [errors, setErrors] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -49,29 +43,24 @@ const Addproperty = () => {
         longitude: 78.9629,
     });
     const [fullAddress, setFullAddress] = useState("");
-    const [show, setShow] = useState(false);
-    const [selectedDate, setSelectedDate] = useState('');
-    const [historyPrice, setHistoryPrice] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState(null); // 'mainImage', 'galleryImages', or 'video'
     const [categoryData, setCategoryData] = useState([]);
     const [landArea, setLandArea] = useState("");
     const [selectedUnit, setSelectedUnit] = useState('sqft');
     const [selectedSubCategory, setSelectedSubCategory] = useState('');
-    const [selectedPropertyFor, setSelectedPropertyFor] = useState('Sell');
+    const [selectedPropertyFor, setSelectedPropertyFor] = useState('Rent');
 
     // State for tracking invalid fields
-    const [step1Errors, setStep1Errors] = useState({ property_name: false, description: false, nearbylocation: false });
-    const [step2Errors, setStep2Errors] = useState({ approxrentalincome: false, historydate: false, price: false });
-    const [step3Errors, setStep3Errors] = useState({ bathroom: false, floor: false, city: false, officeaddress: false, bedroom: false });
-    const [step4Errors, setStep4Errors] = useState({ category: false, mainImage: false, galleryImages: false, coordinates: false, documents: false });
+    const [step1Errors, setStep1Errors] = useState({ property_name: false, mainImage: false, category: false, description: false, nearbylocation: false, price: false });
+    const [step2Errors, setStep2Errors] = useState({ bathroom: false, floor: false, city: false, coordinates: false, officeaddress: false, bedroom: false });
+    const [step3Errors, setStep3Errors] = useState({ galleryImages: false, });
 
     // RBSheet ref
     const rbSheetRef = useRef();
 
     // State for RBSheet message
     const [sheetMessage, setSheetMessage] = useState({ title: '', message: '', type: 'error' });
-
 
     const subcategoryOptions = {
         Agriculture: [
@@ -92,11 +81,6 @@ const Addproperty = () => {
         ],
     };
 
-    const propertyfor = [
-        { label: 'Sell', value: 'Sell' },
-        { label: 'Rent', value: 'Rent' },
-    ];
-
     const units = [
         { label: 'sqft', value: 'sqft' },
         { label: 'sqm', value: 'sqm' },
@@ -104,6 +88,7 @@ const Addproperty = () => {
         { label: 'bigha', value: 'bigha' },
         { label: 'acre', value: 'acre' },
     ];
+
     const buttonPreviousTextStyle = {
         paddingInline: 20,
         paddingBlock: 5,
@@ -119,13 +104,6 @@ const Addproperty = () => {
         color: 'white',
     };
 
-
-    // const status = [
-    //     { label: 'Unpublished', value: 'unpublished' },
-    //     { label: 'Published', value: 'published' },
-    // ];
-    const [visibleData, setVisibleData] = useState(step2Data.historydate.slice(0, 10));
-    const [currentIndex, setCurrentIndex] = useState(10);
     // console.log('fullAddress', fullAddress);
     const validateStep = (step) => {
         let isValid = true;
@@ -137,10 +115,10 @@ const Addproperty = () => {
                 property_name: !step1Data?.property_name,
                 description: !step1Data?.description,
                 nearbylocation: !step1Data?.nearbylocation,
-                purpose: !selectedPropertyFor,
                 category: !selectedCategory,
                 subcategory: !selectedSubCategory,
                 mainImage: !mainImage,
+                price: !step1Data?.price,
             };
             setStep1Errors(newErrors);
             if (Object.values(newErrors).some(error => error)) {
@@ -149,34 +127,16 @@ const Addproperty = () => {
                 message = [
                     newErrors.property_name ? 'Please Enter Property Name.' : '',
                     newErrors.description ? 'Please Enter Description' : '',
-                    newErrors.nearbylocation ? 'Please enter atleast one landmarks.' : '',
+                    newErrors.mainImage ? 'Please upload at least one property image.' : '',
                     newErrors.category ? 'Please select category.' : '',
                     newErrors.subcategory ? 'Please select sub category.' : '',
-                    newErrors.mainImage ? 'Please upload at least one property image.' : '',
+                    newErrors.price ? 'Please enter current property price.' : '',
+                    newErrors.nearbylocation ? 'Please enter atleast one landmarks.' : '',
                 ].filter(msg => msg).join('\n');
             }
         }
 
         if (step === 2) {
-            const newErrors = {
-                approxrentalincome: !step2Data?.approxrentalincome,
-                // historydate: step2Data?.historydate.length === 0,
-                price: !step2Data?.price,
-            };
-            setStep2Errors(newErrors);
-            if (Object.values(newErrors).some(error => error)) {
-                isValid = false;
-                title = 'Step 2 Error';
-                message = 'Approx Rental Income, Price, and at least one History Date are required.';
-                message = [
-                    newErrors.approxrentalincome ? 'Please enter approx rental income.' : '',
-                    newErrors.price ? 'Please enter current property price.' : '',
-                    // newErrors.historydate ? 'Please enter price history' : '',
-                ].filter(msg => msg).join('\n');
-            }
-        }
-
-        if (step === 3) {
             const newErrors = {
                 amenities: amenities.length < 1,
                 floor: !step3Data?.floor,
@@ -187,10 +147,10 @@ const Addproperty = () => {
                 landArea: !landArea,
                 fullAddress: !fullAddress,
             };
-            setStep3Errors(newErrors);
+            setStep2Errors(newErrors);
             if (Object.values(newErrors).some(error => error)) {
                 isValid = false;
-                title = 'Step 3 Error';
+                title = 'Step 2 Error';
                 message = [
                     newErrors.amenities ? 'Please enter amenities.' : '',
                     newErrors.floor ? 'Please enter no. of floors' : '',
@@ -204,24 +164,18 @@ const Addproperty = () => {
             }
         }
 
-        if (step === 4) {
+        if (step === 3) {
             const newErrors = {
-                galleryImages: galleryImages.length < 3, // ✅ corrected to match message (at least 2)
-                // videos: videos.length < 1,
-                // propertyDocuments: propertyDocuments.length < 1,
-                // masterPlanDoc: masterPlanDoc.length < 1,
+                galleryImages: galleryImages.length < 3,
             };
 
-            setStep4Errors(newErrors);
+            setStep3Errors(newErrors);
 
             if (Object.values(newErrors).some(error => error)) {
                 isValid = false;
                 title = 'Step 4 Error';
                 message = [
                     newErrors.galleryImages ? 'Please upload at least 3 gallery images.' : '',
-                    // newErrors.videos ? 'Please upload at least 1 video.' : '',
-                    // newErrors.propertyDocuments ? 'Please upload at least 1 property document.' : '',
-                    // newErrors.masterPlanDoc ? 'Please upload a master plan document.' : '',
                 ].filter(msg => msg).join('\n');
             }
         }
@@ -376,38 +330,6 @@ const Addproperty = () => {
     };
 
 
-    // Handle Date Change
-    const handleDateChange = (event, date) => {
-        setShow(false);
-        if (date) {
-            const formattedDate = date.toLocaleDateString("en-GB"); // Convert to YYYY-MM-DD
-            setSelectedDate(formattedDate);
-        }
-    };
-
-    // Add Price History Entry
-    const formatDate = (dateString) => {
-        const [day, month, year] = dateString.split("/");  // Split DD/MM/YYYY
-        return `${year}-${month}-${day}`;  // Convert to YYYY-MM-DD
-    };
-
-    const addPriceHistory = () => {
-        if (selectedDate && historyPrice) {
-            const newHistoryEntry = {
-                dateValue: formatDate(selectedDate),  // Convert date format
-                priceValue: historyPrice
-            };
-
-            setStep2Data((prevData) => ({
-                ...prevData,
-                historydate: [...prevData.historydate, newHistoryEntry],
-            }));
-
-            setSelectedDate('');
-            setHistoryPrice('');
-        }
-    };
-
     const fetchCategories = async () => {
         setLoading(true);
         try {
@@ -425,74 +347,10 @@ const Addproperty = () => {
         }
     };
 
-
     useEffect(() => {
         fetchCategories();
-        if (step2Data.historydate.length > 0) {
-            setVisibleData(step2Data.historydate.slice(0, currentIndex));
-        }
-    }, [step2Data.historydate]);
-    const loadMore = () => {
-        const nextIndex = currentIndex + 10;
-        setVisibleData(step2Data.historydate.slice(0, nextIndex));
-        setCurrentIndex(nextIndex);
-    };
-    // Function to remove a specific price history entry
-    const removePriceHistory = (index) => {
-        setStep2Data((prevData) => {
-            const updatedHistory = prevData.historydate.filter((_, i) => i !== index);
-            return { ...prevData, historydate: updatedHistory };
-        });
-        setVisibleData((prevData) => prevData.filter((_, i) => i !== index));
-    };
+    }, []);
 
-    const pickDocument = async () => {
-        let result = await DocumentPicker.getDocumentAsync({
-            type: 'application/pdf',
-            multiple: true, // Enable multiple selection
-        });
-
-        if (result.canceled) return;
-
-        const selectedDocuments = Array.isArray(result.assets) ? result.assets : [result];
-
-        const newDocuments = selectedDocuments.map(doc => ({
-            uri: doc.uri,
-            name: doc.name || 'Unnamed Document',
-            thumbnail: 'https://cdn-icons-png.flaticon.com/512/337/337946.png', // PDF icon
-        }));
-
-        setPropertyDocuments(prevDocs => [...prevDocs, ...newDocuments]);
-    };
-
-    // Function to remove a document
-    const removeDocument = (index) => {
-        setPropertyDocuments(prevDocs => prevDocs.filter((_, i) => i !== index));
-    };
-
-    const pickMasterPlan = async () => {
-        let result = await DocumentPicker.getDocumentAsync({
-            type: ['application/pdf', 'image/*'], // Allow PDFs and images
-            multiple: true,
-        });
-
-        if (result.canceled) return;
-
-        const selectedDocuments = Array.isArray(result.assets) ? result.assets : [result];
-
-        const newDocuments = selectedDocuments.map(doc => ({
-            uri: doc.uri,
-            name: doc.name || 'Unnamed Document',
-            thumbnail: doc.mimeType.startsWith('image') ? doc.uri : 'https://cdn-icons-png.flaticon.com/512/337/337946.png', // Image preview or PDF icon
-        }));
-
-        setMasterPlanDoc(prevDocs => [...prevDocs, ...newDocuments]);
-    };
-
-    // Function to remove a document
-    const removeMasterPlan = (index) => {
-        setMasterPlanDoc(prevDocs => prevDocs.filter((_, i) => i !== index));
-    };
 
     const handlePlaceSelect = (data, details = null) => {
         if (details?.geometry?.location) {
@@ -552,7 +410,7 @@ const Addproperty = () => {
     };
 
     const handleFormSubmission = async () => {
-        const isStepValid = validateStep(4); // Validate step 4 explicitly
+        const isStepValid = validateStep(3); // Validate step 4 explicitly
         if (isStepValid) {
             await handleSubmit(); // Only call handleSubmit if validation passes
         }
@@ -571,8 +429,6 @@ const Addproperty = () => {
             const formData = new FormData();
             // ✅ Append Step 1 Data
             Object.entries(step1Data).forEach(([key, value]) => { formData.append(key, value); });
-            // ✅ Append Step 2 Data
-            Object.entries(step2Data).forEach(([key, value]) => { formData.append(key, value); });
             // ✅ Append Step 3 Data
             Object.entries(step3Data).forEach(([key, value]) => { formData.append(key, value); });
 
@@ -580,13 +436,13 @@ const Addproperty = () => {
             formData.append("bedroom", step3Data?.bedroom ?? "");
             formData.append("category", selectedCategory ?? "");
             formData.append("subcategory", selectedSubCategory ?? "");
-            formData.append("propertyfor", selectedPropertyFor ?? "");
-            formData.append("landarea", `${landArea} ${selectedUnit}` ?? "");
+            formData.append("propertyfor", selectedPropertyFor ?? "Rent");
+            formData.append("landarea", `${landArea} ${selectedUnit}` ?? "sqft");
             // formData.append("status", selectedStatus ?? "");
             formData.append("roleid", id ?? "");
             formData.append("usertype", user_type ?? "");
             formData.append("amenities", JSON.stringify(amenities));
-            formData.append("historydate", step2Data?.historydate ? JSON.stringify(step2Data.historydate) : "[]");
+            formData.append("historydate", "[]");
 
             // ✅ Append Location Data
             formData.append("location", JSON.stringify({
@@ -620,8 +476,6 @@ const Addproperty = () => {
                 }
             });
 
-            // console.log("Uploading galleryImages", galleryImages);
-
             // ✅ Append Videos as a Comma-Separated String
             videos.forEach((video, index) => {
                 if (video?.uri) {  // Check if video.uri exists
@@ -633,38 +487,6 @@ const Addproperty = () => {
                     });
                 }
             });
-            // console.log("Uploading videos", videos);
-
-            // ✅ Append Documents as a Comma-Separated String
-            propertyDocuments.forEach((doc, index) => {
-                if (doc?.uri) {  // Check if doc.uri exists
-                    const fileType = doc.uri.includes('.') ? doc.uri.split('.').pop() : "pdf";
-                    formData.append(`documents[${index}]`, {
-                        uri: doc.uri,
-                        type: doc.type || `application/${fileType}`,
-                        name: `document-${index}.${fileType}`,
-                    });
-                }
-            });
-
-            masterPlanDoc.forEach((doc, index) => {
-                if (doc?.uri) {  // Ensure the document has a valid URI
-                    const fileType = doc.uri.split('.').pop()?.toLowerCase() || "pdf";
-                    const validFileTypes = ["pdf", "jpeg", "jpg"];
-
-                    if (!validFileTypes.includes(fileType)) {
-                        console.warn(`Invalid file type detected: ${fileType}`);
-                        return;
-                    }
-
-                    formData.append("masterplandocument", {
-                        uri: doc.uri,
-                        type: fileType === "pdf" ? "application/pdf" : `image/${fileType}`,
-                        name: `masterplan-${index}.${fileType}`,
-                    });
-                }
-            });
-            // console.log("Uploading Master Plan Document:", masterPlanDoc);
 
             // ✅ Prepare File Data Object & Append
             const safeFileName = (uri, defaultExt) => {
@@ -675,11 +497,9 @@ const Addproperty = () => {
                 galleryImages: galleryImages.map((image, index) => `gallery-image-${index}.${safeFileName(image.uri, "jpg")}`),
                 propertyvideos: videos.map((video, index) => `video-${index}.${safeFileName(video.uri, "mp4")}`),
                 thumbnailImages: thumbnailFileName ? [thumbnailFileName] : [],
-                documents: propertyDocuments.map((doc, index) => `document-${index}.${safeFileName(doc.uri, "pdf")}`),
-                masterplandocument: masterPlanDoc.map((doc, index) => `masterplan-${index}.${safeFileName(doc.uri, "pdf")}`),
             };
             formData.append("fileData", JSON.stringify(fileData));
-            // console.log("Uploading FormData add property:", formData);
+            console.log("Uploading FormData add property:", formData);
 
             // Send API request
             const response = await axios.post("https://landsquire.in/api/insertlisting", formData, {
@@ -689,7 +509,7 @@ const Addproperty = () => {
                 },
             });
 
-            // console.log("API Response:", response.data);
+            console.log("API Response:", response.data);
             if (response.status === 200 && !response.data.error) {
                 setSheetMessage({
                     title: 'Success',
@@ -737,15 +557,10 @@ const Addproperty = () => {
             officeaddress: ''
         });
 
-        // ✅ Instead of `null`, initialize step2Data with an empty object that includes `historydate`
-        setStep2Data({ historydate: [] });
-
         setSelectedCategory(null);
         // setSelectedStatus("unpublished");
         setMainImage(null);
         setGalleryImages([]);
-        setPropertyDocuments([]);
-        setMasterPlanDoc([]);
         setVideos([]);
     };
 
@@ -784,7 +599,7 @@ const Addproperty = () => {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 18, marginRight: 10, textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#234F68' }}>
-                    Add New Property
+                    Add Property To Rent
                 </Text>
                 <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', backgroundColor: '#f4f2f7', borderRadius: 50, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
                     <Image source={icons.backArrow} style={{ width: 20, height: 20 }} />
@@ -815,6 +630,7 @@ const Addproperty = () => {
                                 />
                             </View>
                         </View>
+
                         <View style={styles.stepContent}>
                             <Text style={[styles.label, step1Errors.description && { color: 'red' }]}>Property Description</Text>
                             <TextInput
@@ -840,30 +656,6 @@ const Addproperty = () => {
                         </View>
 
                         <View style={styles.stepContent}>
-                            <Text style={[styles.label, step1Errors.purpose && { color: 'red' }]}>Select Purpose</Text>
-                            <View style={styles.categoryContainer}>
-                                {Array.isArray(propertyfor) &&
-                                    propertyfor.map((item, index) => (
-                                        <TouchableOpacity
-                                            key={index} // using index since your array doesn’t have `id`
-                                            style={[
-                                                styles.categoryButton,
-                                                selectedPropertyFor === item.value && styles.categoryButtonSelected,
-                                            ]}
-                                            onPress={() => setSelectedPropertyFor(item.value)}
-                                        >
-                                            <Text
-                                                style={[
-                                                    styles.categoryText,
-                                                    selectedPropertyFor === item.value && styles.categoryTextSelected,
-                                                ]}
-                                            >
-                                                {item.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </View>
-
 
                             <Text style={[styles.label, step1Errors.category && { color: 'red' }]}>Select Category</Text>
                             <View style={styles.categoryContainer}>
@@ -924,6 +716,22 @@ const Addproperty = () => {
                             )}
                         </View>
 
+                        <View style={styles.stepContent}>
+                            <Text style={[styles.label, step1Errors.price && { color: 'red' }]}>Current Property Rent</Text>
+                            <View style={styles.inputContainer}>
+                                <FontAwesome name="rupee" size={24} color="#1F4C6B" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    keyboardType="numeric"
+                                    placeholder="Enter Rent price"
+                                    value={formatIndianNumber(step1Data.price)}
+                                    onChangeText={text => {
+                                        const numericText = text.replace(/[^0-9]/g, '');
+                                        setStep1Data(prevState => ({ ...prevState, price: numericText }));
+                                    }}
+                                />
+                            </View>
+                        </View>
 
                         <View style={styles.stepContent}>
                             <Text style={[styles.label, step1Errors.nearbylocation && { color: 'red' }]}>Near By Locations</Text>
@@ -939,7 +747,7 @@ const Addproperty = () => {
                         </View>
                     </ProgressStep>
 
-                    <ProgressStep label="Price"
+                    <ProgressStep label="Details"
                         nextBtnText="Next"
                         previousBtnText="Back"
                         nextBtnTextStyle={buttonNextTextStyle}
@@ -948,132 +756,8 @@ const Addproperty = () => {
                         errors={errors}
                     >
                         <View style={styles.stepContent}>
-                            <Text style={[styles.label, step2Errors.approxrentalincome && { color: 'red' }]}>Approx Rental Income</Text>
-                            <View style={styles.inputContainer}>
-                                <Ionicons name="pricetag-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    keyboardType="numeric"
-                                    placeholder="Enter approx rental income"
-                                    value={formatIndianNumber(step2Data.approxrentalincome)}
-                                    onChangeText={text => {
-                                        const numericText = text.replace(/[^0-9]/g, '');
-                                        setStep2Data(prevState => ({ ...prevState, approxrentalincome: numericText }));
-                                    }}
-                                />
-                            </View>
-                        </View>
-
-                        <View style={styles.stepContent}>
-                            <Text style={[styles.label, step2Errors.price && { color: 'red' }]}>Current Property Price</Text>
-                            <View style={styles.inputContainer}>
-                                <FontAwesome name="rupee" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    keyboardType="numeric"
-                                    placeholder="Enter current price"
-                                    value={formatIndianNumber(step2Data.price)}
-                                    onChangeText={text => {
-                                        const numericText = text.replace(/[^0-9]/g, '');
-                                        setStep2Data(prevState => ({ ...prevState, price: numericText }));
-                                    }}
-                                />
-                            </View>
-                        </View>
-
-                        <View style={styles.stepContent}>
-                            <View className='flex-row justify-between items-center'>
-                                <View style={{ flex: 1, marginRight: 10 }}>
-                                    <Text style={[styles.label, step2Errors.historydate && { color: 'red' }]}>Historical Price</Text>
-                                    <View style={styles.inputContainer}>
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Historical Price"
-                                            value={formatIndianNumber(historyPrice)}
-                                            keyboardType="numeric"
-                                            onChangeText={text => {
-                                                const numericText = text.replace(/[^0-9]/g, '');
-                                                setHistoryPrice(numericText);
-                                            }}
-                                        />
-                                    </View>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.label, step2Errors.historydate && { color: 'red' }]}>Historical Date</Text>
-                                    <View style={styles.inputContainer}>
-                                        <TouchableOpacity onPress={() => setShow(true)}>
-                                            <TextInput
-                                                style={styles.input}
-                                                placeholder="DD-MM-YYYY"
-                                                value={selectedDate}
-                                                editable={false}
-                                            />
-                                        </TouchableOpacity>
-                                    </View>
-                                    {show && (
-                                        <DateTimePicker
-                                            value={new Date()}
-                                            mode="date"
-                                            display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
-                                            onChange={handleDateChange}
-                                        />
-                                    )}
-                                </View>
-                                <TouchableOpacity onPress={addPriceHistory}>
-                                    <Image source={icons.addicon} style={styles.addBtn} />
-                                </TouchableOpacity>
-                            </View>
-                            {step2Data.historydate.length > 0 && (
-                                <View style={{ flexGrow: 1, minHeight: 1, marginTop: 10 }}>
-                                    <FlatList
-                                        data={visibleData}
-                                        keyExtractor={(item, index) => index.toString()}
-                                        nestedScrollEnabled={true}
-                                        contentContainerStyle={{
-                                            flexGrow: 1,
-                                            borderWidth: 1,
-                                            borderColor: '#c7c7c7',
-                                            borderRadius: 10,
-                                        }}
-                                        ListHeaderComponent={
-                                            <Text className="text-center font-rubik-bold my-2 border-b border-gray-300">
-                                                Price Data for Graph
-                                            </Text>
-                                        }
-                                        renderItem={({ item, index }) => (
-                                            <View style={styles.tableRow}>
-                                                <Text style={styles.tableCell}>
-                                                    Rs. {parseInt(item.priceValue).toLocaleString()}
-                                                </Text>
-                                                <Text style={styles.tableCell}>{item.dateValue}</Text>
-                                                <TouchableOpacity onPress={() => removePriceHistory(index)}>
-                                                    <Text style={styles.removeBtn}>❌</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        )}
-                                    />
-                                    {currentIndex < step2Data.historydate.length && (
-                                        <TouchableOpacity onPress={loadMore} style={styles.addButton}>
-                                            <Text style={styles.addButtonText}>View More</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            )}
-                        </View>
-
-                    </ProgressStep>
-
-                    <ProgressStep label="Details"
-                        nextBtnText="Next"
-                        previousBtnText="Back"
-                        nextBtnTextStyle={buttonNextTextStyle}
-                        previousBtnTextStyle={buttonPreviousTextStyle}
-                        onNext={() => onNextStep(3)}
-                        errors={errors}
-                    >
-                        <View style={styles.stepContent}>
                             <View className='flex flex-row items-center'>
-                                <Text style={[styles.label, step3Errors.amenities && { color: 'red' }]}>Features & Amenities</Text>
+                                <Text style={[styles.label, step2Errors.amenities && { color: 'red' }]}>Features & Amenities</Text>
                             </View>
                             <View className='flex flex-row align-center'>
                                 <View className='flex-grow'>
@@ -1116,21 +800,21 @@ const Addproperty = () => {
                             <View style={styles.stepContent}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                     <View style={{ flex: 1, marginRight: 5 }}>
-                                        <Text style={[styles.label, step3Errors.floor && { color: 'red' }]}>Floor</Text>
+                                        <Text style={[styles.label, step2Errors.floor && { color: 'red' }]}>Floor</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="floor-plan" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Floor" keyboardType="numeric" value={step3Data.floor} onChangeText={text => setStep3Data({ ...step3Data, floor: text })} />
                                         </View>
                                     </View>
                                     <View style={{ flex: 1, marginRight: 5 }}>
-                                        <Text style={[styles.label, step3Errors.bathroom && { color: 'red' }]}>Bathroom</Text>
+                                        <Text style={[styles.label, step2Errors.bathroom && { color: 'red' }]}>Bathroom</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="bathtub-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Bathroom" keyboardType="numeric" value={step3Data.bathroom} onChangeText={text => setStep3Data({ ...step3Data, bathroom: text })} />
                                         </View>
                                     </View>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={[styles.label, step3Errors.bedroom && { color: 'red' }]}>Bedroom</Text>
+                                        <Text style={[styles.label, step2Errors.bedroom && { color: 'red' }]}>Bedroom</Text>
                                         <View style={styles.inputContainer}>
                                             <MaterialCommunityIcons name="bed-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                             <TextInput style={styles.input} placeholder="Bedrooms" keyboardType="numeric" value={step3Data.bedroom} onChangeText={text => setStep3Data({ ...step3Data, bedroom: text })} />
@@ -1143,7 +827,7 @@ const Addproperty = () => {
                         <View style={styles.stepContent}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <View style={{ flex: 1, }}>
-                                    <Text style={[styles.label, step3Errors.landArea && { color: 'red' }]}>Land Area</Text>
+                                    <Text style={[styles.label, step2Errors.landArea && { color: 'red' }]}>Land Area</Text>
                                     <View style={styles.inputContainer}>
                                         <MaterialIcons name="zoom-out-map" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                         <TextInput style={styles.input} placeholder="Land area" keyboardType="numeric" value={landArea} onChangeText={(value) => setLandArea(value)} />
@@ -1151,24 +835,25 @@ const Addproperty = () => {
                                             <RNPickerSelect
                                                 onValueChange={(value) => setSelectedUnit(value)}
                                                 items={units}
-                                                value={selectedSubCategory}
+                                                value={selectedUnit}
                                                 style={pickerSelectStyles}
-                                                placeholder={{ label: 'Choose an unit...', value: null }}
+                                                placeholder={{ label: 'Choose an unit...' }}
                                             />
                                         </View>
                                     </View>
                                 </View>
                             </View>
                         </View>
+
                         <View style={styles.stepContent}>
                             <View style={{ flex: 1, marginLeft: 5 }}>
-                                <Text style={[styles.label, step3Errors.city && { color: 'red' }]}>City</Text>
+                                <Text style={[styles.label, step2Errors.city && { color: 'red' }]}>City</Text>
                                 <View style={styles.inputContainer}>
                                     <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                     <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
                                 </View>
                             </View>
-                            <Text style={[styles.label, step3Errors.officeaddress && { color: 'red' }]}>Property Address</Text>
+                            <Text style={[styles.label, step2Errors.officeaddress && { color: 'red' }]}>Property Address</Text>
                             <TextInput
                                 style={styles.textarea}
                                 placeholder="Enter complete address"
@@ -1179,8 +864,9 @@ const Addproperty = () => {
                                 maxLength={120}
                             />
                         </View>
+
                         <View style={styles.stepContent}>
-                            <Text style={[styles.label, step3Errors.fullAddress && { color: 'red' }]}>Find Location on Google Map</Text>
+                            <Text style={[styles.label, step2Errors.fullAddress && { color: 'red' }]}>Find Location on Google Map</Text>
                             <View style={styles.inputContainer}>
                                 <MaterialCommunityIcons name="map-marker-radius-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
                                 <GooglePlacesAutocomplete
@@ -1279,7 +965,7 @@ const Addproperty = () => {
                         <View style={styles.stepContent}>
 
                             {/* upload gallery */}
-                            <Text style={[styles.label, step4Errors.galleryImages && { color: 'red' }]}>Property Gallery</Text>
+                            <Text style={[styles.label, step3Errors.galleryImages && { color: 'red' }]}>Property Gallery</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
                                     data={galleryImages}
@@ -1309,7 +995,7 @@ const Addproperty = () => {
                         </View>
 
                         {/* Upload video */}
-                        <View style={[styles.label, step4Errors.videos && { color: 'red' }]}>
+                        <View style={[styles.label, step3Errors.videos && { color: 'red' }]}>
                             <Text style={styles.label}>Upload Videos</Text>
                             <View style={{ flexGrow: 1, minHeight: 1 }}>
                                 <FlatList
@@ -1341,65 +1027,10 @@ const Addproperty = () => {
                                 <FontAwesome name="file-video-o" size={24} color="#234F68" style={styles.inputIcon} />
                                 <Text style={{ textAlign: 'center' }}>Pick property videos</Text>
                             </TouchableOpacity>
-
                         </View>
 
-                        {/* upload doc */}
-                        <View style={[styles.label, step4Errors.propertyDocuments && { color: 'red' }]}>
-                            <Text style={styles.label}>Upload Property Documents</Text>
-                            <View style={{ flexGrow: 1, minHeight: 1 }}>
-                                <FlatList
-                                    data={propertyDocuments}
-                                    horizontal
-                                    nestedScrollEnabled={true}
-                                    keyExtractor={(_, index) => index.toString()}
-                                    contentContainerStyle={styles.fileContainer}
-                                    renderItem={({ item, index }) => (
-                                        <View style={styles.thumbnailBox} className="border border-gray-300">
-                                            <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik-bold">Doc {index + 1}</Text>
-
-                                            <TouchableOpacity onPress={() => removeDocument(index)} style={styles.deleteButton}>
-                                                <Text className="text-white">X</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                />
-                            </View>
-                            <TouchableOpacity onPress={pickDocument} style={styles.dropbox}>
-                                <FontAwesome name="file-pdf-o" size={24} color="#234F68" style={styles.inputIcon} />
-                                <Text style={{ textAlign: 'center' }}>Pick property documents</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* upload marster plan */}
-                        <View style={styles.stepContent}>
-                            <Text style={[styles.label, step4Errors.masterPlanDoc && { color: 'red' }]}>Upload Property Master Plan</Text>
-                            <View style={{ flexGrow: 1, minHeight: 1 }}>
-                                <FlatList
-                                    data={masterPlanDoc}
-                                    horizontal
-                                    nestedScrollEnabled={true}
-                                    keyExtractor={(_, index) => index.toString()}
-                                    contentContainerStyle={styles.fileContainer}
-                                    renderItem={({ item, index }) => (
-                                        <View style={styles.thumbnailBox} className="border border-gray-300">
-                                            <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-                                            <Text className="text-center font-rubik-bold">Plan {index + 1}</Text>
-
-                                            <TouchableOpacity onPress={() => removeMasterPlan(index)} style={styles.deleteButton}>
-                                                <Text className="text-white">X</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                />
-                            </View>
-                            <TouchableOpacity onPress={pickMasterPlan} style={styles.dropbox}>
-                                <MaterialCommunityIcons name="floor-plan" size={24} color="#234F68" style={styles.inputIcon} />
-                                <Text style={{ textAlign: 'center' }}>Pick property Floor Plan</Text>
-                            </TouchableOpacity>
-                        </View>
                     </ProgressStep>
+
                 </ProgressSteps>
             </View>
             {loading && (
@@ -1521,7 +1152,7 @@ const Addproperty = () => {
     )
 }
 
-export default Addproperty
+export default RentProperty
 
 const styles = StyleSheet.create({
     container: {
@@ -1830,7 +1461,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontFamily: 'Rubik-Regular',
         color: '#333333',
-        textAlign: 'center',
+        textAlign: 'start',
         marginBottom: 24,
         paddingHorizontal: 16,
     },

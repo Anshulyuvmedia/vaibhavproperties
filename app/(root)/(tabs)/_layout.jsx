@@ -63,7 +63,7 @@ const TabsLayout = () => {
         { name: "index", title: "Home", icon: "home" },
         { name: "myassets", title: "My Assets", icon: "building-o" },
         { name: "mapview", title: "Map", icon: "map-o" },
-        { name: "addproperty", title: "Add Property", icon: "plus-square-o" },
+        { name: "addlisting", title: "Add Property", icon: "plus-square-o" },
         { name: "dashboard", title: "Dashboard", icon: "user-o" },
     ];
 
