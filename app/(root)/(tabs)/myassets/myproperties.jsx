@@ -125,7 +125,7 @@ const Myproperties = () => {
         rbSheetRef.current.open();
         return;
       }
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem('userToken');
 
       const response = await axios.get(`https://landsquire.in/api/viewuserlistings?id=${parsedPropertyData.id}`, {
         headers: {

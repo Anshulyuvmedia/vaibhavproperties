@@ -68,6 +68,15 @@ const Mapview = () => {
         setPage(1);
         setHasMore(true);
 
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+            console.error('No token found in AsyncStorage');
+            setError('Please log in to access properties.');
+            router.push('/signin');
+            setLoading(false);
+            return;
+        }
+
         const params = { city };
         try {
             const queryParams = new URLSearchParams();
@@ -75,8 +84,12 @@ const Mapview = () => {
 
             const apiUrl = `https://landsquire.in/api/filterlistings?${queryParams.toString()}`;
             const response = await axios({
-                method: "post",
+                method: 'post',
                 url: apiUrl,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
             });
 
             if (response.data && Array.isArray(response.data.data)) {
@@ -132,7 +145,14 @@ const Mapview = () => {
     const fetchListingData = async (mapRegion, pageNum = 1) => {
         setLoading(true);
         setError(null);
-        const token = await AsyncStorage.getItem('authToken');
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+            console.error('No token found in AsyncStorage');
+            setError('Please log in to access properties.');
+            router.push('/signin');
+            setLoading(false);
+            return;
+        }
 
         try {
             const response = await axios.get('https://landsquire.in/api/property-listings', {
@@ -146,6 +166,7 @@ const Mapview = () => {
                 },
                 headers: {
                     Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
                 },
             });
 

@@ -533,33 +533,31 @@ class ApiMasterController extends Controller
 
     public function userprofile(Request $rq)
     {
-        $token = $rq->header('Authorization'); // expecting "Bearer token_here"
-
+        $token = $rq->header('Authorization');
+        \Log::info('Received Authorization Header: ' . $token); // Debug
         if (!$token) {
-            return response()->json(
-                [
-                    'success' => false,
-                    'message' => 'Authorization token missing',
-                ],
-                401,
-            );
+            return response()->json(['success' => false, 'message' => 'Authorization token missing'], 401);
         }
-        // Remove "Bearer " prefix if exists
-        $token = str_replace('Bearer ', '', $token);
+
+        $token = preg_match('/Bearer\s(\S+)/', $token, $matches) ? $matches[1] : $token;
+        \Log::info('Processed Token: ' . $token); // Debug
 
         $user = RegisterUser::where('api_token', $token)->first();
-
         if (!$user) {
-            return response()->json(
-                [
-                    'success' => false,
-                    'message' => 'Invalid or expired token',
-                ],
-                401,
-            );
+            return response()->json(['success' => false, 'message' => 'Invalid or expired token'], 401);
         }
 
-        $userprofiledata = RegisterUser::find($rq->id);
+        $userId = $rq->query('id'); // Use query parameter
+        \Log::info('Requested User ID: ' . $userId); // Debug
+        if ($userId != $user->id) {
+            return response()->json(['success' => false, 'message' => 'Cannot access another user\'s profile'], 409);
+        }
+
+        $userprofiledata = RegisterUser::find($userId);
+        if (!$userprofiledata) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
+
         return response()->json(['success' => true, 'data' => $userprofiledata]);
     }
 
@@ -716,8 +714,30 @@ class ApiMasterController extends Controller
 
     public function updatelisting(Request $request, $id)
     {
+
+        $token = $request->header('Authorization'); // ✅ fixed
+
+        if (!$token) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authorization token missing',
+            ], 401);
+        }
+
+        // Remove "Bearer " prefix
+        $token = str_replace('Bearer ', '', $token);
+
+        $user = RegisterUser::where('api_token', $token)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired token',
+            ], 401);
+        }
+
         $datareq = $request->all();
-        // Log::info('Received Data:', $request->all());
+        Log::info('Received Data:', $request->all());
         try {
             $olddata = PropertyListing::find($id);
             // Handle the thumbnail image
@@ -786,21 +806,21 @@ class ApiMasterController extends Controller
             $propertydata = PropertyListing::where('id', $id)->update([
                 'roleid' => $datareq['roleid'],
                 'property_name' => $datareq['property_name'],
-                'nearbylocation' => $datareq['nearbylocation'],
-                'approxrentalincome' => $datareq['approxrentalincome'],
+                'nearbylocation' => $datareq['nearbylocation'] ?? '',
+                'approxrentalincome' => $datareq['approxrentalincome'] ?? '',
                 'discription' => strip_tags($datareq['description'] ?? ''), // Remove HTML tags
-                'price' => $datareq['price'],
-                'pricehistory' => $datareq['historydate'],
-                'squarefoot' => $datareq['landarea'],
-                'bedroom' => $datareq['bedroom'],
-                'bathroom' => $datareq['bathroom'],
-                'floor' => $datareq['floor'],
-                'city' => $datareq['city'],
-                'address' => $datareq['officeaddress'],
+                'price' => $datareq['price'] ?? '',
+                'pricehistory' => $datareq['historydate'] ?? '',
+                'squarefoot' => $datareq['landarea'] ?? '',
+                'bedroom' => $datareq['bedroom'] ?? '',
+                'bathroom' => $datareq['bathroom'] ?? '',
+                'floor' => $datareq['floor'] ?? '',
+                'city' => $datareq['city'] ?? '',
+                'address' => $datareq['officeaddress'] ?? '',
                 'thumbnail' => $thumbnailFilename ?? $olddata->thumbnail,
                 'masterplandoc' => $masterdoc ?? $olddata->masterdoc,
                 'maplocations' => $datareq['location'] ?? $olddata->maplocations,
-                'category' => $datareq['category'],
+                'category' => $datareq['category'] ?? '',
                 'propertyfor' => $datareq['propertyfor'] ?? '',
                 'subcategory' => $datareq['subcategory'] ?? '',
                 'gallery' => !empty($galleryImages) ? json_encode($galleryImages) : $olddata->gallery,
@@ -808,6 +828,7 @@ class ApiMasterController extends Controller
                 'amenties' => $datareq['amenities'] ?? $olddata->amenities,
                 'videos' => !empty($Videos) ? json_encode($Videos) : $olddata->videos,
                 'status' => $datareq['status'],
+                'publishrequest' => $datareq['publishrequest'],
             ]);
             $updatedProperty = PropertyListing::where('id', $id)->first(); // Fetch updated record
             return response()->json(['data' => $updatedProperty, 'message' => 'Listing Updated successfully!']);

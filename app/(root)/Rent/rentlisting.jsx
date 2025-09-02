@@ -84,9 +84,6 @@ const RentListing = () => {
                 return;
             }
 
-            // build headers only if token is required
-            // const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
             const response = await axios.get(
                 `https://landsquire.in/api/viewuserlistings?id=${parsedPropertyData.id}`,
                 {
