@@ -673,7 +673,7 @@ const Editproperty = () => {
             formData.append("roleid", userId ?? "");
             formData.append("usertype", user_type ?? "");
             formData.append("amenities", amenities ? JSON.stringify(amenities) : "[]");
-            formData.append("historydate", step2Data?.historydate ? JSON.stringify(step2Data.historydate) : "[]");
+            // formData.append("historydate", step2Data?.historydate ? JSON.stringify(step2Data.historydate) : "[]");
             formData.append("location", coordinates ? JSON.stringify({
                 Latitude: coordinates.latitude,
                 Longitude: coordinates.longitude,
@@ -1351,7 +1351,7 @@ const Editproperty = () => {
                                 </View>
                             </View>
 
-                            <View style={styles.stepContent}>
+                            {/* <View style={styles.stepContent}>
                                 <View className='flex-row justify-between items-center'>
                                     <View style={{ flex: 1, marginRight: 10 }}>
                                         <Text style={[styles.label, step2Errors.historydate && { color: 'red' }]}>Historical Price</Text>
@@ -1429,7 +1429,7 @@ const Editproperty = () => {
                                         )}
                                     </View>
                                 )}
-                            </View>
+                            </View> */}
 
                         </ProgressStep>
 
@@ -1802,7 +1802,7 @@ const Editproperty = () => {
                         onPress={() => {
                             setSuccessVisible(false);
                             if (successSheetRef.current) successSheetRef.current.close();
-                            router.push('/myassets/myproperties');
+                            router.push('/myassets');
                         }}
                     >
                         <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>

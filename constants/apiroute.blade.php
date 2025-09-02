@@ -41,4 +41,8 @@ Route::controller(ApiMasterController::class)->group(function () {
     Route::post('/update-bid-status', 'UpdateBidStatus')->name('api.UpdateBidStatus');
     Route::post('/updatebidamount', 'UpdateBidAmount')->name('api.UpdateBidAmount');
     Route::post('/deletelisting', 'deletelisting')->name('api.deletelisting');
+    Route::get('/checkWishlistStatus/{userId}/{propertyId}', 'checkWishlistStatus')->name('checkWishlistStatus');
+    Route::post('/addToWishlist', 'addToWishlist')->name('addToWishlist');
+    Route::get('/getencryptedid/{id}', 'getEncryptedId')->name('getEncryptedId');
+
 });

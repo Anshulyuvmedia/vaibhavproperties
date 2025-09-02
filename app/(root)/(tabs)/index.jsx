@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
-import { useNavigation } from '@react-navigation/native';
 import HomeCarousel from '@/components/HomeCarousel';
 import LocationScroll from '@/components/LocationScroll';
 import BrokerScroll from '@/components/BrokerScroll';
@@ -29,19 +28,24 @@ const Index = () => {
     const router = useRouter();
     const [image, setImage] = useState(images.avatar);
     const [listingData, setListingData] = useState();
-    const navigation = useNavigation();
 
     const fetchUserData = async () => {
         setLoading(true);
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
+            const token = await AsyncStorage.getItem('userToken');
             if (!parsedUserData || !parsedUserData.id) {
                 await AsyncStorage.removeItem('userData');
                 router.push('/signin');
                 return;
             }
 
-            const response = await axios.get(`https://landsquire.in/api/userprofile?id=${parsedUserData.id}`);
+            const response = await axios.get(`https://landsquire.in/api/userprofile?id=${parsedUserData.id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
+            });
 
             if (response.data && response.data.data) {
                 const apiData = response.data.data;
@@ -71,7 +75,14 @@ const Index = () => {
     const fetchListingData = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`https://landsquire.in/api/property-listings`);
+            const token = await AsyncStorage.getItem('userToken');
+
+            const response = await axios.get(`https://landsquire.in/api/property-listings`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
+            });
             if (response.data.data) {
                 const apiData = response.data.data;
                 setListingData(apiData);

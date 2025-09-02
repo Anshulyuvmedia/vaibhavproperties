@@ -1400,7 +1400,7 @@ const EditRentProperty = () => {
                         onPress={() => {
                             setSuccessVisible(false);
                             if (successSheetRef.current) successSheetRef.current.close();
-                            router.push('/Rent/rentlisting');
+                            router.push('/Rent/rentscreen');
                         }}
                     >
                         <Text style={{ color: 'white', fontWeight: 'bold' }}>Close</Text>

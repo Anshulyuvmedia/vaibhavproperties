@@ -141,28 +141,21 @@ const PropertyDetails = () => {
         }
     };
 
-    const shareProperty = async () => {
-        try {
-            const propertyUrl = `https://landsquire.in/property-details/${propertyId}`;
-            const message = `View my property: ${propertyUrl}`;
-            const result = await Share.share({ message, url: propertyUrl, title: "Check out this property!" });
-            if (result.action === Share.sharedAction) {
-                console.log("Property shared successfully!");
-            } else if (result.action === Share.dismissedAction) {
-                console.log("Share dismissed.");
-            }
-        } catch (error) {
-            setError("Error sharing property.");
-        }
-    };
+    
 
     const fetchPropertyData = async () => {
         try {
             setLoading(true);
             setError(null);
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
+            const token = await AsyncStorage.getItem('userToken');
             setLoggedinUserId(parsedUserData?.id || "");
-            const response = await axios.get(`https://landsquire.in/api/property-details/${propertyId}`);
+            const response = await axios.get(`https://landsquire.in/api/property-details/${propertyId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
+            });
             if (response.data && response.data.details) {
                 const apiData = response.data.details;
                 setPropertyData(apiData);
@@ -409,7 +402,6 @@ const PropertyDetails = () => {
                     propertyThumbnail={propertyThumbnail}
                     propertyData={propertyData}
                     loggedinUserId={loggedinUserId}
-                    shareProperty={shareProperty}
                 />
                 <PropertyDetailsSection propertyData={propertyData} />
                 <PropertyDescription description={propertyData.discription} />
@@ -451,7 +443,7 @@ const PropertyDetails = () => {
                     address={propertyData.address}
                 />
                 <MasterPlanSection masterPlanDocs={masterPlanDocs} />
-                <PriceHistorySection priceHistoryData={priceHistoryData} />
+                {/* <PriceHistorySection priceHistoryData={priceHistoryData} /> */}
             </ScrollView>
             <LightboxModal
                 isLightboxVisible={isLightboxVisible}

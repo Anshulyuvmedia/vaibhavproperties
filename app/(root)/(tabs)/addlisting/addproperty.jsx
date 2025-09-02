@@ -62,7 +62,7 @@ const Addproperty = () => {
 
     // State for tracking invalid fields
     const [step1Errors, setStep1Errors] = useState({ property_name: false, description: false, nearbylocation: false });
-    const [step2Errors, setStep2Errors] = useState({ approxrentalincome: false, historydate: false, price: false });
+    const [step2Errors, setStep2Errors] = useState({ approxrentalincome: false, price: false });
     const [step3Errors, setStep3Errors] = useState({ bathroom: false, floor: false, city: false, officeaddress: false, bedroom: false });
     const [step4Errors, setStep4Errors] = useState({ category: false, mainImage: false, galleryImages: false, coordinates: false, documents: false });
 
@@ -586,7 +586,7 @@ const Addproperty = () => {
             formData.append("roleid", id ?? "");
             formData.append("usertype", user_type ?? "");
             formData.append("amenities", JSON.stringify(amenities));
-            formData.append("historydate", step2Data?.historydate ? JSON.stringify(step2Data.historydate) : "[]");
+            // formData.append("historydate", step2Data?.historydate ? JSON.stringify(step2Data.historydate) : "[]");
 
             // ✅ Append Location Data
             formData.append("location", JSON.stringify({
@@ -981,7 +981,7 @@ const Addproperty = () => {
                             </View>
                         </View>
 
-                        <View style={styles.stepContent}>
+                        {/* <View style={styles.stepContent}>
                             <View className='flex-row justify-between items-center'>
                                 <View style={{ flex: 1, marginRight: 10 }}>
                                     <Text style={[styles.label, step2Errors.historydate && { color: 'red' }]}>Historical Price</Text>
@@ -1059,7 +1059,7 @@ const Addproperty = () => {
                                     )}
                                 </View>
                             )}
-                        </View>
+                        </View> */}
 
                     </ProgressStep>
 

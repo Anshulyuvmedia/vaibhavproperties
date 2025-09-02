@@ -3,19 +3,19 @@ import * as React from 'react';
 import { TabView, SceneMap } from 'react-native-tab-view';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import { useRouter } from 'expo-router';
-import Myproperties from './myproperties';
+import Wishlists from './wishlists';
 import Auction from './auction';
 
 // Define the SceneMap with the routes
 const renderScene = SceneMap({
-    Myproperties: Myproperties,
+    Wishlists: Wishlists,
     Auction: Auction,
     Enquiry: Auction, // Note: Confirm if Enquiry should map to a separate component
 });
 
 // Define the routes array
 const routes = [
-    { key: 'Myproperties', title: 'Properties' },
+    { key: 'Wishlists', title: 'Properties' },
     { key: 'Auction', title: 'Auction' },
     { key: 'Enquiry', title: 'Enquiry' },
 ];

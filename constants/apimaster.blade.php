@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use App\Notifications\BidLiveNotification;
 use Illuminate\Support\Facades\File;
+use App\Models\Wishlist;
 
 class ApiMasterController extends Controller
 {
@@ -413,7 +414,7 @@ class ApiMasterController extends Controller
                 'approxrentalincome' => $datareq['approxrentalincome'] ?? '',
                 'discription' => strip_tags($datareq['description'] ?? ''), // Remove HTML tags
                 'price' => $datareq['price'] ?? '',
-                'pricehistory' => json_encode(is_string($datareq['historydate']) ? json_decode($datareq['historydate'], true) : $datareq['historydate'] ?? []),
+                // 'pricehistory' => json_encode(is_string($datareq['historydate']) ? json_decode($datareq['historydate'], true) : $datareq['historydate'] ?? []),
                 'squarefoot' => $datareq['landarea'] ?? '',
                 'bedroom' => $datareq['bedroom'] ?? '',
                 'bathroom' => $datareq['bathroom'] ?? '',
@@ -714,14 +715,16 @@ class ApiMasterController extends Controller
 
     public function updatelisting(Request $request, $id)
     {
-
         $token = $request->header('Authorization'); // ✅ fixed
 
         if (!$token) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Authorization token missing',
-            ], 401);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Authorization token missing',
+                ],
+                401,
+            );
         }
 
         // Remove "Bearer " prefix
@@ -730,10 +733,13 @@ class ApiMasterController extends Controller
         $user = RegisterUser::where('api_token', $token)->first();
 
         if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired token',
-            ], 401);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Invalid or expired token',
+                ],
+                401,
+            );
         }
 
         $datareq = $request->all();
@@ -1331,4 +1337,153 @@ class ApiMasterController extends Controller
             );
         }
     }
+
+    public function wishlists()
+    {
+        // $AuthUser = Auth::guard('customer')->user();
+
+        $mywishlists = Wishlist::join('property_listings', 'wishlists.property_id', '=', 'property_listings.id')->select('wishlists.id as wishlist_id', 'wishlists.*', 'property_listings.*')->where('wishlists.user_id', $AuthUser->id)->orderByDesc('wishlists.created_at')->get();
+
+        //dd($mywishlists);
+        return view('user-views.my-wishlists', compact('mywishlists'));
+    }
+
+    private function validateToken(Request $request)
+    {
+        $token = $request->header('Authorization');
+
+        if (!$token) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authorization token missing',
+            ], 401);
+        }
+
+        $token = str_replace('Bearer ', '', $token);
+        $user = RegisterUser::where('api_token', $token)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired token',
+            ], 401);
+        }
+
+        return $user;
+    }
+
+    public function checkWishlistStatus(Request $request, $userId, $propertyId)
+    {
+        $user = $this->validateToken($request);
+
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
+        }
+
+        if ($user->id != $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to wishlist',
+            ], 403);
+        }
+
+        try {
+            $isWishlisted = Wishlist::where('user_id', $userId)
+                                    ->where('property_id', $propertyId)
+                                    ->exists();
+
+            return response()->json([
+                'success' => true,
+                'isWishlisted' => $isWishlisted,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function addToWishlist(Request $request)
+    {
+        $user = $this->validateToken($request);
+
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'userId' => 'required|exists:register_users,id',
+            'propertyId' => 'required|exists:property_listings,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $userId = $request->input('userId');
+        $propertyId = $request->input('propertyId');
+
+        if ($user->id != $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to wishlist',
+            ], 403);
+        }
+
+        try {
+            $existing = Wishlist::where('property_id', $propertyId)
+                                ->where('user_id', $userId)
+                                ->first();
+
+            if ($existing) {
+                // Remove if exists
+                $existing->delete();
+                return response()->json([
+                    'success' => true,
+                    'added'   => false,
+                    'message' => 'Removed from wishlist',
+                ]);
+            } else {
+                // Add if not exists
+                Wishlist::create([
+                    'property_id' => $propertyId,
+                    'user_id'     => $userId,
+                    'status'      => '1',
+                ]);
+                return response()->json([
+                    'success' => true,
+                    'added'   => true,
+                    'message' => 'Added to wishlist',
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Wishlist toggle error: ', [
+                'error'      => $e->getMessage(),
+                'userId'     => $userId,
+                'propertyId' => $propertyId
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error occurred'
+            ], 500);
+        }
+    }
+
+    public function getEncryptedId(Request $request, $id)
+    {
+        $user = $this->validateToken($request);
+
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
+        }
+
+        return response()->json([
+            'encrypted_id' => encrypt($id),
+        ]);
+    }
+
 }
