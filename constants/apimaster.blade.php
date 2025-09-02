@@ -1338,15 +1338,7 @@ class ApiMasterController extends Controller
         }
     }
 
-    public function wishlists()
-    {
-        // $AuthUser = Auth::guard('customer')->user();
-
-        $mywishlists = Wishlist::join('property_listings', 'wishlists.property_id', '=', 'property_listings.id')->select('wishlists.id as wishlist_id', 'wishlists.*', 'property_listings.*')->where('wishlists.user_id', $AuthUser->id)->orderByDesc('wishlists.created_at')->get();
-
-        //dd($mywishlists);
-        return view('user-views.my-wishlists', compact('mywishlists'));
-    }
+    
 
     private function validateToken(Request $request)
     {
@@ -1486,4 +1478,24 @@ class ApiMasterController extends Controller
         ]);
     }
 
+
+    public function mywishlists(Request $request, $id)
+    {
+        $user = $this->validateToken($request);
+
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
+        }
+
+        $mywishlists = Wishlist::join('property_listings', 'wishlists.property_id', '=', 'property_listings.id')
+        ->select('wishlists.id as wishlist_id', 'wishlists.*', 'property_listings.*')
+        ->where('wishlists.user_id', $id) // Changed $id->id to $id
+        ->orderByDesc('wishlists.created_at')
+        ->get();
+
+        //dd($mywishlists);
+        return response()->json([
+            'mywishlistdata' => $mywishlists,
+        ]);
+    }
 }

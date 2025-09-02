@@ -15,7 +15,7 @@ const renderScene = SceneMap({
 
 // Define the routes array
 const routes = [
-    { key: 'Wishlists', title: 'Properties' },
+    { key: 'Wishlists', title: 'Wishlist' },
     { key: 'Auction', title: 'Auction' },
     { key: 'Enquiry', title: 'Enquiry' },
 ];
