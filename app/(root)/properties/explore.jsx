@@ -47,6 +47,7 @@ const Explore = () => {
         queryParams.append("filtercategory", parsedParams.propertyType);
       }
       if (parsedParams.city) queryParams.append("filtercity", parsedParams.city);
+      if (parsedParams.propertyFor) queryParams.append("filterpropertyfor", parsedParams.propertyFor);
       if (parsedParams.minPrice) queryParams.append("filterminprice", parsedParams.minPrice);
       if (parsedParams.maxPrice) queryParams.append("filtermaxprice", parsedParams.maxPrice);
       if (parsedParams.sqftfrom) queryParams.append("sqftfrom", parsedParams.sqftfrom);
@@ -95,6 +96,7 @@ const Explore = () => {
     const keyMap = {
       city: 'city',
       type: 'propertyType',
+      propertyfor: 'propertyFor',
       price: ['minPrice', 'maxPrice'],
       size: ['sqftfrom', 'sqftto'],
     };
@@ -110,26 +112,12 @@ const Explore = () => {
     }
   };
 
-  const renderEmptyComponent = () => (
-    <View style={styles.emptyContainer}>
-      <Image source={icons.noResultFound} style={styles.emptyImage} />
-      <Text style={[styles.emptyTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
-        {t('noResultsTitle')}
-      </Text>
-      <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-        {t('noResultsMessage1')}
-      </Text>
-      <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-        {t('noResultsMessage2')}
-      </Text>
-    </View>
-  );
-
   const renderFilterChips = () => {
     const filters = [];
     const parsedParams = JSON.parse(memoizedParams);
     if (parsedParams.city) filters.push(`City: ${parsedParams.city}`);
     if (parsedParams.propertyType) filters.push(`Type: ${parsedParams.propertyType}`);
+    if (parsedParams.propertyFor) filters.push(`Property For: ${t(parsedParams.propertyFor)}`);
     if (parsedParams.minPrice || parsedParams.maxPrice) {
       filters.push(`Price: ${parsedParams.minPrice || t('any')} - ${parsedParams.maxPrice || t('any')}`);
     }
@@ -173,9 +161,23 @@ const Explore = () => {
     ) : null;
   };
 
+  const renderEmptyComponent = () => (
+    <View style={styles.emptyContainer}>
+      <Image source={icons.noResultFound} style={styles.emptyImage} />
+      <Text style={[styles.emptyTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+        {t('noResultsTitle')}
+      </Text>
+      <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+        {t('noResultsMessage1')}
+      </Text>
+      <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+        {t('noResultsMessage2')}
+      </Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-    
       <FlatList
         data={filteredListingData}
         renderItem={({ item }) => <Card item={item} onPress={() => handleCardPress(item.id)} />}
@@ -210,7 +212,6 @@ const Explore = () => {
               </TouchableOpacity>
             </View>
             <Search />
-
             {renderFilterChips()}
             <Filters />
             <View style={styles.foundTextContainer}>
@@ -227,8 +228,6 @@ const Explore = () => {
 };
 
 export default Explore;
-
-// Styles remain unchanged
 
 const styles = StyleSheet.create({
   container: {
@@ -276,7 +275,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Bold',
     color: '#4B5563',
     paddingBottom: verticalScale(10),
-
   },
   flatListContent: {
     paddingBottom: verticalScale(32),

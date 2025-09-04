@@ -19,6 +19,7 @@ const Search = () => {
     const [selectedPropertyTypes, setSelectedPropertyTypes] = useState(
         params.propertyType ? params.propertyType.split(",") : []
     );
+    const [selectedPropertyFor, setSelectedPropertyFor] = useState(params.propertyFor || null);
     const [minPrice, setMinPrice] = useState(params.minPrice || "");
     const [maxPrice, setMaxPrice] = useState(params.maxPrice || "");
     const [sqftfrom, setsqftfrom] = useState(params.sqftfrom || "");
@@ -66,12 +67,13 @@ const Search = () => {
         () => ({
             city: params.city || null,
             propertyType: params.propertyType ? params.propertyType.split(",") : [],
+            propertyFor: params.propertyFor || null,
             minPrice: params.minPrice || "",
             maxPrice: params.maxPrice || "",
             sqftfrom: params.sqftfrom || "",
             sqftto: params.sqftto || "",
         }),
-        [params.city, params.propertyType, params.minPrice, params.maxPrice, params.sqftfrom, params.sqftto]
+        [params.city, params.propertyType, params.propertyFor, params.minPrice, params.maxPrice, params.sqftfrom, params.sqftto]
     );
 
     useEffect(() => {
@@ -82,6 +84,9 @@ const Search = () => {
             JSON.stringify(memoizedParams.propertyType) !== JSON.stringify(selectedPropertyTypes)
         ) {
             setSelectedPropertyTypes(memoizedParams.propertyType);
+        }
+        if (memoizedParams.propertyFor !== selectedPropertyFor) {
+            setSelectedPropertyFor(memoizedParams.propertyFor);
         }
         if (memoizedParams.minPrice !== minPrice) {
             setMinPrice(memoizedParams.minPrice);
@@ -105,15 +110,20 @@ const Search = () => {
         }
     };
 
+    const handlePropertyForToggle = (propertyFor) => {
+        setSelectedPropertyFor(propertyFor === selectedPropertyFor ? null : propertyFor);
+    };
+
     const handleSubmit = async () => {
         setLoading(true);
         const filterParams = {
             city: selectedCity || undefined,
+            propertyType: selectedPropertyTypes.length > 0 ? selectedPropertyTypes.join(",") : undefined,
+            propertyFor: selectedPropertyFor || undefined,
             minPrice: minPrice || undefined,
             maxPrice: maxPrice || undefined,
             sqftfrom: sqftfrom || undefined,
             sqftto: sqftto || undefined,
-            propertyType: selectedPropertyTypes.length > 0 ? selectedPropertyTypes.join(",") : undefined,
         };
 
         const cleanFilters = Object.fromEntries(
@@ -132,6 +142,7 @@ const Search = () => {
     const handleReset = () => {
         setSelectedCity(null);
         setSelectedPropertyTypes([]);
+        setSelectedPropertyFor(null);
         setMinPrice("");
         setMaxPrice("");
         setsqftfrom("");
@@ -169,7 +180,7 @@ const Search = () => {
                 ref={refRBSheet}
                 closeOnDragDown={true}
                 closeOnPressMask={true}
-                height={550}
+                height={600}
                 customStyles={{
                     wrapper: { backgroundColor: "rgba(0,0,0,0.5)" },
                     container: { borderTopLeftRadius: 35, borderTopRightRadius: 35, padding: 20, backgroundColor: "white" },
@@ -207,6 +218,32 @@ const Search = () => {
                             style={pickerSelectStyles(i18n.language)}
                             useNativeAndroidPickerStyle={false}
                         />
+                    </View>
+
+                    <Text className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-black-300 mt-5 mb-2`}>
+                        Filter property by
+                    </Text>
+                    <View className="flex-row">
+                        {["Sell", "Rent"].map((option) => {
+                            const isSelected = selectedPropertyFor === option;
+                            return (
+                                <TouchableOpacity
+                                    key={option}
+                                    onPress={() => handlePropertyForToggle(option)}
+                                    className={`me-2 px-5 py-4 rounded-xl ${isSelected
+                                        ? "bg-[#8bc83f] border-[#8bc83f]"
+                                        : "bg-[#f4f2f7] border-[#D1D5DB]"
+                                        }`}
+                                >
+                                    <Text
+                                        className={`text-sm ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} ${isSelected ? "text-white" : "text-[#1F2937]"
+                                            }`}
+                                    >
+                                        For {option}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
 
                     <Text className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-black-300 mt-5 mb-2`}>

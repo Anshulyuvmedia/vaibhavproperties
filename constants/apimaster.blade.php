@@ -455,6 +455,7 @@ class ApiMasterController extends Controller
     {
         $category = $req->query('filtercategory');
         $city = $req->query('filtercity');
+        $propertyFor = $req->query('filterpropertyfor');
         $minprice = $req->query('filterminprice');
         $maxprice = $req->query('filtermaxprice');
         $sqftfrom = $req->query('sqftfrom');
@@ -463,6 +464,7 @@ class ApiMasterController extends Controller
         // Log::info('Filters:', [
         //     'category' => $category,
         //     'city' => $city,
+        //     'propertyFor' => $propertyFor,
         //     'minprice' => $minprice,
         //     'maxprice' => $maxprice,
         //     'sqftfrom' => $sqftfrom,
@@ -477,6 +479,17 @@ class ApiMasterController extends Controller
 
         if ($city) {
             $listings->where('city', $city);
+        }
+
+        if ($propertyFor) {
+            if ($propertyFor === 'Sell') {
+                $listings->where(function ($query) {
+                    $query->where('propertyfor', 'Sell')
+                          ->orWhereNull('propertyfor');
+                });
+            } else if ($propertyFor === 'Rent') {
+                $listings->where('propertyfor', 'Rent');
+            }
         }
 
         if ($minprice && $maxprice) {
@@ -494,6 +507,7 @@ class ApiMasterController extends Controller
         } elseif ($sqftto) {
             $listings->where('squarefoot', '<=', $sqftto);
         }
+
         $listings = $listings->where('status', '=', 'published')->orderBy('featuredstatus', 'desc')->get();
 
         return response()->json([

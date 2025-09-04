@@ -92,7 +92,7 @@ const Index = () => {
                 },
             });
 
-            console.log('Raw API Response:', JSON.stringify(response.data, null, 2));
+            // console.log('Raw API Response:', JSON.stringify(response.data, null, 2));
 
             const listings = response.data?.data;
 
