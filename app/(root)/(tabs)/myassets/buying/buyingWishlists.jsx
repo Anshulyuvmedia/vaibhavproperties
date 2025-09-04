@@ -24,7 +24,7 @@ const formatINR = (amount) => {
 // Get screen width for responsive design
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const Wishlists = () => {
+const BuyingWishlists = () => {
     const { t, i18n } = useTranslation();
     const [wishlistData, setWishlistData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -393,7 +393,7 @@ const Wishlists = () => {
     );
 };
 
-export default Wishlists;
+export default BuyingWishlists;
 
 const styles = StyleSheet.create({
     container: {

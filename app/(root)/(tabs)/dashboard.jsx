@@ -34,7 +34,7 @@ const Dashboard = () => {
       }
 
       const token = await AsyncStorage.getItem('userToken');
-      console.log('token: ',token);
+      // console.log('token: ',token);
       const response = await axios.get(`https://landsquire.in/api/userprofile?id=${parsedUserData.id}`, {
         headers: {
           Authorization: `Bearer ${token}`,

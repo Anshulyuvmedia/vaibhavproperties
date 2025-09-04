@@ -18,9 +18,42 @@ use Illuminate\Support\Facades\Storage;
 use App\Notifications\BidLiveNotification;
 use Illuminate\Support\Facades\File;
 use App\Models\Wishlist;
+use App\Models\PropertyVisit;
 
 class ApiMasterController extends Controller
 {
+    
+    private function validateToken(Request $request)
+    {
+        $token = $request->header('Authorization');
+
+        if (!$token) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Authorization token missing',
+                ],
+                401,
+            );
+        }
+
+        $token = str_replace('Bearer ', '', $token);
+        $user = RegisterUser::where('api_token', $token)->first();
+
+        if (!$user) {
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Invalid or expired token',
+                ],
+                401,
+            );
+        }
+
+        return $user;
+    }
+
+
     public function loginuser(Request $rq)
     {
         try {
@@ -499,7 +532,6 @@ class ApiMasterController extends Controller
 
             // Find existing lead
             $lead = Lead::where('propertyid', $rq->propertyid)->where('userid', $rq->userid)->first();
-
             // Get old bid history and append new bid
             // $bidHistory = [];
             // if ($lead && $lead->propertybid) {
@@ -523,6 +555,7 @@ class ApiMasterController extends Controller
                     'propertyid' => $rq->propertyid,
                     'userid' => $rq->userid,
                     'agentid' => $rq->brokerid,
+                    'form_type' => $rq->form_type,
                     'propertybid' => json_encode($bidHistory),
                 ],
             );
@@ -535,13 +568,13 @@ class ApiMasterController extends Controller
     public function userprofile(Request $rq)
     {
         $token = $rq->header('Authorization');
-        \Log::info('Received Authorization Header: ' . $token); // Debug
+        // \Log::info('Received Authorization Header: ' . $token); // Debug
         if (!$token) {
             return response()->json(['success' => false, 'message' => 'Authorization token missing'], 401);
         }
 
         $token = preg_match('/Bearer\s(\S+)/', $token, $matches) ? $matches[1] : $token;
-        \Log::info('Processed Token: ' . $token); // Debug
+        // \Log::info('Processed Token: ' . $token); // Debug
 
         $user = RegisterUser::where('api_token', $token)->first();
         if (!$user) {
@@ -549,7 +582,7 @@ class ApiMasterController extends Controller
         }
 
         $userId = $rq->query('id'); // Use query parameter
-        \Log::info('Requested User ID: ' . $userId); // Debug
+        // \Log::info('Requested User ID: ' . $userId); // Debug
         if ($userId != $user->id) {
             return response()->json(['success' => false, 'message' => 'Cannot access another user\'s profile'], 409);
         }
@@ -1068,11 +1101,29 @@ class ApiMasterController extends Controller
     public function fetchenquiries(Request $rq)
     {
         try {
-            $myenquiries = Lead::where('userid', $rq->id)->where('form_type', '=', 'broker')->get();
+            $user = $this->validateToken($rq);
+            if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+                return $user;
+            }
 
-            $brokerenquiries = Lead::where('agentid', $rq->id)->where('form_type', '=', 'broker')->get();
+            // Fetch my enquiries with propertyfor
+            $myenquiries = Lead::where('userid', $user->id)
+                ->where('form_type', 'broker')
+                ->join('property_listings', 'leads.propertyid', '=', 'property_listings.id')
+                ->select('leads.*', 'property_listings.propertyfor')
+                ->get();
 
-            $loanenquiries = Lead::where('form_type', '=', 'bankagent')->get();
+            // Log::info('My Enquiries', $myenquiries->toArray());
+
+            // Broker enquiries
+            $brokerenquiries = Lead::where('agentid', $user->id)
+                ->where('form_type', 'broker')
+                ->join('property_listings', 'leads.propertyid', '=', 'property_listings.id')
+                ->select('leads.*', 'property_listings.propertyfor')
+                ->get();
+
+            // Loan enquiries
+            $loanenquiries = Lead::where('form_type', 'bankagent')->get();
 
             return response()->json([
                 'success' => true,
@@ -1081,7 +1132,8 @@ class ApiMasterController extends Controller
                 'loanenquiries' => $loanenquiries,
             ]);
         } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+            Log::error('Error in fetchenquiries: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -1338,32 +1390,6 @@ class ApiMasterController extends Controller
         }
     }
 
-    
-
-    private function validateToken(Request $request)
-    {
-        $token = $request->header('Authorization');
-
-        if (!$token) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Authorization token missing',
-            ], 401);
-        }
-
-        $token = str_replace('Bearer ', '', $token);
-        $user = RegisterUser::where('api_token', $token)->first();
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired token',
-            ], 401);
-        }
-
-        return $user;
-    }
-
     public function checkWishlistStatus(Request $request, $userId, $propertyId)
     {
         $user = $this->validateToken($request);
@@ -1373,26 +1399,33 @@ class ApiMasterController extends Controller
         }
 
         if ($user->id != $userId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access to wishlist',
-            ], 403);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Unauthorized access to wishlist',
+                ],
+                403,
+            );
         }
 
         try {
-            $isWishlisted = Wishlist::where('user_id', $userId)
-                                    ->where('property_id', $propertyId)
-                                    ->exists();
+            $isWishlisted = Wishlist::where('user_id', $userId)->where('property_id', $propertyId)->exists();
 
-            return response()->json([
-                'success' => true,
-                'isWishlisted' => $isWishlisted,
-            ], 200);
+            return response()->json(
+                [
+                    'success' => true,
+                    'isWishlisted' => $isWishlisted,
+                ],
+                200,
+            );
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Server error: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Server error: ' . $e->getMessage(),
+                ],
+                500,
+            );
         }
     }
 
@@ -1410,58 +1443,65 @@ class ApiMasterController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first(),
-            ], 422);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                ],
+                422,
+            );
         }
 
         $userId = $request->input('userId');
         $propertyId = $request->input('propertyId');
 
         if ($user->id != $userId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access to wishlist',
-            ], 403);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Unauthorized access to wishlist',
+                ],
+                403,
+            );
         }
 
         try {
-            $existing = Wishlist::where('property_id', $propertyId)
-                                ->where('user_id', $userId)
-                                ->first();
+            $existing = Wishlist::where('property_id', $propertyId)->where('user_id', $userId)->first();
 
             if ($existing) {
                 // Remove if exists
                 $existing->delete();
                 return response()->json([
                     'success' => true,
-                    'added'   => false,
+                    'added' => false,
                     'message' => 'Removed from wishlist',
                 ]);
             } else {
                 // Add if not exists
                 Wishlist::create([
                     'property_id' => $propertyId,
-                    'user_id'     => $userId,
-                    'status'      => '1',
+                    'user_id' => $userId,
+                    'status' => '1',
                 ]);
                 return response()->json([
                     'success' => true,
-                    'added'   => true,
+                    'added' => true,
                     'message' => 'Added to wishlist',
                 ]);
             }
         } catch (\Exception $e) {
             Log::error('Wishlist toggle error: ', [
-                'error'      => $e->getMessage(),
-                'userId'     => $userId,
-                'propertyId' => $propertyId
+                'error' => $e->getMessage(),
+                'userId' => $userId,
+                'propertyId' => $propertyId,
             ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Server error occurred'
-            ], 500);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Server error occurred',
+                ],
+                500,
+            );
         }
     }
 
@@ -1478,7 +1518,6 @@ class ApiMasterController extends Controller
         ]);
     }
 
-
     public function mywishlists(Request $request, $id)
     {
         $user = $this->validateToken($request);
@@ -1488,14 +1527,106 @@ class ApiMasterController extends Controller
         }
 
         $mywishlists = Wishlist::join('property_listings', 'wishlists.property_id', '=', 'property_listings.id')
-        ->select('wishlists.id as wishlist_id', 'wishlists.*', 'property_listings.*')
-        ->where('wishlists.user_id', $id) // Changed $id->id to $id
-        ->orderByDesc('wishlists.created_at')
-        ->get();
+            ->select('wishlists.id as wishlist_id', 'wishlists.*', 'property_listings.*')
+            ->where('wishlists.user_id', $id) // Changed $id->id to $id
+            ->orderByDesc('wishlists.created_at')
+            ->get();
 
         //dd($mywishlists);
         return response()->json([
             'mywishlistdata' => $mywishlists,
         ]);
+    }
+
+    public function trackvisit(Request $request)
+    {
+        try {
+            // Validate token
+            $user = $this->validateToken($request);
+            if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+                return $user;
+            }
+
+            $propertyId = $request->input('property_id');
+
+            $userId = $user->id;
+            $ipAddress = $request->ip();
+
+            $details = $request->input('details');
+
+            if (is_array($details)) {
+                $details = json_encode($details);
+            } elseif (is_null($details)) {
+                $details = json_encode([
+                    'user_agent' => $request->header('User-Agent'),
+                    'referer' => $request->header('referer'),
+                ]);
+            }
+
+            $visitorToken = $request->input('visitor_token');
+
+            // Ensure uniqueness
+            $visit = PropertyVisit::updateOrCreate(
+                [
+                    'property_id' => $propertyId,
+                    'user_id' => $userId,
+                ],
+                [
+                    'ip_address' => $ipAddress,
+                    'visitor_token' => $visitorToken,
+                    'details' => $details,
+                ],
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Visit tracked successfully',
+                'data' => $visit,
+            ]);
+        } catch (\Exception $ex) {
+            \Log::error('Error tracking visit', [
+                'error' => $ex->getMessage(),
+                'trace' => $ex->getTraceAsString(),
+            ]);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Server error: ' . $ex->getMessage(),
+                ],
+                500,
+            );
+        }
+    }
+
+    public function getVisitorCount(Request $request, $propertyId)
+    {
+        try {
+            $user = $this->validateToken($request);
+            if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+                return $user;
+            }
+
+            // ✅ Unique count: logged-in by user_id, guests by visitor_token
+            $count = PropertyVisit::where('property_id', $propertyId)->selectRaw('COUNT(DISTINCT COALESCE(CAST(user_id AS CHAR), visitor_token)) as unique_count')->value('unique_count');
+
+            return response()->json([
+                'success' => true,
+                'count' => $count,
+                'message' => 'Visitor count retrieved successfully',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error retrieving visitor count', [
+                'error' => $e->getMessage(),
+                'property_id' => $propertyId,
+            ]);
+
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Error retrieving visitor count: ' . $e->getMessage(),
+                ],
+                500,
+            );
+        }
     }
 }

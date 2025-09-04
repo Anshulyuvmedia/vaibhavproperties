@@ -8,7 +8,6 @@ import RBSheet from 'react-native-raw-bottom-sheet';
 import { Switch } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import icons from '@/constants/icons';
-import PropertyNavigation from '@/components/PropertyNavigation';
 import { useTranslation } from 'react-i18next';
 import Ionicons from "@expo/vector-icons/Ionicons";
 
@@ -27,7 +26,7 @@ const formatINR = (amount) => {
 // Get screen width for DatePicker
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const Myproperties = () => {
+const MySellingProperties = () => {
   const { t, i18n } = useTranslation();
   const [userPropertyData, setUserPropertyData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -450,7 +449,7 @@ const Myproperties = () => {
   );
 };
 
-export default Myproperties;
+export default MySellingProperties;
 
 const styles = StyleSheet.create({
   container: {

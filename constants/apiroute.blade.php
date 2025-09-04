@@ -45,5 +45,7 @@ Route::controller(ApiMasterController::class)->group(function () {
     Route::post('/addToWishlist', 'addToWishlist')->name('addToWishlist');
     Route::get('/getencryptedid/{id}', 'getEncryptedId')->name('getEncryptedId');
     Route::get('/mywishlists/{id}', 'mywishlists')->name('mywishlists');
+    Route::post('/trackvisit', 'trackvisit')->name('trackvisit');
+    Route::get('/getVisitorCount/{propertyId}', 'getVisitorCount')->name('getVisitorCount');
 
 });

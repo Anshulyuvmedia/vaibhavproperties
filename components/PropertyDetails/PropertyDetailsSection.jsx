@@ -1,14 +1,23 @@
 import { View, Text, ScrollView } from "react-native";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 
-const PropertyDetailsSection = ({ propertyData }) => {
+const PropertyDetailsSection = ({ propertyData, visitcount }) => {
     return (
         <View className="px-5 mt-7 flex gap-2">
             <Text className="text-2xl font-rubik-medium capitalize">{propertyData.property_name}</Text>
             <View className="flex flex-row items-center justify-between gap-3">
                 <View className="flex flex-row items-center py-2">
-                    <Ionicons name="location" size={20} color="#234F68" />
-                    <Text className="text-sm font-rubik text-black">{propertyData.city}</Text>
+                    <Ionicons name="location-outline" size={20} color="#234F68" />
+                    <Text className="text-sm font-rubik text-black capitalize">{propertyData.city}</Text>
+                </View>
+                {visitcount > 0 && (
+                    <View className="flex flex-row items-center py-2">
+                        <Ionicons name="eye-outline" size={20} color="#234F68" />
+                        <Text className="text-sm font-rubik text-black ms-1">{visitcount}</Text>
+                    </View>
+                )}
+                <View className="flex flex-row items-center py-2 px-3 bg-primary-400 rounded-xl">
+                    <Text className="text-sm font-rubik text-white capitalize">For {propertyData?.propertyfor ?? "Sell"}</Text>
                 </View>
                 <View className="flex flex-row items-center py-2 px-3 bg-primary-300 rounded-xl">
                     <Text className="text-sm font-rubik text-white capitalize">{propertyData.category} - {propertyData.subcategory}</Text>
@@ -37,7 +46,7 @@ const PropertyDetailsSection = ({ propertyData }) => {
                     <View className="flex-row items-center justify-center bg-primary-100 rounded-full py-4 w-36">
                         <MaterialIcons name="zoom-out-map" size={20} color="#8bc83f" />
                         <Text className="text-black-300 text-sm font-rubik-medium ml-2">
-                            {propertyData.squarefoot} sqft
+                            {propertyData.squarefoot}
                         </Text>
                     </View>
                 </View>

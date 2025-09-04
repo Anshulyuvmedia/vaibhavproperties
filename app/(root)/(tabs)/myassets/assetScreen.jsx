@@ -6,7 +6,6 @@ import { useRouter } from 'expo-router';
 import icons from '@/constants/icons';
 import BuyingScreen from './buyingScreen';
 import SellingScreen from './sellingScreen';
-import Auction from './auction';
 
 // Define the SceneMap with the routes
 const renderScene = SceneMap({

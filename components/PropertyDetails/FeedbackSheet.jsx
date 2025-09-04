@@ -38,7 +38,7 @@ const FeedbackSheet = forwardRef(({ type, message, height, onClose }, ref) => {
                         if (onClose) onClose();
                     }}
                 >
-                    <Text className="text-white font-bold">Close</Text>
+                    <Text className="text-black font-bold">Close</Text>
                 </TouchableOpacity>
             </View>
         </RBSheet>

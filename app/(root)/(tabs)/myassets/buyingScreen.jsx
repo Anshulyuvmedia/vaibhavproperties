@@ -2,15 +2,15 @@ import { StyleSheet, Text, View, useWindowDimensions, TouchableOpacity } from 'r
 import * as React from 'react';
 import { TabView, SceneMap } from 'react-native-tab-view';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
-import { useRouter } from 'expo-router';
-import Wishlists from './wishlists';
-import Auction from './auction';
+import BuyingWishlists from './buying/buyingWishlists';
+import BuyingAuction from './buying/buyingAuction';
+import BuyingEnquiries from './buying/buyingEnquiries';
 
 // Define the SceneMap with the routes
 const renderScene = SceneMap({
-    Wishlists: Wishlists,
-    Auction: Auction,
-    Enquiry: Auction, // Note: Confirm if Enquiry should map to a separate component
+    Wishlists: BuyingWishlists,
+    Auction: BuyingAuction,
+    Enquiry: BuyingEnquiries, // Note: Confirm if Enquiry should map to a separate component
 });
 
 // Define the routes array
@@ -23,7 +23,6 @@ const routes = [
 const BuyingScreen = () => {
     const layout = useWindowDimensions();
     const [index, setIndex] = React.useState(0);
-    const router = useRouter();
 
     // Custom renderTabBar to set equal width and avoid key prop spreading
     const CustomTabBar = ({ navigationState, jumpTo, layout }) => {
@@ -81,7 +80,7 @@ const styles = StyleSheet.create({
     tabBar: {
         flexDirection: 'row',
         backgroundColor: '#f4f2f7',
-        borderRadius: moderateScale(50),
+        borderRadius: moderateScale(5),
         // marginHorizontal: scale(5),
         marginVertical: verticalScale(5),
     },
@@ -95,7 +94,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         paddingVertical: verticalScale(4),
         paddingHorizontal: scale(12),
-        borderRadius: 16,
+        borderRadius: 7,
 
     },
 });

@@ -5,12 +5,10 @@ import RBSheet from 'react-native-raw-bottom-sheet'; // Corrected import
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import icons from '@/constants/icons';
-import PropertyNavigation from '@/components/PropertyNavigation';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
 
-const RentLeads = () => {
+const MySellingAuction = () => {
     const { t, i18n } = useTranslation();
     const router = useRouter();
     const [enquiries, setEnquiries] = useState([]);
@@ -39,21 +37,35 @@ const RentLeads = () => {
                     'User-Agent': 'LandSquireApp/1.0 (React Native)',
                 },
             });
-            // console.log('API Response:', response.data.myenquiries);
+            // console.log('API Response:', response.data.brokerenquiries);
 
-            if (response.data && response.data.myenquiries) {
-                const parsedEnquiries = response.data.myenquiries
-                    .filter(enquiry => enquiry.propertyfor === 'Rent')
-                    .map(enquiry => ({
-                        ...enquiry,
-                        propertybid: typeof enquiry.propertybid === 'string' && enquiry.propertybid.startsWith('[')
-                            ? JSON.parse(enquiry.propertybid)
-                            : [{ bidamount: enquiry.propertybid, date: enquiry.created_at }]
-                    }));
+            if (response.data?.brokerenquiries) {
+                const parsedEnquiries = response.data.brokerenquiries
+                    .filter(enquiry => enquiry.propertyfor === null || enquiry.propertyfor === 'Sale')
+                    .map(enquiry => {
+                        let bids = [];
+
+                        if (typeof enquiry.propertybid === "string" && enquiry.propertybid.trim().startsWith("[")) {
+                            try {
+                                bids = JSON.parse(enquiry.propertybid).filter(
+                                    b => b.bidamount !== null && b.bidamount !== ""
+                                );
+                            } catch (e) {
+                                console.error("Failed to parse propertybid JSON:", e);
+                            }
+                        } else if (enquiry.propertybid !== null && enquiry.propertybid !== "") {
+                            bids = [{ bidamount: enquiry.propertybid, date: enquiry.created_at }];
+                        }
+
+                        return { ...enquiry, propertybid: bids };
+                    })
+                    .filter(enquiry => enquiry.propertybid.length > 0); // only keep with valid bids
+
                 setEnquiries(parsedEnquiries);
             } else {
-                console.error('Unexpected API response format:', response.data);
+                console.error("Unexpected API response format:", response.data);
             }
+
         } catch (error) {
             console.error('Error fetching enquiries:', error);
         } finally {
@@ -78,7 +90,7 @@ const RentLeads = () => {
 
         if (num >= 10000000) {
             const crore = num / 10000000;
-            return `${crore % 1 === 0 ? crore : crore.toFixed(2).replace(/\.00$/, '')} Cr.`;
+            return `${crore % 1 === 0 ? crore : crore.toFixed(2).replace(/\.00$/, '')} Cr`;
         } else if (num >= 100000) {
             const lakh = num / 100000;
             return `${lakh % 1 === 0 ? lakh : lakh.toFixed(2).replace(/\.00$/, '')} Lakh`;
@@ -89,6 +101,8 @@ const RentLeads = () => {
             return num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
         }
     };
+
+
 
     const getLatestBid = (bids) => {
         if (Array.isArray(bids) && bids.length > 0) {
@@ -161,7 +175,7 @@ const RentLeads = () => {
             <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
                 <View style={styles.cardHeader}>
                     <View>
-                        <Text style={styles.cardLabel}>{t('Broker')}:</Text>
+                        <Text style={styles.cardLabel}>Bidder Name:</Text>
                         <Text style={[styles.cardTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
                             {item.name}
                         </Text>
@@ -174,14 +188,15 @@ const RentLeads = () => {
                     </View>
                 </View>
                 <View style={styles.cardrow}>
-                    {(selectedEnquiry?.propertyfor === null || selectedEnquiry?.propertyfor === 'Sale') && (
-                        <View>
-                            <Text style={styles.cardLabel}>{t('Bid Amount')}:</Text>
-                            <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                                {formatCurrency(latestBid.bidamount)}
-                            </Text>
-                        </View>
-                    )}
+
+                    <View>
+                        <Text style={styles.cardLabel}>{t('Bid Amount')}:</Text>
+                        <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {formatCurrency(latestBid.bidamount)}
+                        </Text>
+                    </View>
+
+
                     <View>
                         <Text style={styles.cardLabel}>{t('Category')}:</Text>
                         <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
@@ -258,9 +273,9 @@ const RentLeads = () => {
                     <Image source={icons.bell} style={styles.bellIcon} />
                 </TouchableOpacity>
             </View>
-            <PropertyNavigation path={'RentLeads'} /> */}
+            <PropertyNavigation path={'myleads'} /> */}
             <View className='mx-auto mt-3'>
-                <Text>All the rental leads on your properties.</Text>
+                <Text>All the Bids on my properties.</Text>
             </View>
             {loading ? (
                 <View style={styles.loadingContainer}>
@@ -271,6 +286,22 @@ const RentLeads = () => {
                     <Text style={[styles.emptyText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                         {t('noEnquiries')}
                     </Text>
+                    <TouchableOpacity
+                        style={{
+                            marginTop: 10,
+                            alignSelf: 'center',
+                            backgroundColor: '#234F68',
+                            paddingVertical: 8,
+                            paddingHorizontal: 16,
+                            borderRadius: 8,
+                        }}
+                        onPress={onRefresh}
+                        disabled={loading}
+                    >
+                        <Text style={{ color: '#fff', fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }}>
+                            Refresh
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             ) : (
                 <FlatList
@@ -377,11 +408,7 @@ const RentLeads = () => {
                                     {selectedEnquiry.status}
                                 </Text>
                             </View>
-                            {(selectedEnquiry?.propertyfor === null || selectedEnquiry?.propertyfor === 'Sale') && (
-                                renderBidHistory(selectedEnquiry?.propertybid)
-                            )}
-
-
+                            {renderBidHistory(selectedEnquiry.propertybid)}
                         </ScrollView>
                         <View style={styles.sheetButtonContainer}>
                             <TouchableOpacity
@@ -400,7 +427,7 @@ const RentLeads = () => {
     );
 };
 
-export default RentLeads;
+export default MySellingAuction;
 
 const styles = StyleSheet.create({
     container: {
@@ -457,6 +484,8 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: '#fff',
+        borderColor: '#8bc83f',
+        borderWidth: 2,
         borderRadius: moderateScale(10),
         padding: moderateScale(15),
         marginVertical: verticalScale(8),
@@ -522,7 +551,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#234F68',
     },
     callButton: {
-        backgroundColor: '#234F68',
+        backgroundColor: '#FF9800',
     },
     whatsappButton: {
         backgroundColor: '#4CAF50',

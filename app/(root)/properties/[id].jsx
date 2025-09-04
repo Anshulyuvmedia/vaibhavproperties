@@ -23,6 +23,7 @@ import BidSheet from "../../../components/PropertyDetails/BidSheet";
 import FeedbackSheet from "../../../components/PropertyDetails/FeedbackSheet";
 import images from "@/constants/images";
 import icons from "@/constants/icons";
+import { v4 as uuidv4 } from 'uuid';
 
 const PropertyDetails = () => {
     const propertyId = useLocalSearchParams().id;
@@ -45,6 +46,7 @@ const PropertyDetails = () => {
     const [bidAmount, setBidAmount] = useState("");
     const [bidError, setBidError] = useState("");
     const [bidStatus, setBidStatus] = useState(null);
+    const [bidBtn, setBidBtn] = useState("");
     const [brokerData, setBrokerData] = useState(null);
     const videoRef = useRef(null);
     const lightboxRef = useRef(null);
@@ -59,12 +61,18 @@ const PropertyDetails = () => {
         longitudeDelta: 0.0121,
     });
     const navigation = useNavigation();
-
+    const [totalVisits, setTotalVisits] = useState('');
     // Pinch-to-zoom state
     const scale = useSharedValue(1);
     const savedScale = useSharedValue(1);
 
-    const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
+    const handleEditPress = (id) => {
+        if (propertyData?.propertyfor?.toLowerCase() === "rent") {
+            router.push(`/Rent/editrentproperty/${id}`);
+        } else {
+            router.push(`/dashboard/editproperties/${id}`);
+        }
+    };
 
     const openWhatsApp = (phoneNumber) => {
         if (!phoneNumber) {
@@ -93,16 +101,18 @@ const PropertyDetails = () => {
         });
     };
 
-    const handleEnquiry = async () => {
+    const handleEnquiry = async (isBid = false) => {
         try {
             setLoading(true);
             setBidStatus(null);
+
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
             const userId = parsedUserData?.id;
             if (!userId) {
                 setBidStatus({ type: "error", message: "User not logged in." });
                 return;
             }
+
             const enquiryData = {
                 customername: parsedUserData.username || "",
                 phone: parsedUserData.mobilenumber || "",
@@ -114,22 +124,46 @@ const PropertyDetails = () => {
                 propertyid: propertyId,
                 userid: parsedUserData.id,
                 brokerid: propertyData.roleid || "",
-                bidamount: bidAmount.toString().replace(/,/g, "") || "",
+                form_type: "broker" || "",
+                // 👇 Only include bidamount if this is a bid
+                bidamount: isBid ? (bidAmount?.toString().replace(/,/g, "") || "") : "",
             };
+
             const response = await axios.post("https://landsquire.in/api/sendenquiry", enquiryData);
+
+            // console.log("response:", response.data);
+
             if (response.status === 200 && !response.data.error) {
-                setBidStatus({ type: "success", message: "Enquiry submitted successfully!" });
-                if (bidAmount && rbSheetRef.current) {
-                    successSheetRef.current.open();
-                    rbSheetRef.current.close();
-                }
-            } else {
-                setBidStatus({ type: "error", message: "Failed to submit enquiry. Please try again." });
+                setBidStatus({
+                    type: "success",
+                    message: isBid ? "Bid submitted successfully!" : "Enquiry submitted successfully!"
+                });
+
+                // Close bid/enquiry sheet if open
                 if (rbSheetRef.current) {
                     rbSheetRef.current.close();
-                    errorSheetRef.current.open();
                 }
+
+                // Open success sheet after a short delay
+                setTimeout(() => {
+                    if (successSheetRef.current) {
+                        successSheetRef.current.open();
+                    }
+                }, 300);
+            } else {
+                setBidStatus({ type: "error", message: "Failed to submit. Please try again." });
+
+                if (rbSheetRef.current) {
+                    rbSheetRef.current.close();
+                }
+
+                setTimeout(() => {
+                    if (errorSheetRef.current) {
+                        errorSheetRef.current.open();
+                    }
+                }, 300);
             }
+
         } catch (error) {
             setBidStatus({ type: "error", message: "An error occurred. Please try again." });
             if (rbSheetRef.current) {
@@ -140,8 +174,6 @@ const PropertyDetails = () => {
             setLoading(false);
         }
     };
-
-    
 
     const fetchPropertyData = async () => {
         try {
@@ -159,6 +191,9 @@ const PropertyDetails = () => {
             if (response.data && response.data.details) {
                 const apiData = response.data.details;
                 setPropertyData(apiData);
+                // console.log(apiData.bidstatus);
+                setBidBtn(apiData.bidstatus)
+
                 const thumbnail = apiData.thumbnail;
                 const thumbnailUri =
                     thumbnail && typeof thumbnail === "string"
@@ -276,14 +311,76 @@ const PropertyDetails = () => {
         }
     };
 
+    const trackVisitor = async (propertyId) => {
+        try {
+            // Check for existing visitor token
+            let visitorToken = await AsyncStorage.getItem('visitor_token');
+            if (!visitorToken) {
+                visitorToken = uuidv4();
+                await AsyncStorage.setItem('visitor_token', visitorToken);
+            }
+
+            const userData = await AsyncStorage.getItem("userData");
+            const parsedUserData = userData ? JSON.parse(userData) : null;
+            const userId = parsedUserData?.id || null;
+            const token = await AsyncStorage.getItem('userToken');
+
+            const visitData = {
+                property_id: propertyId,
+                user_id: userId,
+                visitor_token: visitorToken, // 🔥 send visitor token
+                details: {
+                    user_agent: "ReactNativeApp",
+                },
+            };
+            // console.log(visitData);
+            const response = await axios.post(
+                "https://landsquire.in/api/trackvisit",
+                visitData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                    },
+                }
+            );
+            // console.log('response data after visit', response.data.data.visitor_token);
+
+            if (response.data?.data?.visitor_token) {
+                await AsyncStorage.setItem('current_visitor_token', response.data.data.visitor_token.toString());
+
+                // Fetch unique visitor count
+                const countResponse = await axios.get(
+                    `https://landsquire.in/api/getVisitorCount/${propertyId}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                        },
+                    }
+                );
+
+                if (countResponse.data?.count) {
+                    // console.log(`Total unique visitors: ${countResponse.data.count}`);
+                    setTotalVisits(countResponse.data.count)
+                }
+            }
+        } catch (error) {
+            console.error("Error tracking visitor:", error.message);
+            // if (setError) setError(`Error tracking visitor: ${error.message}`);
+        }
+    };
+
     useEffect(() => {
         fetchPropertyData();
+        trackVisitor(propertyId);
     }, [propertyId]);
 
     const onRefresh = () => {
         setRefreshing(true);
         setError(null);
         fetchPropertyData();
+        trackVisitor(propertyId);
     };
 
     const openLightbox = (index) => {
@@ -371,7 +468,7 @@ const PropertyDetails = () => {
 
     const handleBidSubmit = () => {
         if (validateBidAmount()) {
-            handleEnquiry();
+            handleEnquiry(true);
             setBidAmount("");
         } else {
             errorSheetRef.current.open();
@@ -381,6 +478,7 @@ const PropertyDetails = () => {
     if (loading || !propertyData) {
         return <ActivityIndicator size="large" color="#8bc83f" className="mt-[400px]" />;
     }
+
 
     return (
         <View className="pb-24">
@@ -403,7 +501,7 @@ const PropertyDetails = () => {
                     propertyData={propertyData}
                     loggedinUserId={loggedinUserId}
                 />
-                <PropertyDetailsSection propertyData={propertyData} />
+                <PropertyDetailsSection propertyData={propertyData} visitcount={totalVisits} />
                 <PropertyDescription description={propertyData.discription} />
                 <PropertyGallery
                     propertyGallery={propertyGallery}
@@ -435,6 +533,7 @@ const PropertyDetails = () => {
                     nearbylocation={propertyData.nearbylocation}
                     approxrentalincome={propertyData.approxrentalincome}
                     formatINR={formatINR}
+                    propertyfor={propertyData.propertyfor}
                 />
                 <AmenitiesList amenities={amenities} />
                 <PropertyMap
@@ -466,6 +565,8 @@ const PropertyDetails = () => {
                 handleEditPress={handleEditPress}
                 rbSheetRef={rbSheetRef}
                 bidStatus={bidStatus}
+                handleEnquiry={handleEnquiry}
+                bidBtn={bidBtn}
             />
             <BidSheet
                 rbSheetRef={rbSheetRef}

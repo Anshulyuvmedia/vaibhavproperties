@@ -63,7 +63,7 @@ export default function RootLayout() {
         if (appIsReady && isAuthenticated !== null) {
             requestAnimationFrame(() => {
                 if (isAuthenticated) {
-                    router.replace("/mapview");
+                    router.replace("/");
                 } else {
                     router.replace("/signin");
                 }

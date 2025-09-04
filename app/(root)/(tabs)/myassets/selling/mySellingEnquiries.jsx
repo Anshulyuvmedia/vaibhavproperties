@@ -5,12 +5,10 @@ import RBSheet from 'react-native-raw-bottom-sheet'; // Corrected import
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import icons from '@/constants/icons';
-import PropertyNavigation from '@/components/PropertyNavigation';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
 
-const Myleads = () => {
+const MySellingEnquiries = () => {
     const { t, i18n } = useTranslation();
     const router = useRouter();
     const [enquiries, setEnquiries] = useState([]);
@@ -31,20 +29,47 @@ const Myleads = () => {
                 console.error('User data or ID missing');
                 return;
             }
-            const response = await axios.get(`https://landsquire.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
+            const token = await AsyncStorage.getItem('userToken');
+
+            const response = await axios.get(`https://landsquire.in/api/fetchenquiries?id=${parsedPropertyData.id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
+            });
             // console.log('API Response:', response.data.brokerenquiries);
 
-            if (response.data && response.data.brokerenquiries) {
-                const parsedEnquiries = response.data.brokerenquiries.map(enquiry => ({
-                    ...enquiry,
-                    propertybid: typeof enquiry.propertybid === 'string' && enquiry.propertybid.startsWith('[')
-                        ? JSON.parse(enquiry.propertybid)
-                        : [{ bidamount: enquiry.propertybid, date: enquiry.created_at }]
-                }));
+            if (response.data?.brokerenquiries) {
+                const parsedEnquiries = response.data.brokerenquiries
+                    .filter(enquiry =>
+                        enquiry.propertyfor === null ||
+                        enquiry.propertyfor === "Sell"
+                    )
+                    .map(enquiry => {
+                        let bids = [];
+
+                        if (typeof enquiry.propertybid === "string" && enquiry.propertybid.trim().startsWith("[")) {
+                            try {
+                                // ✅ keep only null bidamounts
+                                bids = JSON.parse(enquiry.propertybid).filter(b => b.bidamount === null);
+                            } catch (e) {
+                                console.error("Failed to parse propertybid JSON:", e);
+                            }
+                        } else if (enquiry.propertybid === null) {
+                            bids = [{ bidamount: null, date: enquiry.created_at }];
+                        }
+
+                        return { ...enquiry, propertybid: bids };
+                    })
+                    // ✅ only show enquiries that have at least one null bid
+                    .filter(enquiry => enquiry.propertybid.length > 0);
+
+                // console.log('parsedEnquiries', parsedEnquiries);
                 setEnquiries(parsedEnquiries);
             } else {
-                console.error('Unexpected API response format:', response.data);
+                console.error("Unexpected API response format:", response.data);
             }
+
         } catch (error) {
             console.error('Error fetching enquiries:', error);
         } finally {
@@ -69,7 +94,7 @@ const Myleads = () => {
 
         if (num >= 10000000) {
             const crore = num / 10000000;
-            return `${crore % 1 === 0 ? crore : crore.toFixed(2).replace(/\.00$/, '')} Cr.`;
+            return `${crore % 1 === 0 ? crore : crore.toFixed(2).replace(/\.00$/, '')} Cr`;
         } else if (num >= 100000) {
             const lakh = num / 100000;
             return `${lakh % 1 === 0 ? lakh : lakh.toFixed(2).replace(/\.00$/, '')} Lakh`;
@@ -80,6 +105,7 @@ const Myleads = () => {
             return num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
         }
     };
+
 
     const getLatestBid = (bids) => {
         if (Array.isArray(bids) && bids.length > 0) {
@@ -152,7 +178,7 @@ const Myleads = () => {
             <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
                 <View style={styles.cardHeader}>
                     <View>
-                        <Text style={styles.cardLabel}>{t('Broker')}:</Text>
+                        <Text style={styles.cardLabel}>Name:</Text>
                         <Text style={[styles.cardTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
                             {item.name}
                         </Text>
@@ -165,12 +191,15 @@ const Myleads = () => {
                     </View>
                 </View>
                 <View style={styles.cardrow}>
+                    {/* {(selectedEnquiry?.propertyfor === null || selectedEnquiry?.propertyfor === 'Sale') && latestBid?.bidamount != null && latestBid?.bidamount !== '' && (
                     <View>
                         <Text style={styles.cardLabel}>{t('Bid Amount')}:</Text>
                         <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                             {formatCurrency(latestBid.bidamount)}
                         </Text>
                     </View>
+                    )} */}
+
                     <View>
                         <Text style={styles.cardLabel}>{t('Category')}:</Text>
                         <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
@@ -249,7 +278,7 @@ const Myleads = () => {
             </View>
             <PropertyNavigation path={'myleads'} /> */}
             <View className='mx-auto mt-3'>
-                <Text>All the leads on your properties.</Text>
+                <Text>All the enquiries on my properties.</Text>
             </View>
             {loading ? (
                 <View style={styles.loadingContainer}>
@@ -260,6 +289,22 @@ const Myleads = () => {
                     <Text style={[styles.emptyText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                         {t('noEnquiries')}
                     </Text>
+                    <TouchableOpacity
+                        style={{
+                            marginTop: 10,
+                            alignSelf: 'center',
+                            backgroundColor: '#234F68',
+                            paddingVertical: 8,
+                            paddingHorizontal: 16,
+                            borderRadius: 8,
+                        }}
+                        onPress={onRefresh}
+                        disabled={loading}
+                    >
+                        <Text style={{ color: '#fff', fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }}>
+                            Refresh
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             ) : (
                 <FlatList
@@ -366,7 +411,7 @@ const Myleads = () => {
                                     {selectedEnquiry.status}
                                 </Text>
                             </View>
-                            {renderBidHistory(selectedEnquiry.propertybid)}
+                            {/* {renderBidHistory(selectedEnquiry.propertybid)} */}
                         </ScrollView>
                         <View style={styles.sheetButtonContainer}>
                             <TouchableOpacity
@@ -385,7 +430,7 @@ const Myleads = () => {
     );
 };
 
-export default Myleads;
+export default MySellingEnquiries;
 
 const styles = StyleSheet.create({
     container: {
@@ -442,6 +487,8 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: '#fff',
+        borderColor: '#234F68',
+        borderWidth: 2,
         borderRadius: moderateScale(10),
         padding: moderateScale(15),
         marginVertical: verticalScale(8),
@@ -507,7 +554,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#234F68',
     },
     callButton: {
-        backgroundColor: '#234F68',
+        backgroundColor: '#FF9800',
     },
     whatsappButton: {
         backgroundColor: '#4CAF50',

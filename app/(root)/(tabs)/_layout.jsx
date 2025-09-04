@@ -72,14 +72,17 @@ const TabsLayout = () => {
     }
 
     // Hide tab navigation and redirect to loanleads if userType is 'bankagent'
-    // if (userType === 'bankagent') {
-    //     router.replace('/dashboard/loanleads');
-        // return null;
+    // if (userType === 'user') {
+    //     router.push('/mapview');
+    //     return null;
+    // }
+    // else {
+    //     router.push('/');
     // }
 
     return (
         <Tabs
-            initialRouteName="mapview"
+            // initialRouteName="mapview"
             screenOptions={{
                 tabBarShowLabel: false,
                 tabBarStyle: {

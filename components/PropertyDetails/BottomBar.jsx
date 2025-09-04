@@ -1,6 +1,8 @@
 import { View, Text, TouchableOpacity } from "react-native";
 
-const BottomBar = ({ propertyData, loggedinUserId, formatINR, handleEditPress, rbSheetRef, bidStatus }) => {
+const BottomBar = ({ propertyData, loggedinUserId, formatINR, handleEditPress, rbSheetRef, bidBtn, bidStatus, handleEnquiry }) => {
+    // console.log('bidBtn', bidBtn);
+
     return (
         <View className="absolute bg-white bottom-0 w-full rounded-t-2xl border-t border-r border-l border-primary-200 px-7 py-4">
             <View className="flex flex-row items-center justify-between gap-4">
@@ -19,12 +21,23 @@ const BottomBar = ({ propertyData, loggedinUserId, formatINR, handleEditPress, r
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity
-                        onPress={() => rbSheetRef.current.open()}
+                        onPress={() => {
+                            if (bidBtn == 'on') {
+                                // Bid flow
+                                rbSheetRef.current.open()
+                            } else {
+                                // Enquiry flow
+                                handleEnquiry(false);
+                            }
+                        }}
                         className={`flex-1 flex-row items-center justify-center bg-primary-400 py-5 rounded-2xl shadow-md shadow-black/10 ${bidStatus?.type === "success" ? "opacity-50" : ""}`}
                         disabled={bidStatus?.type === "success"}
                     >
-                        <Text className="text-white text-lg text-center font-rubik-bold">Bid Now</Text>
+                        <Text className="text-white text-lg text-center font-rubik-bold">
+                            {bidBtn == 'on' ? "Bid Now" : "Enquire Now"}
+                        </Text>
                     </TouchableOpacity>
+
                 )}
             </View>
         </View>

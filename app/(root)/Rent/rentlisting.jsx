@@ -71,7 +71,7 @@ const RentListing = () => {
 
             const parsedPropertyData = JSON.parse(storedUserData);
 
-            console.log("User ID:", parsedPropertyData?.id, "Token:", token);
+            // console.log("User ID:", parsedPropertyData?.id, "Token:", token);
 
             if (!parsedPropertyData?.id) {
                 console.error('User ID missing');
