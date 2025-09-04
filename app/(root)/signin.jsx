@@ -142,32 +142,39 @@ const Signin = () => {
       }
 
       if (data.success) {
-        // console.log('Success data:', data);
         const token = data.token || '';
-        const user = data.data || {}; // Use data.data directly as the user object
+        const user = data.data || {};
+
         if (!token || !user.id) {
           console.log('Invalid token or user data');
         }
+
         await AsyncStorage.setItem('userToken', token);
         await AsyncStorage.setItem('userData', JSON.stringify(user));
+
         const storedToken = await AsyncStorage.getItem('userToken');
         const storedUserData = await AsyncStorage.getItem('userData');
-        // console.log('Stored userToken:', storedToken);
-        // console.log('Stored userData:', storedUserData);
+
         if (storedToken && storedUserData) {
           otpSheetRef.current?.close();
           const userObj = JSON.parse(storedUserData);
-          if (userObj.userType === 'user') {
+
+          // ✅ Redirect based on user type
+          const userType = userObj?.user_type?.toLowerCase(); // match API key
+
+          if (userType === 'user') {
             router.push('/mapview');
+          } else if (userType === 'broker' || userType === 'bankagent') {
+            router.push('/');
           } else {
+            // fallback if userType is unknown
             router.push('/');
           }
         } else {
           throw new Error('Failed to store authentication data');
         }
-      } else {
-        setError(data.message || "Invalid OTP");
       }
+
     } catch (error) {
       console.error('Fetch error details (verify):', error.message, 'Status:', response?.status, 'Response:', await response?.text());
       setError(`An unexpected error occurred while verifying OTP: ${error.message}`);

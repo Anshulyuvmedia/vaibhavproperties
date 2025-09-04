@@ -60,7 +60,7 @@ const TabsLayout = () => {
 
     // Define tab configurations
     const tabsConfig = [
-        { name: "index", title: "Home", icon: "home" },
+        { name: "home", title: "Home", icon: "home" },
         { name: "myassets", title: "My Assets", icon: "building-o" },
         { name: "mapview", title: "Map", icon: "map-o" },
         { name: "addlisting", title: "Add Property", icon: "plus-square-o" },

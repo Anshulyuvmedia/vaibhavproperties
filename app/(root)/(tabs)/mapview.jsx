@@ -8,7 +8,7 @@ import debounce from 'lodash.debounce';
 import * as Location from 'expo-location';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Image } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define parseCoordinates outside Mapview
 const parseCoordinates = (maplocations) => {
@@ -44,9 +44,12 @@ const Mapview = () => {
     const [selectedCity, setSelectedCity] = useState('Ajmer');
     const [currentLocationName, setCurrentLocationName] = useState('Ajmer');
     const [page, setPage] = useState(1);
+    const [itemsPerPage] = useState(8); // Items per page for FlatList
+    const [markersPerPage] = useState(10); // Markers per page for map
     const [hasMore, setHasMore] = useState(true);
-    const [mapType, setMapType] = useState('hybrid'); // Default to hybrid mode
+    const [mapType, setMapType] = useState('hybrid');
     const [markerSize, setMarkerSize] = useState({ width: 0, height: 0 });
+
     const viewProperty = (id) => router.push(`/properties/${id}`);
 
     // Toggle map type
@@ -95,14 +98,12 @@ const Mapview = () => {
             if (response.data && Array.isArray(response.data.data)) {
                 const data = response.data.data;
                 setListingData(data);
-                setFilteredData(data.slice(0, 8));
-                setHasMore(data.length > 8);
-
-                const limitedMarkers = data.slice(0, 50).map(property => ({
+                setFilteredData(data.slice(0, itemsPerPage));
+                setVisibleMarkers(data.slice(0, markersPerPage).map(property => ({
                     ...property,
                     coordinates: parseCoordinates(property.maplocations)
-                }));
-                setVisibleMarkers(limitedMarkers);
+                })));
+                setHasMore(data.length > itemsPerPage);
 
                 if (data.length > 0) {
                     const { latitude, longitude } = parseCoordinates(data[0].maplocations);
@@ -141,10 +142,11 @@ const Mapview = () => {
         }
     };
 
-    // Fetch property data with pagination
-    const fetchListingData = async (mapRegion, pageNum = 1) => {
+    // Fetch property data
+    const fetchListingData = async (mapRegion) => {
         setLoading(true);
         setError(null);
+
         const token = await AsyncStorage.getItem('userToken');
         if (!token) {
             console.error('No token found in AsyncStorage');
@@ -156,38 +158,27 @@ const Mapview = () => {
 
         try {
             const response = await axios.get('https://landsquire.in/api/property-listings', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
                 params: {
                     latitude: mapRegion?.latitude || 26.4499,
                     longitude: mapRegion?.longitude || 74.6399,
                     latitudeDelta: mapRegion?.latitudeDelta || 5.0,
                     longitudeDelta: mapRegion?.longitudeDelta || 5.0,
-                    limit: 8,
-                    page: pageNum,
-                },
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
                 },
             });
 
-            if (response.data && response.data.data && Array.isArray(response.data.data.data)) {
-                const data = response.data.data.data;
-                // console.log('property data', data);
-
-                if (pageNum === 1) {
-                    setListingData(data);
-                    setFilteredData(data);
-                } else {
-                    setListingData(prev => [...prev, ...data]);
-                    setFilteredData(prev => [...prev, ...data]);
-                }
-                setHasMore(data.length === 8);
-
-                const limitedMarkers = data.slice(0, 50).map(property => ({
+            if (response.data?.success && Array.isArray(response.data.data)) {
+                const data = response.data.data;
+                setListingData(data);
+                setFilteredData(data.slice(0, itemsPerPage));
+                setVisibleMarkers(data.slice(0, markersPerPage).map(property => ({
                     ...property,
-                    coordinates: parseCoordinates(property.maplocations)
-                }));
-                setVisibleMarkers(limitedMarkers);
+                    coordinates: parseCoordinates(property.maplocations),
+                })));
+                setHasMore(data.length > itemsPerPage);
 
                 if (!region && data.length > 0) {
                     const { latitude, longitude } = parseCoordinates(data[0].maplocations);
@@ -199,15 +190,14 @@ const Mapview = () => {
                     });
                 }
             } else {
-                console.error('Unexpected API response format in fetchListingData:', response.data);
+                console.error('Unexpected API response format:', response.data);
                 setListingData([]);
                 setFilteredData([]);
                 setVisibleMarkers([]);
                 setError("No properties found nearby.");
-                setHasMore(false);
             }
         } catch (error) {
-            console.error('Error fetching user data:', error);
+            console.error('Error fetching property data:', error);
             setListingData([]);
             setFilteredData([]);
             setVisibleMarkers([]);
@@ -221,6 +211,24 @@ const Mapview = () => {
         }
     };
 
+    // Load more items for FlatList and markers
+    const loadMoreData = () => {
+        if (loading || !hasMore) return;
+        setLoading(true);
+        const nextPage = page + 1;
+        const newItems = listingData.slice(0, nextPage * itemsPerPage);
+        const newMarkers = listingData.slice(0, nextPage * markersPerPage).map(property => ({
+            ...property,
+            coordinates: parseCoordinates(property.maplocations),
+        }));
+
+        setFilteredData(newItems);
+        setVisibleMarkers(newMarkers);
+        setPage(nextPage);
+        setHasMore(newItems.length < listingData.length);
+        setLoading(false);
+    };
+
     // Initial load with Rajasthan (Ajmer) coordinates
     useEffect(() => {
         const rajasthanRegion = {
@@ -230,7 +238,7 @@ const Mapview = () => {
             longitudeDelta: 5.0,
         };
         setRegion(rajasthanRegion);
-        fetchListingData(rajasthanRegion, 1);
+        fetchListingData(rajasthanRegion);
     }, []);
 
     // Request location permissions and get current location
@@ -267,7 +275,7 @@ const Mapview = () => {
                 setCurrentLocationName('Unknown Location');
             }
 
-            fetchListingData(newRegion, 1);
+            fetchListingData(newRegion);
         } catch (error) {
             console.error('Error getting location:', error);
             setError("Unable to get your location. Please try again.");
@@ -356,8 +364,8 @@ const Mapview = () => {
         if (query.trim() === '') {
             setSelectedCity(null);
             setCurrentLocationName('Ajmer');
-            setFilteredData(listingData.slice(0, 8) || []);
-            setVisibleMarkers(listingData.slice(0, 50).map(property => ({
+            setFilteredData(listingData.slice(0, itemsPerPage));
+            setVisibleMarkers(listingData.slice(0, markersPerPage).map(property => ({
                 ...property,
                 coordinates: parseCoordinates(property.maplocations)
             })));
@@ -370,7 +378,7 @@ const Mapview = () => {
                 longitudeDelta: 5.0,
             };
             setRegion(ajmerRegion);
-            fetchListingData(ajmerRegion, 1);
+            fetchListingData(ajmerRegion);
             return;
         }
 
@@ -379,11 +387,12 @@ const Mapview = () => {
                 property.property_name?.toLowerCase().includes(query.toLowerCase()) ||
                 property.category?.toLowerCase().includes(query.toLowerCase())
             ) : [];
-            setFilteredData(filtered.slice(0, 8));
-            setVisibleMarkers(filtered.slice(0, 50).map(property => ({
+            setFilteredData(filtered.slice(0, itemsPerPage));
+            setVisibleMarkers(filtered.slice(0, markersPerPage).map(property => ({
                 ...property,
                 coordinates: parseCoordinates(property.maplocations)
             })));
+            setHasMore(filtered.length > itemsPerPage);
         }
         setShowSuggestions(true);
     };
@@ -403,7 +412,6 @@ const Mapview = () => {
         setSelectedPropertyId(property.id);
         const { latitude, longitude } = parseCoordinates(property.maplocations);
 
-        // Animate map to the marker's coordinates
         mapRef.current?.animateToRegion(
             {
                 latitude,
@@ -414,21 +422,18 @@ const Mapview = () => {
             500
         );
 
-        // Find the index in filteredData (the FlatList's data source)
         const index = filteredData.findIndex((p) => p.id === property.id);
         if (index !== -1) {
             try {
                 flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 });
             } catch (error) {
                 console.warn('Failed to scroll to index:', error);
-                // Fallback: Scroll to the beginning and try again
                 setTimeout(() => {
                     flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 });
                 }, 100);
             }
         } else {
             console.warn('Property not found in filteredData:', property.id);
-            // Optional: Provide user feedback or refetch data
             setError('Selected property is not in the current list. Try searching or loading more.');
         }
     };
@@ -490,24 +495,15 @@ const Mapview = () => {
             );
         });
 
-        setVisibleMarkers(markersInRegion.slice(0, 50).map(property => ({
+        setVisibleMarkers(markersInRegion.slice(0, page * markersPerPage).map(property => ({
             ...property,
             coordinates: parseCoordinates(property.maplocations)
         })));
     };
 
-    const fetchMoreData = () => {
-        if (loading || !hasMore) return;
-        setLoading(true);
-        const nextPage = page + 1;
-        fetchListingData(region, nextPage).then(() => {
-            setPage(nextPage);
-        });
-    };
-
     useEffect(() => {
         updateVisibleMarkers();
-    }, [filteredData, region]);
+    }, [filteredData, region, page]);
 
     return (
         <Pressable style={styles.container} onPress={() => setShowSuggestions(false)}>
@@ -602,26 +598,11 @@ const Mapview = () => {
                             onPress={() => handleMarkerPress(property)}
                             anchor={{ x: 0.5, y: 0.5 }}
                         >
-                            {/* <View
-                                collapsable={false}
-                                style={[styles.markerWrap]}
-                                onLayout={(event) => {
-                                    const { width, height } = event.nativeEvent.layout;
-                                    setMarkerSize({ width, height });
-                                    console.log("Marker layout size:", width, height);
-                                }}
-                            >
-                                <View style={styles.markerContainer}>
-                                    <Feather name="home" size={16} color="black" />
-                                    <Text style={styles.markerText}>{price}</Text>
-                                </View>
-                                <View style={styles.trianglePointer} />
-                            </View> */}
+                            
                         </Marker>
                     );
                 })}
             </MapView>
-
 
             {error && !loading && (
                 <View style={styles.errorContainer}>
@@ -650,14 +631,12 @@ const Mapview = () => {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 20, paddingHorizontal: 16 }}
                 style={styles.cardList}
-                initialNumToRender={8}
-                maxToRenderPerBatch={8}
-                windowSize={8}
-                onEndReached={fetchMoreData}
-                onEndReachedThreshold={0.5}
+                initialNumToRender={itemsPerPage}
+                maxToRenderPerBatch={itemsPerPage}
+                windowSize={itemsPerPage}
                 ListFooterComponent={() => hasMore && !loading ? (
-                    <TouchableOpacity style={styles.viewMoreButton} onPress={fetchMoreData}>
-                        <Text style={styles.viewMoreText}>View More</Text>
+                    <TouchableOpacity style={styles.viewMoreButton} onPress={loadMoreData}>
+                        <Text style={styles.viewMoreText}>Load More</Text>
                     </TouchableOpacity>
                 ) : null}
                 onScrollToIndexFailed={(info) => {
@@ -771,7 +750,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         flexDirection: 'row',
         alignItems: 'center',
-        marginRight: 10, // Added spacing between buttons
+        marginRight: 10,
     },
     nearbyButtonText: {
         color: '#fff',
@@ -864,11 +843,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: 'transparent',
         overflow: 'visible',
-        borderColor: 'red',
-        borderWidth: 1,
-        paddingBottom: 10,
     },
-
     markerContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -883,14 +858,12 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         maxWidth: 250,
     },
-
     markerText: {
         marginLeft: 6,
         fontSize: 14,
         fontWeight: 'bold',
         color: '#333',
     },
-
     trianglePointer: {
         width: 0,
         height: 0,
@@ -902,6 +875,4 @@ const styles = StyleSheet.create({
         borderTopColor: 'white',
         marginTop: -1,
     },
-
-
 });

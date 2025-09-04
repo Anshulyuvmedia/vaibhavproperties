@@ -33,15 +33,6 @@ const Loanleads = () => {
     const [selectedEnquiry, setSelectedEnquiry] = useState(null);
     const rbSheetRef = useRef();
 
-    useEffect(() => {
-        if (!userLoading && userType !== 'bankagent') {
-            router.replace('/mapview');
-            console.log(`Redirected from loanleads to /mapview at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} because userType is ${userType}`);
-        } else if (!userLoading) {
-            fetchUserEnquiries();
-        }
-    }, [userType, userLoading, router]);
-
     const fetchUserEnquiries = async () => {
         setLoading(true);
         try {
@@ -50,8 +41,15 @@ const Loanleads = () => {
                 console.error('User data or ID missing at', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }));
                 return;
             }
-            const response = await axios.get(`https://landsquire.in/api/fetchenquiries?id=${parsedPropertyData.id}`);
-            // console.log('response', response.data.loanenquiries);
+            const token = await AsyncStorage.getItem('userToken');
+
+            const response = await axios.get(`https://landsquire.in/api/fetchenquiries?id=${parsedPropertyData.id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
+            });
+            console.log('response', response.data.loanenquiries);
             if (response.data && Array.isArray(response.data.loanenquiries)) {
                 const parsedEnquiries = response.data.loanenquiries.map(enquiry => ({
                     ...enquiry,
@@ -70,6 +68,12 @@ const Loanleads = () => {
             setRefreshing(false);
         }
     };
+    
+    useEffect(() => {
+        fetchUserEnquiries();
+    }, []);
+
+
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -243,12 +247,12 @@ const Loanleads = () => {
         <View style={styles.container}>
             <View style={styles.header}>
                 {/* <View className='me-12'></View> */}
-                <TouchableOpacity onPress={() => router.push('/dashboard')} style={styles.backButton}>
-                    <Image source={icons.backArrow} style={styles.backIcon} />
-                </TouchableOpacity>
                 <Text style={[styles.title, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
                     {t('Loan Enquiries')}
                 </Text>
+                <TouchableOpacity onPress={() => router.push('/dashboard')} style={styles.backButton}>
+                    <Image source={icons.backArrow} style={styles.backIcon} />
+                </TouchableOpacity>
                 {/* <TouchableOpacity onPress={() => router.push('/notifications')}>
                     <Image source={icons.bell} style={styles.bellIcon} />
                 </TouchableOpacity> */}
@@ -408,7 +412,7 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         marginVertical: verticalScale(5),
     },
     backButton: {

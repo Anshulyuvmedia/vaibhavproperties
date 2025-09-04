@@ -107,6 +107,9 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
     return '₹' + num.toLocaleString('en-IN');
   };
 
+  // Fallback for property_name
+  const propertyName = item.property_name || 'Unnamed Property';
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -115,64 +118,58 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
       {/* Image Section */}
       <View className="w-[150px] h-full relative p-2">
         <Image
-          source={{ uri: `https://landsquire.in/adminAssets/images/Listings/${item.thumbnail}` }}
+          source={{
+            uri: item.thumbnail
+              ? `https://landsquire.in/adminAssets/images/Listings/${item.thumbnail}`
+              : 'https://via.placeholder.com/150', // Fallback image
+          }}
           className="w-full h-full rounded-[30px]"
           style={{ resizeMode: 'cover' }}
         />
-        {/* Heart Icon */}
-        {/* <View className="absolute top-4 left-4 bg-[#8bc83f] rounded-full p-2">
-          <Ionicons name="heart-outline" size={20} color="white" />
-        </View> */}
         {/* Category Badge */}
-        <View className="absolute bottom-4 left-4 rounded-xl px-4 py-1" style={{ backgroundColor: 'rgba(35,79,104,0.9)', backdropFilter: 'blur(8px)' }}>
+        <View
+          className="absolute bottom-4 left-4 rounded-xl px-4 py-1"
+          style={{ backgroundColor: 'rgba(35,79,104,0.9)', backdropFilter: 'blur(8px)' }}
+        >
           <Text className="text-sm font-rubik text-white">
-            {item.category}
+            {item.category || 'N/A'}
           </Text>
         </View>
       </View>
       {/* Text Content Section */}
       <View className="flex-1 p-2 justify-center items-start">
         {/* Property Name */}
-        <Text className="text-lg font-rubik-medium text-black-300 ">
-          {item.property_name.length > 17
-            ? item.property_name.slice(0, 17) + '...'
-            : item.property_name}
+        <Text className="text-lg font-rubik-medium text-black-300">
+          {propertyName.length > 17 ? propertyName.slice(0, 17) + '...' : propertyName}
         </Text>
-
-        {/* Rating */}
-        {/* <View className="flex-row items-center mt-1">
-          <Ionicons name="star" size={16} color="#FFD700" />
-          <Text className="text-sm font-rubik text-black ml-1">
-            {item.rating || '4.9'}
-          </Text>
-        </View> */}
 
         {/* Location */}
         <View className="flex-row items-center mt-1">
           <Ionicons name="location-outline" size={16} color="#234F68" />
           <Text className="text-sm font-rubik text-black ml-1">
-            {item.city}
+            {item.city || 'Unknown City'}
           </Text>
         </View>
 
         {/* Price */}
         <View className="w-[100%] flex-row items-center justify-between mt-2">
-
-          <Text className="text-base font-rubik text-black-300 ">
-            {formatINR(item.price || 290)}
+          <Text className="text-base font-rubik text-black-300">
+            {formatINR(item.price || 0)}
           </Text>
           {map && (
-            <TouchableOpacity onPress={onView} className=' py-1 px-2 bg-primary-400 rounded-lg items-center'>
+            <TouchableOpacity
+              onPress={onView}
+              className="py-1 px-2 bg-primary-400 rounded-lg items-center"
+            >
               <Ionicons name="eye-outline" size={20} color="white" />
             </TouchableOpacity>
           )}
         </View>
       </View>
-
-
     </TouchableOpacity>
   );
 };
+
 export { HorizontalCard };
 
 const styles = StyleSheet.create({

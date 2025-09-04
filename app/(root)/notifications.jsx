@@ -20,7 +20,14 @@ const Notifications = () => {
         setLoading(true);
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
-            const response = await axios.get(`https://landsquire.in/api/usernotifications/?id=${parsedUserData.id}`);
+            const token = await AsyncStorage.getItem('userToken');
+
+            const response = await axios.get(`https://landsquire.in/api/usernotifications/?id=${parsedUserData.id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
+            });
             // console.log('all response', response.data.notifications);
             if (response.data?.notifications) {
                 const apiData = response.data.notifications;

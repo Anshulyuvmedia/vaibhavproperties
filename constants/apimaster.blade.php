@@ -282,39 +282,15 @@ class ApiMasterController extends Controller
 
     public function propertylistings(Request $req)
     {
-        $token = $req->header('Authorization'); // fixed typo
-
-        if (!$token) {
-            return response()->json(
-                [
-                    'success' => false,
-                    'message' => 'Authorization token missing',
-                ],
-                401,
-            );
-        }
-
-        // Remove "Bearer " prefix if exists
-        $token = str_replace('Bearer ', '', $token);
-
-        $user = RegisterUser::where('api_token', $token)->first();
-
-        if (!$user) {
-            return response()->json(
-                [
-                    'success' => false,
-                    'message' => 'Invalid or expired token',
-                ],
-                401,
-            );
+        $user = $this->validateToken($req);
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
         }
 
         $category = $req->query('filtercategory');
         $city = $req->query('filtercity');
         $minprice = $req->query('filterminprice');
         $maxprice = $req->query('filtermaxprice');
-        $limit = $req->query('limit', 8); // default 8 per page
-        $page = $req->query('page', 1);
 
         $listings = PropertyListing::query();
 
@@ -337,13 +313,15 @@ class ApiMasterController extends Controller
         $listings = $listings
             ->where('status', 'published')
             ->orderBy('featuredstatus', 'desc')
-            ->paginate($limit, ['*'], 'page', $page);
+            ->orderBy('created_at', 'desc')
+            ->get(); // 👈 no pagination, just return all
 
         return response()->json([
             'success' => true,
             'data' => $listings,
         ]);
     }
+
 
     public function getcategories()
     {
@@ -567,18 +545,9 @@ class ApiMasterController extends Controller
 
     public function userprofile(Request $rq)
     {
-        $token = $rq->header('Authorization');
-        // \Log::info('Received Authorization Header: ' . $token); // Debug
-        if (!$token) {
-            return response()->json(['success' => false, 'message' => 'Authorization token missing'], 401);
-        }
-
-        $token = preg_match('/Bearer\s(\S+)/', $token, $matches) ? $matches[1] : $token;
-        // \Log::info('Processed Token: ' . $token); // Debug
-
-        $user = RegisterUser::where('api_token', $token)->first();
-        if (!$user) {
-            return response()->json(['success' => false, 'message' => 'Invalid or expired token'], 401);
+        $user = $this->validateToken($rq);
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
         }
 
         $userId = $rq->query('id'); // Use query parameter
@@ -639,31 +608,9 @@ class ApiMasterController extends Controller
 
     public function viewuserlistings(Request $rq)
     {
-        $token = $rq->header('Authorization'); // expecting "Bearer token_here"
-
-        if (!$token) {
-            return response()->json(
-                [
-                    'success' => false,
-                    'message' => 'Authorization token missing',
-                ],
-                401,
-            );
-        }
-
-        // Remove "Bearer " prefix if exists
-        $token = str_replace('Bearer ', '', $token);
-
-        $user = RegisterUser::where('api_token', $token)->first();
-
-        if (!$user) {
-            return response()->json(
-                [
-                    'success' => false,
-                    'message' => 'Invalid or expired token',
-                ],
-                401,
-            );
+        $user = $this->validateToken($rq);
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
         }
 
         // Now safe to fetch listings
@@ -680,54 +627,79 @@ class ApiMasterController extends Controller
 
     public function usernotifications(Request $rq)
     {
-        // Fetch notifications with selected fields for the given user ID
-        $notifications = Notification::select('data', 'notifiable_id', 'read_at', 'created_at')->where('notifiable_id', $rq->id)->orderBy('created_at', 'DESC')->get();
-        $notifycnt = Notification::where('notifiable_id', $rq->id)->count();
+        $user = $this->validateToken($rq);
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
+        }
 
-        // Collect unique property IDs
-        $propertyIds = [];
-        foreach ($notifications as $notification) {
-            $notificationData = json_decode($notification->data, true);
-            if (json_last_error() === JSON_ERROR_NONE && isset($notificationData['property_id'])) {
-                $propertyIds[] = $notificationData['property_id'];
+        if (!$rq->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User ID is required'
+            ], 400);
+        }
+
+        try {
+            // Fetch notifications
+            $notifications = Notification::select('id', 'data', 'notifiable_id', 'read_at', 'created_at')
+                ->where('notifiable_id', $rq->id)
+                ->orderBy('created_at', 'DESC')
+                ->get();
+
+            $notifycnt = $notifications->count();
+
+            // Collect property IDs
+            $propertyIds = [];
+            foreach ($notifications as $notification) {
+                $notificationData = json_decode($notification->data, true);
+                if (json_last_error() === JSON_ERROR_NONE && isset($notificationData['property_id'])) {
+                    $propertyIds[] = $notificationData['property_id'];
+                }
             }
-        }
-        $propertyIds = array_unique($propertyIds);
+            $propertyIds = array_unique($propertyIds);
 
-        // Fetch property data for all property IDs in one query
-        $properties = [];
-        if (!empty($propertyIds)) {
-            $properties = PropertyListing::select('thumbnail', 'id', 'property_name', 'bidenddate')->whereIn('id', $propertyIds)->get()->keyBy('id')->toArray();
-        }
+            // Fetch properties
+            $properties = [];
+            if (!empty($propertyIds)) {
+                $properties = PropertyListing::select('thumbnail', 'id', 'property_name', 'bidenddate')
+                    ->whereIn('id', $propertyIds)
+                    ->get()
+                    ->keyBy('id')
+                    ->toArray();
+            }
 
-        // Merge notifications with their related property data
-        $mergedNotifications = $notifications
-            ->map(function ($notification) use ($properties) {
+            // Merge notifications with properties
+            $mergedNotifications = $notifications->map(function ($notification) use ($properties) {
                 $notificationData = json_decode($notification->data, true);
                 $merged = $notification->toArray();
 
-                // Add property data if property_id exists and property is found
                 if (json_last_error() === JSON_ERROR_NONE && isset($notificationData['property_id'])) {
                     $propertyId = $notificationData['property_id'];
-                    if (isset($properties[$propertyId])) {
-                        $merged['property'] = $properties[$propertyId];
-                    } else {
-                        $merged['property'] = null; // No property found for this ID
-                    }
+                    $merged['property'] = $properties[$propertyId] ?? null;
                 } else {
-                    $merged['property'] = null; // No valid property_id in notification
+                    $merged['property'] = null;
                 }
 
                 return $merged;
-            })
-            ->toArray();
+            });
 
-        return response()->json([
-            'success' => true,
-            'notifications' => $mergedNotifications,
-            'count' => $notifycnt,
-        ]);
+            return response()->json([
+                'success' => true,
+                'notifications' => $mergedNotifications,
+                'count' => $notifycnt,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching notifications', [
+                'error' => $e->getMessage(),
+                'user_id' => $rq->id,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching notifications: ' . $e->getMessage(),
+            ], 500);
+        }
     }
+
 
     public function listingscitywise()
     {
@@ -748,31 +720,9 @@ class ApiMasterController extends Controller
 
     public function updatelisting(Request $request, $id)
     {
-        $token = $request->header('Authorization'); // ✅ fixed
-
-        if (!$token) {
-            return response()->json(
-                [
-                    'success' => false,
-                    'message' => 'Authorization token missing',
-                ],
-                401,
-            );
-        }
-
-        // Remove "Bearer " prefix
-        $token = str_replace('Bearer ', '', $token);
-
-        $user = RegisterUser::where('api_token', $token)->first();
-
-        if (!$user) {
-            return response()->json(
-                [
-                    'success' => false,
-                    'message' => 'Invalid or expired token',
-                ],
-                401,
-            );
+        $user = $this->validateToken($request);
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
         }
 
         $datareq = $request->all();
