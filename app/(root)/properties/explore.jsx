@@ -245,10 +245,10 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(10),
   },
   backButton: {
-    backgroundColor: '#E6F0FA',
+    backgroundColor: '#f4f2f7',
     borderRadius: 9999,
-    width: scale(44),
-    height: scale(44),
+    width: scale(30),
+    height: scale(30),
     justifyContent: 'center',
     alignItems: 'center',
   },

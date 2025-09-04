@@ -34,6 +34,7 @@ const Editproperty = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedStatus, setSelectedStatus] = useState("unpublished");
     const [publishRequest, setPublishRequest] = useState(0);
+    const [rejectionNote, setRejectionNote] = useState('');
     const [mainImage, setMainImage] = useState(null);
     const [amenity, setAmenity] = useState([]);
     const [amenities, setAmenities] = useState([]);
@@ -807,6 +808,7 @@ const Editproperty = () => {
                 setSelectedPropertyFor(apiData.propertyfor || '');
                 setSelectedStatus(apiData.status || '');
                 setPublishRequest(apiData.publishrequest || '');
+                setRejectionNote(apiData.updaterejectnote || '');
 
                 if (apiData?.publishrequest === '1') {
                     setIsEditable(false);
@@ -1127,6 +1129,23 @@ const Editproperty = () => {
                 </View>
             </View>
 
+            {publishRequest === '2' && (
+                <View className="bg-red-50 border border-red-600 rounded-xl p-4 flex-row items-start space-x-3">
+                    {/* Icon */}
+                    <MaterialIcons name="error-outline" size={24} color="#DC2626" />
+
+                    {/* Text Content */}
+                    <View className="flex-1">
+                        <Text className="text-red-700 font-semibold text-base mb-1">
+                            Update Request Rejected
+                        </Text>
+                        <Text className="text-red-600 text-sm leading-5">
+                            {rejectionNote || "Your update request has been rejected by admin."}
+                        </Text>
+                    </View>
+                </View>
+            )}
+
             {/* Conditional Rendering Based on isEditable */}
             {!isEditable ? (
                 <View style={styles.pendingContainer}>
@@ -1144,6 +1163,7 @@ const Editproperty = () => {
                 </View>
             ) : (
                 <View style={styles.container}>
+
                     <ProgressSteps>
                         <ProgressStep label="General"
                             nextBtnTextStyle={buttonNextTextStyle}

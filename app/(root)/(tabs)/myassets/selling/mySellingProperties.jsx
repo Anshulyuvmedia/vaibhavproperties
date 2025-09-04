@@ -35,8 +35,10 @@ const MySellingProperties = () => {
   const [bidStatus, setBidStatus] = useState(false);
   const [bidEndDate, setBidEndDate] = useState(new Date());
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const [sheetMessage, setSheetMessage] = useState({ type: '', title: '', message: '' });
   const router = useRouter();
-  const rbSheetRef = useRef();
+  const bidSheetRef = useRef();
+  const messageSheetRef = useRef();
 
   const handleCardPress = (id) => router.push(`/properties/${id}`);
   const handleEditPress = (id) => router.push(`/dashboard/editproperties/${id}`);
@@ -49,7 +51,7 @@ const MySellingProperties = () => {
       ? new Date(property.bidenddate.split('/').reverse().join('-'))
       : new Date();
     setBidEndDate(isNaN(parsedDate) ? new Date() : parsedDate);
-    rbSheetRef.current.open();
+    bidSheetRef.current.open();
   };
 
   const handleSubmitBid = async () => {
@@ -58,6 +60,7 @@ const MySellingProperties = () => {
       const response = await axios.post('https://landsquire.in/api/update-bid-status', {
         propertyid: selectedProperty.id,
         bidliveStatus: bidStatus ? 'on' : 'off',
+        bidliverequest: '1',
         bidEnddate: bidStatus ? bidEndDate.toISOString().split('T')[0] : null,
       });
       if (response.data.success) {
@@ -66,26 +69,33 @@ const MySellingProperties = () => {
             item.id === selectedProperty.id
               ? {
                 ...item,
-                bidstatus: bidStatus ? 'on' : 'off',
-                bidenddate: bidStatus ? formatDate(bidEndDate.toISOString()) : '',
+                bidliverequest: '1',
+                rejectionReason: null, // Clear rejection reason on successful submission
+                bidenddate: bidStatus ? formatDate(bidEndDate.toISOString()) : item.bidenddate,
               }
               : item
           )
         );
-        rbSheetRef.current.close();
+
+        bidSheetRef.current.close();
         setSheetMessage({
           type: 'success',
-          title: t('bidUpdatedSuccess'),
-          message: t('bidUpdatedSuccessMessage'),
+          title: 'Request Sent',
+          message: 'Request sent. Awaiting admin approval.',
         });
-        rbSheetRef.current.open();
+        setTimeout(() => {
+          messageSheetRef.current.open();
+        }, 300);
       } else {
         setSheetMessage({
           type: 'error',
           title: t('bidUpdateFailed'),
           message: response.data.error || t('unknownError'),
         });
-        rbSheetRef.current.open();
+        bidSheetRef.current.close();
+        setTimeout(() => {
+          messageSheetRef.current.open();
+        }, 300);
       }
     } catch (error) {
       console.error('Error updating bid:', error);
@@ -94,7 +104,10 @@ const MySellingProperties = () => {
         title: t('bidUpdateFailed'),
         message: error.message || t('networkError'),
       });
-      rbSheetRef.current.open();
+      bidSheetRef.current.close();
+      setTimeout(() => {
+        messageSheetRef.current.open();
+      }, 300);
     } finally {
       setLoading(false);
     }
@@ -121,7 +134,7 @@ const MySellingProperties = () => {
           title: t('error'),
           message: t('userDataMissing'),
         });
-        rbSheetRef.current.open();
+        messageSheetRef.current.open();
         return;
       }
       const token = await AsyncStorage.getItem('userToken');
@@ -150,6 +163,8 @@ const MySellingProperties = () => {
                 ? `https://landsquire.in/adminAssets/images/Listings/${item.thumbnail}`
                 : 'https://landsquire.in/adminAssets/images/default-thumbnail.jpg',
             city: item.city,
+            bidliverequest: item.bidliverequest || '0', // Add bidliverequest
+            rejectionReason: item.bidrejectnote || null, // Add rejection reason (adjust field name based on API)
           }));
         setUserPropertyData(formattedData);
       } else {
@@ -159,7 +174,7 @@ const MySellingProperties = () => {
           title: t('error'),
           message: t('unexpectedResponse'),
         });
-        rbSheetRef.current.open();
+        messageSheetRef.current.open();
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -168,7 +183,7 @@ const MySellingProperties = () => {
         title: t('error'),
         message: t('fetchError'),
       });
-      rbSheetRef.current.open();
+      messageSheetRef.current.open();
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -181,18 +196,14 @@ const MySellingProperties = () => {
 
   const onRefresh = async () => {
     const now = Date.now();
-    // Prevent refreshing too frequently (minimum 2 seconds between refreshes)
     if (now - lastRefreshTime < 2000) return;
 
     setRefreshing(true);
     setLastRefreshTime(now);
 
-    // Add a minimum refresh duration for better UX
     await new Promise(resolve => setTimeout(resolve, 1000));
     await fetchUserData();
   };
-
-  const [sheetMessage, setSheetMessage] = useState({ type: '', title: '', message: '' });
 
   return (
     <View style={{ flex: 1 }}>
@@ -220,7 +231,7 @@ const MySellingProperties = () => {
 
         {/* Message RBSheet */}
         <RBSheet
-          ref={rbSheetRef}
+          ref={messageSheetRef}
           closeOnDragDown
           closeOnPressMask
           customStyles={{
@@ -248,7 +259,7 @@ const MySellingProperties = () => {
             </Text>
             <TouchableOpacity
               style={[styles.sheetButton, { backgroundColor: sheetMessage.type === 'success' ? '#8BC83F' : '#FF4444' }]}
-              onPress={() => rbSheetRef.current.close()}
+              onPress={() => messageSheetRef.current.close()}
             >
               <Text style={[styles.sheetButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                 {t('ok')}
@@ -289,7 +300,6 @@ const MySellingProperties = () => {
                   onPress={() => handleCardPress(item.id)}
                   style={styles.card}
                 >
-                  {/* Image Section */}
                   <View style={styles.imageContainer}>
                     <Image
                       source={{ uri: item.thumbnail || 'https://landsquire.in/adminAssets/images/default-thumbnail.jpg' }}
@@ -301,8 +311,6 @@ const MySellingProperties = () => {
                       </Text>
                     </View>
                   </View>
-
-                  {/* Text Content Section */}
                   <View style={styles.textContent}>
                     <Text style={[styles.propertyName, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
                       {item.property_name.length > 20
@@ -368,7 +376,7 @@ const MySellingProperties = () => {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={onRefresh}
-                  colors={['#8BC83F', '#234F68']} // Multiple colors for a more dynamic effect
+                  colors={['#8BC83F', '#234F68']}
                   tintColor="#8BC83F"
                   title={t('refreshing')}
                   titleColor="#234F68"
@@ -382,9 +390,9 @@ const MySellingProperties = () => {
 
         {/* Bid Edit RBSheet */}
         <RBSheet
-          ref={rbSheetRef}
+          ref={bidSheetRef}
           closeOnDragDown
-          height={verticalScale(300)}
+          height={verticalScale(450)}
           openDuration={250}
           customStyles={{
             container: {
@@ -402,46 +410,110 @@ const MySellingProperties = () => {
             <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
               {t('bidrequest')}
             </Text>
-            <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-              After approval from admin bidding will be on.
-            </Text>
-            <View style={styles.switchContainer}>
-              <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                {t('bidStatus')}
-              </Text>
-              <Switch
-                value={bidStatus}
-                onValueChange={(value) => setBidStatus(value)}
-                trackColor={{ false: '#DC3545', true: '#28A745' }}
-                thumbColor={bidStatus ? '#FFFFFF' : '#FFFFFF'}
-              />
-            </View>
-            {bidStatus && (
-              <View style={styles.datePickerContainer}>
-                <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                  {t('bidEndDate')}
+            {selectedProperty?.bidliverequest === '1' ? (
+              <View>
+                <Text style={[styles.warninglabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  Bid Request Pending
                 </Text>
-                <DatePicker
-                  date={bidEndDate}
-                  onDateChange={setBidEndDate}
-                  mode="date"
-                  minimumDate={new Date()}
-                  textColor="#1F2937"
-                  style={styles.datePicker}
-                  theme="light"
-                  androidVariant="nativeAndroid"
-                />
+                <Text style={[styles.sheetMessage, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  Your bid request is awaiting admin approval.
+                </Text>
+              </View>
+            ) : selectedProperty?.bidliverequest === '2' && selectedProperty?.rejectionReason ? (
+              <View>
+                <View style={{padding: 10, backgroundColor: '#fecaca', borderColor: '#dc2626', borderWidth: 2, borderRadius: 10, marginBottom: 5,}}>
+                  <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular', color: 'red', textAlign: 'center', fontWeight: 'bold', }]}>
+                    Bid Request Rejected
+                  </Text>
+                  <Text style={[styles.sheetMessage, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    Reason: {selectedProperty.rejectionReason}
+                  </Text>
+                </View>
+                <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  You can resubmit your bid request below.
+                </Text>
+                <View style={styles.switchContainer}>
+                  <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {t('bidStatus')}
+                  </Text>
+                  <Switch
+                    value={bidStatus}
+                    onValueChange={(value) => setBidStatus(value)}
+                    trackColor={{ false: '#DC3545', true: '#28A745' }}
+                    thumbColor={bidStatus ? '#FFFFFF' : '#FFFFFF'}
+                  />
+                </View>
+                {bidStatus && (
+                  <View style={styles.datePickerContainer}>
+                    <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                      {t('bidEndDate')}
+                    </Text>
+                    <DatePicker
+                      date={bidEndDate}
+                      onDateChange={setBidEndDate}
+                      mode="date"
+                      minimumDate={new Date()}
+                      textColor="#1F2937"
+                      style={styles.datePicker}
+                      theme="light"
+                      androidVariant="nativeAndroid"
+                    />
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                  onPress={handleSubmitBid}
+                  disabled={loading}
+                >
+                  <Text style={[styles.submitButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {loading ? t('submitting') : t('Resubmit Request')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View>
+                <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                  After approval from admin bidding will be on.
+                </Text>
+                <View style={styles.switchContainer}>
+                  <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {t('bidStatus')}
+                  </Text>
+                  <Switch
+                    value={bidStatus}
+                    onValueChange={(value) => setBidStatus(value)}
+                    trackColor={{ false: '#DC3545', true: '#28A745' }}
+                    thumbColor={bidStatus ? '#FFFFFF' : '#FFFFFF'}
+                  />
+                </View>
+                {bidStatus && (
+                  <View style={styles.datePickerContainer}>
+                    <Text style={[styles.switchLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                      {t('bidEndDate')}
+                    </Text>
+                    <DatePicker
+                      date={bidEndDate}
+                      onDateChange={setBidEndDate}
+                      mode="date"
+                      minimumDate={new Date()}
+                      textColor="#1F2937"
+                      style={styles.datePicker}
+                      theme="light"
+                      androidVariant="nativeAndroid"
+                    />
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                  onPress={handleSubmitBid}
+                  disabled={loading}
+                >
+                  <Text style={[styles.submitButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {loading ? 'Submitting' : 'Submit Request'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
-            <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handleSubmitBid}
-              disabled={loading}
-            >
-              <Text style={[styles.submitButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                {loading ? t('submitting') : t('submit')}
-              </Text>
-            </TouchableOpacity>
           </View>
         </RBSheet>
       </View>
@@ -657,8 +729,15 @@ const styles = StyleSheet.create({
   switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: `center`,
     marginBottom: verticalScale(16),
+  },
+  warninglabel: {
+    fontSize: moderateScale(14),
+    color: 'orange',
+    fontSize: moderateScale(18),
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   switchLabel: {
     fontSize: moderateScale(14),
@@ -697,7 +776,7 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(14),
     color: '#333',
     textAlign: 'center',
-    marginBottom: verticalScale(20),
+    // marginBottom: verticalScale(20),
   },
   sheetButton: {
     borderRadius: moderateScale(10),

@@ -1191,19 +1191,20 @@ class ApiMasterController extends Controller
         try {
             $property = PropertyListing::findOrFail($request->propertyid);
             $property->update([
-                'bidstatus' => $request->bidliveStatus,
+                // 'bidstatus' => $request->bidliveStatus,
+                'bidliverequest' => $request->bidliverequest,
                 'bidenddate' => $request->bidEnddate ?? $property->bidenddate,
             ]);
 
-            if ($request->bidliveStatus === 'on') {
-                $recipients = RegisterUser::whereIn('user_type', ['user', 'broker'])->get();
-                foreach ($recipients as $user) {
-                    $user->notify(new BidLiveNotification($property));
-                }
-                Log::info('Notifications are sent!');
-            }
+            // if ($request->bidliveStatus === 'on') {
+            //     $recipients = RegisterUser::whereIn('user_type', ['user', 'broker'])->get();
+            //     foreach ($recipients as $user) {
+            //         $user->notify(new BidLiveNotification($property));
+            //     }
+            //     Log::info('Notifications are sent!');
+            // }
 
-            return response()->json(['success' => true, 'message' => 'Bid is Live now'], 200);
+            return response()->json(['success' => true, 'message' => 'Bid request sent. Awaiting admin approval.'], 200);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'error' => 'Failed to update bid status: ' . $e->getMessage()], 500);
         }
