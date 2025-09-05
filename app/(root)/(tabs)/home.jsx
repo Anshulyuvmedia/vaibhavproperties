@@ -1,5 +1,5 @@
 import { View, Text, Image, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
 import Search from '@/components/Search';
@@ -8,26 +8,24 @@ import Filters from '@/components/Filters';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+import { scale } from 'react-native-size-matters';
 import HomeCarousel from '@/components/HomeCarousel';
 import LocationScroll from '@/components/LocationScroll';
 import BrokerScroll from '@/components/BrokerScroll';
-import BankScroll from '@/components/BankScroll';
 import { useTranslation } from 'react-i18next';
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
 
 const PADDING_HORIZONTAL = scale(15);
 const GAP = scale(10);
-const LIMIT = 10; // Adjust based on API
+const LIMIT = 10; // Number of items per page
 
-const Index = () => {
+const Home = () => {
     const { t, i18n } = useTranslation();
-    const handleCardPress = (id) => router.push(`/properties/${id}`);
+    const router = useRouter();
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const router = useRouter();
     const [image, setImage] = useState(images.avatar);
     const [listingData, setListingData] = useState([]);
     const [rentListingData, setRentListingData] = useState([]);
@@ -36,12 +34,21 @@ const Index = () => {
     const [hasMore, setHasMore] = useState(true);
     const [error, setError] = useState(null);
 
+    const handleCardPress = (id) => router.push(`/properties/${id}`);
+
     const fetchUserData = async () => {
         setLoading(true);
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
             const token = await AsyncStorage.getItem('userToken');
+            if (!token) {
+                console.error('No token found, redirecting to sign-in');
+                await AsyncStorage.removeItem('userData');
+                router.push('/signin');
+                return;
+            }
             if (!parsedUserData || !parsedUserData.id) {
+                console.error('Invalid user data, redirecting to sign-in');
                 await AsyncStorage.removeItem('userData');
                 router.push('/signin');
                 return;
@@ -57,21 +64,24 @@ const Index = () => {
             if (response.data && response.data.data) {
                 const apiData = response.data.data;
                 setUserData(apiData);
-                if (apiData.profile) {
-                    setImage(
-                        apiData.profile.startsWith('http')
-                            ? apiData.profile
-                            : `https://landsquire.in/adminAssets/images/Users/${apiData.profile}`
-                    );
-                } else {
-                    setImage(images.avatar);
-                }
+                setImage(
+                    apiData.profile && apiData.profile.startsWith('http')
+                        ? apiData.profile
+                        : apiData.profile
+                            ? `https://landsquire.in/adminAssets/images/Users/${apiData.profile}`
+                            : images.avatar
+                );
             } else {
                 console.error('Unexpected API response format:', response.data);
                 setImage(images.avatar);
             }
         } catch (error) {
-            console.error('Error fetching user data:', error);
+            console.error('Error fetching user data:', error.response?.data, error.response?.status);
+            if (error.response?.status === 401) {
+                await AsyncStorage.removeItem('userToken');
+                await AsyncStorage.removeItem('userData');
+                router.push('/signin');
+            }
             setImage(images.avatar);
         } finally {
             setLoading(false);
@@ -79,37 +89,44 @@ const Index = () => {
         }
     };
 
-    const fetchListingData = async (page = 1) => {
-        if (!hasMore && page !== 1) return;
+    const fetchListingData = useCallback(async (pageToFetch) => {
+        if (!hasMore && pageToFetch !== 1) return;
+        if (loading) return; // Prevent multiple simultaneous fetches
         setLoading(true);
         setError(null);
         try {
             const token = await AsyncStorage.getItem('userToken');
-            const response = await axios.get(`https://landsquire.in/api/property-listings?page=${page}`, {
+            if (!token) {
+                console.error('No token found, redirecting to sign-in');
+                router.push('/signin');
+                return;
+            }
+
+            const response = await axios.get(`https://landsquire.in/api/property-listings?page=${pageToFetch}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'User-Agent': 'LandSquireApp/1.0 (React Native)',
                 },
             });
 
-            // console.log('Raw API Response:', JSON.stringify(response.data, null, 2));
-
             const listings = response.data?.data;
 
             if (Array.isArray(listings)) {
                 const idMap = new Map();
                 const normalized = listings.map((item, index) => {
-                    let uniqueId = item.id && typeof item.id === 'string' && item.id.trim() !== ''
-                        ? item.id
-                        : uuidv4(); // Use UUID if id is missing or invalid
+                    // Use the API-provided id if it exists and is a number; otherwise, fallback to UUID
+                    let uniqueId = item.id && Number.isInteger(Number(item.id))
+                        ? String(item.id) // Convert to string for consistency
+                        : uuidv4();
                     if (idMap.has(uniqueId)) {
-                        uniqueId = `${uniqueId}_${index}_${page}`; // Append index and page for uniqueness
+                        uniqueId = `${uniqueId}_${index}_${pageToFetch}`;
                         console.warn(`Duplicate ID detected, assigning new ID: ${uniqueId}`);
                     }
                     idMap.set(uniqueId, true);
                     return {
                         ...item,
-                        id: uniqueId,
+                        id: uniqueId, // Store as string for React key consistency
+                        originalId: item.id, // Preserve original integer ID for API calls
                         propertyfor: item.propertyfor ? item.propertyfor.toString().toLowerCase() : null,
                         property_name: item.property_name || 'Unnamed Property',
                         thumbnail: item.thumbnail || null,
@@ -118,9 +135,6 @@ const Index = () => {
                         price: item.price || 0,
                     };
                 });
-
-                // Log normalized data to inspect IDs
-                console.log('Normalized Listings:', JSON.stringify(normalized.map(item => ({ id: item.id, property_name: item.property_name })), null, 2));
 
                 const sellListings = normalized.filter(
                     item => item.propertyfor === null || item.propertyfor === 'sell'
@@ -132,31 +146,42 @@ const Index = () => {
                 );
                 const rentListings = normalized.filter(item => item.propertyfor === 'rent');
 
-                // Log filtered featured data
-                console.log('Featured Listings:', JSON.stringify(featuredlist.map(item => ({ id: item.id, property_name: item.property_name })), null, 2));
-
-                setListingData(prev => (page === 1 ? sellListings : [...new Set([...prev, ...sellListings].map(item => item.id))].map(id => [...prev, ...sellListings].find(item => item.id === id))));
-                setRentListingData(prev => (page === 1 ? rentListings : [...new Set([...prev, ...rentListings].map(item => item.id))].map(id => [...prev, ...rentListings].find(item => item.id === id))));
-                setFeaturedData(prev => (page === 1 ? featuredlist : [...new Set([...prev, ...featuredlist].map(item => item.id))].map(id => [...prev, ...featuredlist].find(item => item.id === id))));
+                setListingData(prev => {
+                    const newData = pageToFetch === 1 ? sellListings : [...prev, ...sellListings];
+                    return [...new Set(newData.map(item => item.id))].map(id => newData.find(item => item.id === id));
+                });
+                setRentListingData(prev => {
+                    const newData = pageToFetch === 1 ? rentListings : [...prev, ...rentListings];
+                    return [...new Set(newData.map(item => item.id))].map(id => newData.find(item => item.id === id));
+                });
+                setFeaturedData(prev => {
+                    const newData = pageToFetch === 1 ? featuredlist : [...prev, ...featuredlist];
+                    return [...new Set(newData.map(item => item.id))].map(id => newData.find(item => item.id === id));
+                });
                 setHasMore(listings.length === LIMIT);
             } else {
                 console.error('Unexpected API response format:', response.data);
-                setListingData(prev => (page === 1 ? [] : prev));
-                setRentListingData(prev => (page === 1 ? [] : prev));
-                setFeaturedData(prev => (page === 1 ? [] : prev));
+                setListingData(prev => (pageToFetch === 1 ? [] : prev));
+                setRentListingData(prev => (pageToFetch === 1 ? [] : prev));
+                setFeaturedData(prev => (pageToFetch === 1 ? [] : prev));
                 setHasMore(false);
             }
         } catch (error) {
-            console.error('Error fetching listing data:', error);
-            setError('Failed to load more properties. Please try again.');
+            console.error('Error fetching listing data:', error.response?.data, error.response?.status);
+            if (error.response?.status === 401) {
+                await AsyncStorage.removeItem('userToken');
+                await AsyncStorage.removeItem('userData');
+                router.push('/signin');
+            }
+            setError(t('error.apiFailed'));
             setHasMore(false);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [hasMore, loading, router, t]);
 
-    const onRefresh = () => {
+    const onRefresh = useCallback(() => {
         setRefreshing(true);
         setPage(1);
         setListingData([]);
@@ -165,12 +190,33 @@ const Index = () => {
         setHasMore(true);
         fetchUserData();
         fetchListingData(1);
+    }, []);
+
+    const debounce = (func, wait) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), wait);
+        };
     };
+
+    const loadMore = useCallback(
+        debounce(() => {
+            if (hasMore && !loading) {
+                setPage(prev => {
+                    const nextPage = prev + 1;
+                    fetchListingData(nextPage);
+                    return nextPage;
+                });
+            }
+        }, 300),
+        [hasMore, loading, fetchListingData]
+    );
 
     useEffect(() => {
         fetchUserData();
-        fetchListingData(page);
-    }, [page]);
+        fetchListingData(1);
+    }, []);
 
     return (
         <View className="flex-1 bg-[#fafafa]">
@@ -182,16 +228,27 @@ const Index = () => {
                 contentContainerClassName="pb-[100px] px-[15px]"
                 columnWrapperClassName="flex-row gap-[10px]"
                 showsVerticalScrollIndicator={false}
-                onEndReached={() => {
-                    if (hasMore && !loading) {
-                        setPage(prev => prev + 1);
-                    }
-                }}
+                onEndReached={loadMore}
                 onEndReachedThreshold={0.5}
                 ListFooterComponent={
                     <>
                         {loading && <ActivityIndicator size="large" color="#4A90E2" />}
-                        {error && <Text className="text-red-500 text-center">{error}</Text>}
+                        {error && (
+                            <View className="flex items-center my-4">
+                                <Text className="text-red-500 text-center">{error}</Text>
+                                <TouchableOpacity
+                                    onPress={() => fetchListingData(page)}
+                                    className="mt-2 bg-primary-400 px-4 py-2 rounded-lg"
+                                >
+                                    <Text className="text-white">Try Again</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        {!hasMore && listingData.length > 0 && (
+                            <Text className="text-center text-gray-500 my-4">
+                                - You have seen all the properties -
+                            </Text>
+                        )}
                     </>
                 }
                 ListHeaderComponent={
@@ -242,14 +299,12 @@ const Index = () => {
                         </View>
 
                         <View className="my-4 flex-row justify-center space-x-4">
-                            {/* ✅ Property Leads for User / Broker */}
                             {["user", "broker"].includes(userData?.user_type?.toLowerCase()) && (
                                 <TouchableOpacity
                                     onPress={() => router.push("/myassets/assetScreen")}
                                     className="bg-primary-400 flex-row justify-between px-4 py-4 rounded-2xl shadow-md flex-1 items-center"
                                     activeOpacity={0.8}
                                 >
-                                    {/* Left side with icon + text */}
                                     <View className="flex-row items-center flex-shrink">
                                         <Ionicons name="home-outline" size={30} color="white" />
                                         <View className="ms-3">
@@ -261,13 +316,9 @@ const Index = () => {
                                             </Text>
                                         </View>
                                     </View>
-
-                                    {/* Right side: View more icon */}
                                     <Ionicons name="chevron-forward" size={22} color="white" />
                                 </TouchableOpacity>
                             )}
-
-                            {/* ✅ Loan Enquiries for Bank Agent */}
                             {userData?.user_type?.toLowerCase() === "bankagent" && (
                                 <TouchableOpacity
                                     onPress={() => router.push("/dashboard/loanleads")}
@@ -285,7 +336,6 @@ const Index = () => {
                                             </Text>
                                         </View>
                                     </View>
-
                                     <Ionicons name="chevron-forward" size={22} color="white" />
                                 </TouchableOpacity>
                             )}
@@ -307,7 +357,6 @@ const Index = () => {
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
-
                                 <FlatList
                                     data={featuredData}
                                     renderItem={({ item }) => <HorizontalCard item={item} onPress={() => handleCardPress(item.id)} />}
@@ -362,7 +411,6 @@ const Index = () => {
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
-
                                 <FlatList
                                     data={rentListingData}
                                     renderItem={({ item }) => <HorizontalCard item={item} onPress={() => handleCardPress(item.id)} />}
@@ -405,4 +453,4 @@ const Index = () => {
     );
 };
 
-export default Index;
+export default Home;

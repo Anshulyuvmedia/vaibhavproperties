@@ -1,6 +1,6 @@
 // app/index.js
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, View, Text } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 
@@ -42,7 +42,8 @@ export default function Index() {
     if (loading) {
         return (
             <View className="flex-1 justify-center items-center">
-                <ActivityIndicator size="large" color="#000" />
+                <ActivityIndicator size="large" color="#234F68" />
+                <Text className="mt-3">Assets Loading...</Text>
             </View>
         );
     }

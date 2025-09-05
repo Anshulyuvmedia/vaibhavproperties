@@ -1,5 +1,5 @@
-import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator, ScrollView } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View, Image, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -8,53 +8,100 @@ import icons from '@/constants/icons';
 import RBSheet from 'react-native-raw-bottom-sheet';
 import { useTranslation } from 'react-i18next';
 
+const LIMIT = 10; // Number of notifications per page
+
 const Notifications = () => {
     const { t, i18n } = useTranslation();
     const [notificationData, setNotificationData] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [readStatus, setReadStatus] = useState({});
     const [filter, setFilter] = useState(t('all'));
     const [selectedNotification, setSelectedNotification] = useState(null);
+    const [error, setError] = useState(null);
 
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async (pageToFetch = 1) => {
+        if (!hasMore && pageToFetch !== 1) return;
+        if (loading) return;
         setLoading(true);
+        setError(null);
         try {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem('userData'));
             const token = await AsyncStorage.getItem('userToken');
+            if (!token || !parsedUserData?.id) {
+                console.error('No token or user ID, redirecting to sign-in');
+                await AsyncStorage.removeItem('userData');
+                router.push('/signin');
+                return;
+            }
 
-            const response = await axios.get(`https://landsquire.in/api/usernotifications/?id=${parsedUserData.id}`, {
+            const response = await axios.get(`https://landsquire.in/api/usernotifications/?id=${parsedUserData.id}&page=${pageToFetch}&limit=${LIMIT}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'User-Agent': 'LandSquireApp/1.0 (React Native)',
                 },
             });
-            // console.log('all response', response.data.notifications);
+
             if (response.data?.notifications) {
                 const apiData = response.data.notifications;
-                setNotificationData(apiData);
+                setNotificationData(prev => {
+                    const newData = pageToFetch === 1 ? apiData : [...prev, ...apiData];
+                    return [...new Set(newData.map(item => item.id))].map(id => newData.find(item => item.id === id));
+                });
+                setHasMore(apiData.length === LIMIT);
+
                 const storedStatus = await AsyncStorage.getItem('readStatus');
-                if (storedStatus) {
-                    setReadStatus(JSON.parse(storedStatus));
-                } else {
-                    const initialStatus = {};
-                    apiData.forEach((item, index) => {
-                        initialStatus[item.id || index] = item.read_at !== null;
-                    });
-                    setReadStatus(initialStatus);
-                }
+                const initialStatus = storedStatus ? JSON.parse(storedStatus) : {};
+                apiData.forEach((item, index) => {
+                    if (!(item.id in initialStatus)) {
+                        initialStatus[item.id] = item.read_at !== null;
+                    }
+                });
+                setReadStatus(initialStatus);
+                await AsyncStorage.setItem('readStatus', JSON.stringify(initialStatus));
             } else {
                 console.error('Unexpected API response format:', response.data);
+                setHasMore(false);
             }
         } catch (error) {
-            console.error('Error fetching notifications:', error);
+            console.error('Error fetching notifications:', error.response?.data, error.response?.status);
+            if (error.response?.status === 401) {
+                await AsyncStorage.removeItem('userToken');
+                await AsyncStorage.removeItem('userData');
+                router.push('/signin');
+            }
+            setError(t('error.apiFailed'));
+            setHasMore(false);
         } finally {
             setLoading(false);
         }
-    };
+    }, [hasMore, loading, t]);
 
     useEffect(() => {
-        fetchNotifications();
+        fetchNotifications(1);
     }, []);
+
+    const debounce = (func, wait) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), wait);
+        };
+    };
+
+    const loadMore = useCallback(
+        debounce(() => {
+            if (hasMore && !loading) {
+                setPage(prev => {
+                    const nextPage = prev + 1;
+                    fetchNotifications(nextPage);
+                    return nextPage;
+                });
+            }
+        }, 300),
+        [hasMore, loading, fetchNotifications]
+    );
 
     const toggleReadStatus = async (id) => {
         const updatedStatus = { ...readStatus, [id]: !readStatus[id] };
@@ -64,17 +111,16 @@ const Notifications = () => {
 
     const markAllAsRead = async () => {
         const updatedStatus = {};
-        notificationData.forEach((item, index) => {
-            updatedStatus[item.id || index] = true;
+        notificationData.forEach(item => {
+            updatedStatus[item.id] = true;
         });
         setReadStatus(updatedStatus);
         await AsyncStorage.setItem('readStatus', JSON.stringify(updatedStatus));
     };
 
-    const handleOpenSheet = async (item, index) => {
-        const key = item.id || index;
-        if (!readStatus[key]) {
-            const updatedStatus = { ...readStatus, [key]: true };
+    const handleOpenSheet = async (item) => {
+        if (!readStatus[item.id]) {
+            const updatedStatus = { ...readStatus, [item.id]: true };
             setReadStatus(updatedStatus);
             await AsyncStorage.setItem('readStatus', JSON.stringify(updatedStatus));
         }
@@ -82,49 +128,54 @@ const Notifications = () => {
         refRBSheet.current.open();
     };
 
-    const handleCardPress = (id) => router.push(`/properties/${id}`);
+    const handleCardPress = (id) => {
+        refRBSheet.current.close();
+        router.push(`/properties/${id}`);
+    };
 
-    const filteredNotifications = notificationData.filter((item, index) => {
-        const key = item.id || index;
+    const filteredNotifications = notificationData.filter(item => {
         if (filter === t('all')) return true;
-        return readStatus[key] === (filter === t('read'));
+        return readStatus[item.id] === (filter === t('read'));
     });
 
     const groupByDate = (data) => {
         const today = new Date().toLocaleDateString();
-        return {
-            today: data.filter(item => new Date(item.created_at).toLocaleDateString() === today),
-            older: data.filter(item => new Date(item.created_at).toLocaleDateString() !== today),
-        };
+        return [
+            { title: t('today'), data: data.filter(item => new Date(item.created_at).toLocaleDateString() === today) },
+            { title: t('olderNotifications'), data: data.filter(item => new Date(item.created_at).toLocaleDateString() !== today) },
+        ];
     };
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
         const day = date.getDate().toString().padStart(2, '0');
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear().toString().slice(-2); // get last 2 digits
+        const year = date.getFullYear().toString().slice(-2);
         return `${day}/${month}/${year}`;
     };
 
-
-    const { today, older } = groupByDate(filteredNotifications);
-
-    const unreadCount = notificationData.filter((item, index) => !readStatus[item.id || index]).length;
+    const unreadCount = notificationData.filter(item => !readStatus[item.id]).length;
     const readCount = notificationData.length - unreadCount;
 
-    const renderNotification = ({ item, index }) => {
+    const onRefresh = useCallback(() => {
+        setPage(1);
+        setNotificationData([]);
+        setHasMore(true);
+        fetchNotifications(1);
+    }, [fetchNotifications])
+
+    const renderNotification = ({ item }) => {
         const notificationData = JSON.parse(item.data);
-        const key = item.id || index;
-        const imageUrl = item.property && item.property.thumbnail
+        const imageUrl = item.property?.thumbnail
             ? `https://landsquire.in/adminAssets/images/Listings/${item.property.thumbnail}`
             : 'https://via.placeholder.com/40';
-        const isRead = readStatus[key] || false;
+        const isRead = readStatus[item.id] || false;
         const previewText = notificationData.message.length > 50
             ? `${notificationData.message.substring(0, 50)}...`
             : notificationData.message;
 
         return (
-            <TouchableOpacity onPress={() => handleOpenSheet(item, index)}>
+            <TouchableOpacity onPress={() => handleOpenSheet(item)}>
                 <View style={[styles.card, !isRead && styles.unreadCard]}>
                     <Image source={{ uri: imageUrl }} style={styles.profileImage} />
                     <View style={styles.details}>
@@ -132,7 +183,7 @@ const Notifications = () => {
                             <Text style={[styles.name, !isRead && styles.unreadText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
                                 {notificationData.title}
                             </Text>
-                            <TouchableOpacity onPress={() => toggleReadStatus(key)}>
+                            <TouchableOpacity onPress={() => toggleReadStatus(item.id)}>
                                 <View style={[styles.statusDot, isRead ? styles.readDot : styles.unreadDot]} />
                             </TouchableOpacity>
                         </View>
@@ -148,7 +199,15 @@ const Notifications = () => {
         );
     };
 
-    const refRBSheet = React.useRef();
+    const renderSectionHeader = ({ section: { title, data } }) => (
+        data.length > 0 && (
+            <Text style={[styles.sectionTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                {title}
+            </Text>
+        )
+    );
+
+    const refRBSheet = useRef();
 
     return (
         <View style={styles.container}>
@@ -184,7 +243,7 @@ const Notifications = () => {
                 })}
             </View>
 
-            {loading ? (
+            {loading && page === 1 ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#234F68" />
                 </View>
@@ -199,34 +258,49 @@ const Notifications = () => {
                     </Text>
                 </View>
             ) : (
-                <>
-                    {today.length > 0 && (
-                        <View>
-                            <Text style={[styles.sectionTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
-                                {t('today')}
-                            </Text>
-                            <FlatList
-                                data={today}
-                                keyExtractor={(item, index) => (item.id || index).toString()}
-                                renderItem={renderNotification}
-                                showsVerticalScrollIndicator={false}
-                            />
-                        </View>
+                <FlatList
+                    data={groupByDate(filteredNotifications)}
+                    keyExtractor={(item) => item.title}
+                    renderItem={({ item }) => (
+                        <FlatList
+                            data={item.data}
+                            keyExtractor={(notification) => notification.id.toString()}
+                            renderItem={renderNotification}
+                            showsVerticalScrollIndicator={false}
+                        />
                     )}
-                    {older.length > 0 && (
-                        <View style={styles.olderSection}>
-                            <Text style={[styles.sectionTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
-                                {t('olderNotifications')}
-                            </Text>
-                            <FlatList
-                                data={older}
-                                keyExtractor={(item, index) => (item.id || index).toString()}
-                                renderItem={renderNotification}
-                                showsVerticalScrollIndicator={false}
-                            />
-                        </View>
-                    )}
-                </>
+                    renderSectionHeader={renderSectionHeader}
+                    showsVerticalScrollIndicator={false}
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.5}
+                    ListFooterComponent={
+                        <>
+                            {loading && page > 1 && <ActivityIndicator size="large" color="#234F68" />}
+                            {error && (
+                                <View style={styles.errorContainer}>
+                                    <Text style={styles.errorText}>{error}</Text>
+                                    <TouchableOpacity
+                                        style={styles.retryButton}
+                                        onPress={() => fetchNotifications(page)}
+                                    >
+                                        <Text style={styles.retryButtonText}>{t('retry')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                            {!hasMore && notificationData.length > 0 && (
+                                <Text style={styles.noMoreText}>You have seen all the notifications</Text>
+                            )}
+                        </>
+                    }
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={loading && page === 1}
+                            onRefresh={onRefresh}
+                            colors={['#234F68']}
+                            tintColor="#234F68"
+                        />
+                    }
+                />
             )}
 
             <RBSheet
@@ -245,17 +319,17 @@ const Notifications = () => {
                 }}
             >
                 {selectedNotification && (
-                    <>
-                        <View className='flex-row'>
+                    <View style={styles.sheetContent}>
+                        <View style={styles.sheetHeader}>
                             <Image
                                 source={{
-                                    uri: selectedNotification.property && selectedNotification.property.thumbnail
+                                    uri: selectedNotification.property?.thumbnail
                                         ? `https://landsquire.in/adminAssets/images/Listings/${selectedNotification.property.thumbnail}`
                                         : 'https://via.placeholder.com/40'
                                 }}
                                 style={styles.profileImage}
                             />
-                            <View >
+                            <View>
                                 <Text style={[styles.sheetTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
                                     {JSON.parse(selectedNotification.data).title}
                                 </Text>
@@ -264,8 +338,7 @@ const Notifications = () => {
                                 </Text>
                             </View>
                         </View>
-                        <ScrollView className='mt-3'>
-
+                        <ScrollView style={styles.sheetScroll}>
                             {selectedNotification.property && (
                                 <>
                                     <View style={styles.highlightContainer}>
@@ -275,11 +348,7 @@ const Notifications = () => {
                                     </View>
                                     {selectedNotification.property.bidenddate && (
                                         <View style={styles.highlightContainer}>
-
-                                            <Text style={[
-                                                styles.highlightText,
-                                                { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }
-                                            ]}>
+                                            <Text style={[styles.highlightText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
                                                 Bid End Date: {formatDate(selectedNotification.property.bidenddate)}
                                             </Text>
                                         </View>
@@ -290,8 +359,7 @@ const Notifications = () => {
                                 {JSON.parse(selectedNotification.data).message}
                             </Text>
                         </ScrollView>
-
-                        <View className=' flex-row g-5 justify-content-between'>
+                        <View style={styles.sheetButtons}>
                             {selectedNotification.property && (
                                 <TouchableOpacity
                                     style={styles.viewPropertyButton}
@@ -311,14 +379,13 @@ const Notifications = () => {
                                 </Text>
                             </TouchableOpacity>
                         </View>
-                    </>
+                    </View>
                 )}
             </RBSheet>
         </View>
     );
 };
 
-// Updated styles with new styles for highlighting and view property button
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -330,6 +397,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: verticalScale(12),
+        marginTop: verticalScale(12),
     },
     backButton: {
         backgroundColor: '#f4f2f7',
@@ -345,7 +413,6 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: moderateScale(18),
-        fontFamily: 'Rubik-Bold',
         color: '#234F68',
     },
     markAllButton: {
@@ -362,6 +429,7 @@ const styles = StyleSheet.create({
     filterContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        marginBottom: verticalScale(12),
     },
     filterButton: {
         flex: 1,
@@ -383,12 +451,8 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         fontSize: moderateScale(16),
-        fontWeight: '600',
         color: '#1E293B',
         marginVertical: verticalScale(8),
-    },
-    olderSection: {
-        marginTop: verticalScale(16),
     },
     card: {
         flexDirection: 'row',
@@ -453,20 +517,51 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    sheetTitle: {
-        fontSize: moderateScale(18),
-        fontWeight: '600',
-        color: '#1E293B',
+    errorContainer: {
+        alignItems: 'center',
+        marginVertical: verticalScale(16),
+    },
+    errorText: {
+        fontSize: moderateScale(14),
+        color: '#EF4444',
         marginBottom: verticalScale(8),
     },
-    sheetDescription: {
+    retryButton: {
+        backgroundColor: '#234F68',
+        paddingVertical: verticalScale(8),
+        paddingHorizontal: scale(16),
+        borderRadius: moderateScale(12),
+    },
+    retryButtonText: {
         fontSize: moderateScale(14),
-        color: '#4B5563',
+        color: '#FFFFFF',
+        fontWeight: '500',
+    },
+    noMoreText: {
+        fontSize: moderateScale(14),
+        color: '#6B7280',
+        textAlign: 'center',
+        marginVertical: verticalScale(16),
+    },
+    sheetContent: {
+        flex: 1,
+    },
+    sheetHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: verticalScale(16),
+    },
+    sheetTitle: {
+        fontSize: moderateScale(18),
+        color: '#1E293B',
         marginBottom: verticalScale(8),
     },
     sheetTimestamp: {
         fontSize: moderateScale(12),
         color: '#9CA3AF',
+    },
+    sheetScroll: {
+        flex: 1,
         marginBottom: verticalScale(16),
     },
     highlightContainer: {
@@ -478,16 +573,24 @@ const styles = StyleSheet.create({
     highlightText: {
         fontSize: moderateScale(14),
         color: '#234F68',
-        fontWeight: '600',
         textTransform: 'capitalize',
+    },
+    sheetDescription: {
+        fontSize: moderateScale(14),
+        color: '#4B5563',
+        marginBottom: verticalScale(8),
+    },
+    sheetButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
     },
     viewPropertyButton: {
         backgroundColor: '#8bc83f',
         paddingVertical: verticalScale(10),
         borderRadius: moderateScale(12),
-        margin: moderateScale(5),
+        flex: 1,
         alignItems: 'center',
-        flex: 1 / 2,
+        marginRight: scale(5),
     },
     viewPropertyButtonText: {
         fontSize: moderateScale(14),
@@ -498,9 +601,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#234F68',
         paddingVertical: verticalScale(10),
         borderRadius: moderateScale(12),
-        margin: moderateScale(5),
+        flex: 1,
         alignItems: 'center',
-        flex: 1 / 2,
+        marginLeft: scale(5),
     },
     closeButtonText: {
         fontSize: moderateScale(14),
@@ -519,7 +622,6 @@ const styles = StyleSheet.create({
     },
     noDataTitle: {
         fontSize: moderateScale(18),
-        fontWeight: '600',
         color: '#2D3748',
         textAlign: 'center',
         marginBottom: verticalScale(8),

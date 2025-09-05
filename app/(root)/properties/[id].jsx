@@ -182,6 +182,8 @@ const PropertyDetails = () => {
             const parsedUserData = JSON.parse(await AsyncStorage.getItem("userData"));
             const token = await AsyncStorage.getItem('userToken');
             setLoggedinUserId(parsedUserData?.id || "");
+            console.log('before sending id ', propertyId);
+
             const response = await axios.get(`https://landsquire.in/api/property-details/${propertyId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -325,6 +327,7 @@ const PropertyDetails = () => {
             const userId = parsedUserData?.id || null;
             const token = await AsyncStorage.getItem('userToken');
 
+            console.log('propertyId', propertyId)
             const visitData = {
                 property_id: propertyId,
                 user_id: userId,

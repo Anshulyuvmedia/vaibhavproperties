@@ -22,7 +22,6 @@ use App\Models\PropertyVisit;
 
 class ApiMasterController extends Controller
 {
-    
     private function validateToken(Request $request)
     {
         $token = $request->header('Authorization');
@@ -52,7 +51,6 @@ class ApiMasterController extends Controller
 
         return $user;
     }
-
 
     public function loginuser(Request $rq)
     {
@@ -310,18 +308,13 @@ class ApiMasterController extends Controller
             $listings->where('price', '<=', $maxprice);
         }
 
-        $listings = $listings
-            ->where('status', 'published')
-            ->orderBy('featuredstatus', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->get(); // 👈 no pagination, just return all
+        $listings = $listings->where('status', 'published')->orderBy('featuredstatus', 'desc')->orderBy('created_at', 'desc')->get(); // 👈 no pagination, just return all
 
         return response()->json([
             'success' => true,
             'data' => $listings,
         ]);
     }
-
 
     public function getcategories()
     {
@@ -332,8 +325,13 @@ class ApiMasterController extends Controller
         ]);
     }
 
-    public function propertydetails($id)
+    public function propertydetails(Request $req, $id)
     {
+        $user = $this->validateToken($req);
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
+        }
+
         $propertydetails = PropertyListing::find($id);
         $bokerId = $propertydetails->roleid;
         $brokerdata = RegisterUser::select('username', 'profile', 'email', 'company_name', 'mobilenumber')->where('id', $bokerId)->where('user_type', 'broker')->where('verification_status', '1')->get();
@@ -473,23 +471,16 @@ class ApiMasterController extends Controller
 
         $listings = PropertyListing::query();
 
-        if ($category) {
-            $listings->where('category', $category)->orWhere('category', 'all');
+        if ($category && $category !== 'all') {
+            $listings->where('category', $category);
         }
 
-        if ($city) {
+        if ($city && $city !== 'all') {
             $listings->where('city', $city);
         }
 
         if ($propertyFor) {
-            if ($propertyFor === 'Sell') {
-                $listings->where(function ($query) {
-                    $query->where('propertyfor', 'Sell')
-                          ->orWhereNull('propertyfor');
-                });
-            } else if ($propertyFor === 'Rent') {
-                $listings->where('propertyfor', 'Rent');
-            }
+            $listings->where('propertyfor', $propertyFor);
         }
 
         if ($minprice && $maxprice) {
@@ -508,7 +499,7 @@ class ApiMasterController extends Controller
             $listings->where('squarefoot', '<=', $sqftto);
         }
 
-        $listings = $listings->where('status', '=', 'published')->orderBy('featuredstatus', 'desc')->get();
+        $listings = $listings->where('status', 'published')->orderBy('featuredstatus', 'desc')->get();
 
         return response()->json([
             'success' => true,
@@ -647,18 +638,18 @@ class ApiMasterController extends Controller
         }
 
         if (!$rq->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User ID is required'
-            ], 400);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'User ID is required',
+                ],
+                400,
+            );
         }
 
         try {
             // Fetch notifications
-            $notifications = Notification::select('id', 'data', 'notifiable_id', 'read_at', 'created_at')
-                ->where('notifiable_id', $rq->id)
-                ->orderBy('created_at', 'DESC')
-                ->get();
+            $notifications = Notification::select('id', 'data', 'notifiable_id', 'read_at', 'created_at')->where('notifiable_id', $rq->id)->orderBy('created_at', 'DESC')->get();
 
             $notifycnt = $notifications->count();
 
@@ -675,11 +666,7 @@ class ApiMasterController extends Controller
             // Fetch properties
             $properties = [];
             if (!empty($propertyIds)) {
-                $properties = PropertyListing::select('thumbnail', 'id', 'property_name', 'bidenddate')
-                    ->whereIn('id', $propertyIds)
-                    ->get()
-                    ->keyBy('id')
-                    ->toArray();
+                $properties = PropertyListing::select('thumbnail', 'id', 'property_name', 'bidenddate')->whereIn('id', $propertyIds)->get()->keyBy('id')->toArray();
             }
 
             // Merge notifications with properties
@@ -707,13 +694,15 @@ class ApiMasterController extends Controller
                 'error' => $e->getMessage(),
                 'user_id' => $rq->id,
             ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Error fetching notifications: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Error fetching notifications: ' . $e->getMessage(),
+                ],
+                500,
+            );
         }
     }
-
 
     public function listingscitywise()
     {
@@ -1071,20 +1060,12 @@ class ApiMasterController extends Controller
             }
 
             // Fetch my enquiries with propertyfor
-            $myenquiries = Lead::where('userid', $user->id)
-                ->where('form_type', 'broker')
-                ->join('property_listings', 'leads.propertyid', '=', 'property_listings.id')
-                ->select('leads.*', 'property_listings.propertyfor')
-                ->get();
+            $myenquiries = Lead::where('userid', $user->id)->where('form_type', 'broker')->join('property_listings', 'leads.propertyid', '=', 'property_listings.id')->select('leads.*', 'property_listings.propertyfor')->get();
 
             // Log::info('My Enquiries', $myenquiries->toArray());
 
             // Broker enquiries
-            $brokerenquiries = Lead::where('agentid', $user->id)
-                ->where('form_type', 'broker')
-                ->join('property_listings', 'leads.propertyid', '=', 'property_listings.id')
-                ->select('leads.*', 'property_listings.propertyfor')
-                ->get();
+            $brokerenquiries = Lead::where('agentid', $user->id)->where('form_type', 'broker')->join('property_listings', 'leads.propertyid', '=', 'property_listings.id')->select('leads.*', 'property_listings.propertyfor')->get();
 
             // Loan enquiries
             $loanenquiries = Lead::where('form_type', 'bankagent')->get();
@@ -1100,6 +1081,40 @@ class ApiMasterController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function fetchenquiry(Request $rq, $id)
+    {
+        try {
+            $user = $this->validateToken($rq);
+            if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+                Log::info('Token validation failed for lead ID: ' . $id);
+                return $user;
+            }
+
+            // Fetch the single lead
+            $lead = Lead::where('id', $id)->first();
+
+            if (!$lead) {
+                Log::warning('No lead found for ID: ' . $id . ', user ID: ' . $user->id);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lead not found or unauthorized',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'lead' => $lead, // return single object
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error in fetchenquiry for lead ID: ' . $id . ', Message: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal server error',
+            ], 500);
+        }
+    }
+
 
     public function bankagentlist()
     {

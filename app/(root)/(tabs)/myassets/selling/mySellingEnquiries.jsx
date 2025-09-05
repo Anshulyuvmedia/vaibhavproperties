@@ -1,7 +1,7 @@
 import { StyleSheet, ScrollView, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Alert } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
-import RBSheet from 'react-native-raw-bottom-sheet'; // Corrected import
+import RBSheet from 'react-native-raw-bottom-sheet';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -88,34 +88,6 @@ const MySellingEnquiries = () => {
         rbSheetRef.current.open();
     };
 
-    const formatCurrency = (amount) => {
-        if (!amount || isNaN(amount)) return t('notAvailable');
-        const num = Number(amount);
-
-        if (num >= 10000000) {
-            const crore = num / 10000000;
-            return `${crore % 1 === 0 ? crore : crore.toFixed(2).replace(/\.00$/, '')} Cr`;
-        } else if (num >= 100000) {
-            const lakh = num / 100000;
-            return `${lakh % 1 === 0 ? lakh : lakh.toFixed(2).replace(/\.00$/, '')} Lakh`;
-        } else if (num >= 1000) {
-            const thousand = num / 1000;
-            return `${thousand % 1 === 0 ? thousand : thousand.toFixed(2).replace(/\.00$/, '')} Thousand`;
-        } else {
-            return num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
-        }
-    };
-
-
-    const getLatestBid = (bids) => {
-        if (Array.isArray(bids) && bids.length > 0) {
-            return bids.reduce((latest, current) =>
-                new Date(current.date) > new Date(latest.date) ? current : latest
-            );
-        }
-        return { bidamount: t('notAvailable'), date: '' };
-    };
-
     const formatPhoneNumber = (phone) => {
         if (!phone) return null;
         let formatted = phone.replace(/\D/g, '');
@@ -173,9 +145,9 @@ const MySellingEnquiries = () => {
     };
 
     const renderEnquiry = ({ item }) => {
-        const latestBid = getLatestBid(item.propertybid);
+        // console.log('id', item.id);
         return (
-            <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
+            <TouchableOpacity style={styles.card} onPress={() => router.push(`/CRM/${item.id}`)}>
                 <View style={styles.cardHeader}>
                     <View>
                         <Text style={styles.cardLabel}>Name:</Text>
@@ -186,19 +158,11 @@ const MySellingEnquiries = () => {
                     <View>
                         <Text style={styles.cardLabel}>{t('Date')}:</Text>
                         <Text style={[styles.cardDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                            {new Date(latestBid.date || item.created_at).toLocaleDateString()}
+                            {new Date(item.created_at).toLocaleDateString()}
                         </Text>
                     </View>
                 </View>
                 <View style={styles.cardrow}>
-                    {/* {(selectedEnquiry?.propertyfor === null || selectedEnquiry?.propertyfor === 'Sale') && latestBid?.bidamount != null && latestBid?.bidamount !== '' && (
-                    <View>
-                        <Text style={styles.cardLabel}>{t('Bid Amount')}:</Text>
-                        <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                            {formatCurrency(latestBid.bidamount)}
-                        </Text>
-                    </View>
-                    )} */}
 
                     <View>
                         <Text style={styles.cardLabel}>{t('Category')}:</Text>
@@ -249,20 +213,6 @@ const MySellingEnquiries = () => {
                 </View>
             </TouchableOpacity>
         );
-    };
-
-    const renderBidHistory = (bids) => {
-        if (!Array.isArray(bids)) return null;
-        return bids.map((bid, index) => (
-            <View key={index} style={styles.bidHistoryRow}>
-                <Text style={[styles.sheetLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
-                    {t('bid', { index: index + 1 })}:
-                </Text>
-                <Text style={[styles.sheetValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
-                    {formatCurrency(bid.bidamount)} on {new Date(bid.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </Text>
-            </View>
-        ));
     };
 
     return (

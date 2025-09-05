@@ -22,7 +22,7 @@ Route::controller(ApiMasterController::class)->group(function () {
     Route::get('/get-categories', 'getcategories')->name('api.getcategories');
     Route::get('/property-details/{id}', 'propertydetails')->name('api.propertydetails');
     Route::post('/insertlisting', 'insertlisting')->name('api.insertlisting');
-    Route::post('/filterlistings', 'filterlistings')->name('api.filterlistings');
+    Route::get('/filterlistings', 'filterlistings')->name('api.filterlistings');
     Route::post('/sendenquiry', 'sendenquiry')->name('api.sendenquiry');
     Route::get('/userprofile', 'userprofile')->name('api.userprofile');
     Route::post('/updateuserprofile/{id}', 'updateuserprofile')->name('api.updateuserprofile');
@@ -47,5 +47,6 @@ Route::controller(ApiMasterController::class)->group(function () {
     Route::get('/mywishlists/{id}', 'mywishlists')->name('mywishlists');
     Route::post('/trackvisit', 'trackvisit')->name('trackvisit');
     Route::get('/getVisitorCount/{propertyId}', 'getVisitorCount')->name('getVisitorCount');
+    Route::get('/fetchenquiry/{id}', 'fetchenquiry')->name('fetchenquiry');
 
 });

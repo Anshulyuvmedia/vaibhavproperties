@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity, View, Text, Image, FlatList, Dimensions, ScrollView, RefreshControl } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Image, FlatList, Dimensions, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import { useState, useEffect, useMemo } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import axios from 'axios';
@@ -43,19 +43,25 @@ const Explore = () => {
     try {
       const queryParams = new URLSearchParams();
       const parsedParams = JSON.parse(memoizedParams);
+
+      // Combine all filters into query parameters
       if (parsedParams.propertyType && parsedParams.propertyType !== t('all')) {
-        queryParams.append("filtercategory", parsedParams.propertyType);
+        queryParams.append('filtercategory', parsedParams.propertyType);
       }
-      if (parsedParams.city) queryParams.append("filtercity", parsedParams.city);
-      if (parsedParams.propertyFor) queryParams.append("filterpropertyfor", parsedParams.propertyFor);
-      if (parsedParams.minPrice) queryParams.append("filterminprice", parsedParams.minPrice);
-      if (parsedParams.maxPrice) queryParams.append("filtermaxprice", parsedParams.maxPrice);
-      if (parsedParams.sqftfrom) queryParams.append("sqftfrom", parsedParams.sqftfrom);
-      if (parsedParams.sqftto) queryParams.append("sqftto", parsedParams.sqftto);
+      if (parsedParams.city && parsedParams.city !== t('all')) {
+        queryParams.append('filtercity', parsedParams.city);
+      }
+      if (parsedParams.propertyFor) {
+        queryParams.append('filterpropertyfor', parsedParams.propertyFor);
+      }
+      if (parsedParams.minPrice) queryParams.append('filterminprice', parsedParams.minPrice);
+      if (parsedParams.maxPrice) queryParams.append('filtermaxprice', parsedParams.maxPrice);
+      if (parsedParams.sqftfrom) queryParams.append('sqftfrom', parsedParams.sqftfrom);
+      if (parsedParams.sqftto) queryParams.append('sqftto', parsedParams.sqftto);
 
       const apiUrl = `https://landsquire.in/api/filterlistings?${queryParams.toString()}`;
       const response = await axios({
-        method: "post",
+        method: 'get', // Changed to GET
         url: apiUrl,
       });
 
@@ -65,12 +71,12 @@ const Explore = () => {
         const uniqueCities = ['all', ...new Set(apiData.map(item => item.city).filter(city => city && city !== 'Unknown'))];
         setCities(uniqueCities);
       } else {
-        console.error("Unexpected API response format:", response.data);
+        console.error('Unexpected API response format:', response.data);
         setListingData([]);
         setCities(['all']);
       }
     } catch (error) {
-      console.error("Error fetching filtered listings:", error.response?.data || error.message);
+      console.error('Error fetching filtered listings:', error.response?.data || error.message);
       setListingData([]);
       setCities(['all']);
     } finally {
@@ -87,7 +93,7 @@ const Explore = () => {
     setRefreshing(true);
     setSelectedCity('all');
     if (Object.keys(params).length > 0) {
-      router.replace({ pathname: "/properties/explore", params: {} });
+      router.replace({ pathname: '/properties/explore', params: {} });
     }
   };
 
@@ -96,19 +102,27 @@ const Explore = () => {
     const keyMap = {
       city: 'city',
       type: 'propertyType',
-      propertyfor: 'propertyFor',
+      'property for': 'propertyFor', // Updated to handle space
       price: ['minPrice', 'maxPrice'],
       size: ['sqftfrom', 'sqftto'],
     };
 
-    if (Array.isArray(keyMap[filterKey])) {
-      keyMap[filterKey].forEach((key) => delete updatedParams[key]);
-    } else {
-      delete updatedParams[keyMap[filterKey]];
+    // Normalize filterKey by removing spaces and converting to lowercase
+    const normalizedFilterKey = filterKey.replace(/\s+/g, '').toLowerCase();
+    const mappedKey = Object.keys(keyMap).find(
+      (key) => key.replace(/\s+/g, '').toLowerCase() === normalizedFilterKey
+    );
+
+    if (mappedKey) {
+      if (Array.isArray(keyMap[mappedKey])) {
+        keyMap[mappedKey].forEach((key) => delete updatedParams[key]);
+      } else {
+        delete updatedParams[keyMap[mappedKey]];
+      }
     }
 
     if (JSON.stringify(updatedParams) !== JSON.stringify(params)) {
-      router.replace({ pathname: "/properties/explore", params: updatedParams });
+      router.replace({ pathname: '/properties/explore', params: updatedParams });
     }
   };
 
@@ -126,7 +140,7 @@ const Explore = () => {
     }
 
     return filters.length > 0 ? (
-      <View className='flex-row justify-between items-center'>
+      <View className="flex-row justify-between items-center">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -134,11 +148,16 @@ const Explore = () => {
         >
           {filters.map((filter, index) => (
             <View key={index} style={styles.filterChip}>
-              <Text style={[styles.filterChipText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+              <Text
+                style={[
+                  styles.filterChipText,
+                  { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' },
+                ]}
+              >
                 {filter}
               </Text>
               <TouchableOpacity
-                onPress={() => clearFilter(filter.split(":")[0].toLowerCase().trim())}
+                onPress={() => clearFilter(filter.split(':')[0].toLowerCase().trim())}
                 style={styles.clearButton}
               >
                 <Ionicons name="close-circle" size={16} color="#234F68" />
@@ -149,10 +168,15 @@ const Explore = () => {
 
         {filters.length > 0 && (
           <TouchableOpacity
-            onPress={() => router.replace({ pathname: "/properties/explore", params: {} })}
+            onPress={() => router.replace({ pathname: '/properties/explore', params: {} })}
             style={styles.clearAllButton}
           >
-            <Text style={[styles.clearAllText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+            <Text
+              style={[
+                styles.clearAllText,
+                { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' },
+              ]}
+            >
               {t('clearAll')}
             </Text>
           </TouchableOpacity>
@@ -164,13 +188,28 @@ const Explore = () => {
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
       <Image source={icons.noResultFound} style={styles.emptyImage} />
-      <Text style={[styles.emptyTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+      <Text
+        style={[
+          styles.emptyTitle,
+          { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' },
+        ]}
+      >
         {t('noResultsTitle')}
       </Text>
-      <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+      <Text
+        style={[
+          styles.emptySubtitle,
+          { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' },
+        ]}
+      >
         {t('noResultsMessage1')}
       </Text>
-      <Text style={[styles.emptySubtitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+      <Text
+        style={[
+          styles.emptySubtitle,
+          { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' },
+        ]}
+      >
         {t('noResultsMessage2')}
       </Text>
     </View>
@@ -204,7 +243,12 @@ const Explore = () => {
               >
                 <Image source={icons.backArrow} style={styles.backIcon} />
               </TouchableOpacity>
-              <Text style={[styles.headerTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+              <Text
+                style={[
+                  styles.headerTitle,
+                  { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' },
+                ]}
+              >
                 {t('searchResults')}
               </Text>
               <TouchableOpacity onPress={() => router.push('/notifications')}>
@@ -215,9 +259,16 @@ const Explore = () => {
             {renderFilterChips()}
             <Filters />
             <View style={styles.foundTextContainer}>
-              <Text style={[styles.foundText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+              <Text
+                style={[
+                  styles.foundText,
+                  { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' },
+                ]}
+              >
                 Found {filteredListingData.length} Properties
               </Text>
+              {loading && <ActivityIndicator size="large" color="#234F68" />}
+
             </View>
           </View>
         }

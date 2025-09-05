@@ -220,6 +220,11 @@ const Dashboard = () => {
                 title={t('notifications')}
                 onPress={() => router.push('/notifications')}
               />
+              <MenuItem
+                icon="notifications-none"
+                title='CRM'
+                onPress={() => router.push('/CRM/LeadsScreen')}
+              />
               {/* {userData?.user_type != 'bankagent' && (
                 <MenuItem
                   icon="house-siding"
