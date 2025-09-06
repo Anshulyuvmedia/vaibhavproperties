@@ -223,7 +223,7 @@ const Dashboard = () => {
               <MenuItem
                 icon="notifications-none"
                 title='CRM'
-                onPress={() => router.push('/CRM/LeadsScreen')}
+                onPress={() => router.push('/CRM/crmportal')}
               />
               {/* {userData?.user_type != 'bankagent' && (
                 <MenuItem

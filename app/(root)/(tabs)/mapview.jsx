@@ -86,9 +86,7 @@ const Mapview = () => {
             if (params.city) queryParams.append("filtercity", params.city);
 
             const apiUrl = `https://landsquire.in/api/filterlistings?${queryParams.toString()}`;
-            const response = await axios({
-                method: 'post',
-                url: apiUrl,
+            const response = await axios.get(apiUrl, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'User-Agent': 'LandSquireApp/1.0 (React Native)',
@@ -598,7 +596,7 @@ const Mapview = () => {
                             onPress={() => handleMarkerPress(property)}
                             anchor={{ x: 0.5, y: 0.5 }}
                         >
-                            
+
                         </Marker>
                     );
                 })}

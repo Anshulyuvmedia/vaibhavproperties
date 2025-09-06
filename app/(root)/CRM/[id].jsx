@@ -1,463 +1,554 @@
-import { StyleSheet, Text, View, useWindowDimensions, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, TextInput, Linking, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import RNPickerSelect from 'react-native-picker-select';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Feather from '@expo/vector-icons/Feather';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import icons from '@/constants/icons';
-import images from '@/constants/images';
-import QualifiedLead from './followupstatus/qualifiedlead';
-import NewLead from './followupstatus/newlead';
-import NotResponded from './followupstatus/notresponded';
-import Won from './followupstatus/won';
-import Final from './followupstatus/final';
 
-// Define the routes array
-const routes = [
-    { key: 'NewLead', title: 'New' },
-    { key: 'QualifiedLead', title: 'Qualified' },
-    { key: 'NotResponded', title: 'Not Responded' },
-    { key: 'Won', title: 'Won' },
-    { key: 'Final', title: 'Final' },
-];
+// Utility function to format amount in lakhs/crores
+const formatINR = (amount) => {
+    if (!amount || isNaN(amount)) return 'Not Available';
+    const num = parseFloat(amount);
+    if (num >= 10000000) {
+        return `₹${(num / 10000000).toFixed(2)} Cr`;
+    } else if (num >= 100000) {
+        return `₹${(num / 100000).toFixed(2)} L`;
+    } else {
+        return `₹${num.toLocaleString('en-IN')}`;
+    }
+};
 
-const LeadsScreen = () => {
+const LeadDetail = () => {
     const { t, i18n } = useTranslation();
     const { id } = useLocalSearchParams();
-    const layout = useWindowDimensions();
-    const [index, setIndex] = useState(0);
-    const [enquiries, setEnquiries] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState(null);
     const router = useRouter();
+    const [lead, setLead] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [showManageModal, setShowManageModal] = useState(false);
+    const [showMessageModal, setShowMessageModal] = useState(false);
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
+    const [statusType, setStatusType] = useState(''); // 'success' or 'error'
+    const [newNoteDescription, setNewNoteDescription] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const statuses = [
+        { label: t('New'), value: 'New' },
+        { label: t('Qualified'), value: 'Qualified' },
+        { label: t('Not Responded'), value: 'Not Responded' },
+        { label: t('Won'), value: 'Won' },
+        { label: t('Final'), value: 'Final' },
+    ];
 
     useEffect(() => {
-        fetchEnquiry();
-    }, []);
+        fetchLeadDetails();
+    }, [id]);
 
-    const fetchEnquiry = async () => {
+    const fetchLeadDetails = async () => {
         setLoading(true);
-        setError(null);
         try {
-            const userDataJson = await AsyncStorage.getItem('userData');
-            const parsedUserData = JSON.parse(userDataJson);
-            if (!parsedUserData?.id) {
-                console.error('User data or ID missing');
-                setError(t('userDataMissing'));
-                return;
+            const parsedPropertyData = JSON.parse(await AsyncStorage.getItem('userData'));
+            if (!parsedPropertyData?.id) {
+                throw new Error('User data or ID missing');
             }
             const token = await AsyncStorage.getItem('userToken');
-            if (!token) {
-                console.error('User token missing');
-                setError(t('tokenMissing'));
-                Alert.alert(t('error'), t('tokenMissing'), [
-                    { text: t('ok'), onPress: () => router.push('/login') },
-                ]);
-                return;
-            }
-
-            console.log('lead id', id);
             const response = await axios.get(`https://landsquire.in/api/fetchenquiry/${id}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                     'User-Agent': 'LandSquireApp/1.0 (React Native)',
                 },
             });
-            // console.log('response:', response.data.lead);
-
-            if (response.data?.success && response.data.lead) {
-                const enquiry = response.data.lead;
-
+            const enquiry = response.data.lead;
+            if (enquiry && enquiry.id === parseInt(id)) {
                 let bids = [];
-                if (typeof enquiry.propertybid === "string" && enquiry.propertybid.trim().startsWith("[")) {
+                if (typeof enquiry.propertybid === 'string' && enquiry.propertybid.trim().startsWith('[')) {
                     try {
-                        bids = JSON.parse(enquiry.propertybid).filter(b => b.bidamount === null);
+                        bids = JSON.parse(enquiry.propertybid).filter(b => b.bidamount !== null && b.bidamount !== '');
                     } catch (e) {
-                        console.error("Failed to parse propertybid JSON:", e);
+                        console.error('Failed to parse propertybid JSON:', e);
                     }
-                } else if (enquiry.propertybid === null) {
-                    bids = [{ bidamount: null, date: enquiry.created_at }];
+                } else if (enquiry.propertybid !== null && enquiry.propertybid !== '') {
+                    bids = [{ bidamount: enquiry.propertybid, date: enquiry.created_at }];
                 }
-
-                let followupDetails = [];
-                if (typeof enquiry.followupdetails === "string" && enquiry.followupdetails.trim().startsWith("[")) {
-                    try {
-                        followupDetails = JSON.parse(enquiry.followupdetails);
-                    } catch (e) {
-                        console.error("Failed to parse followupdetails JSON:", e);
-                    }
-                }
-
-                // Final parsed single enquiry
-                const parsedEnquiry = { ...enquiry, propertybid: bids, followupdetails: followupDetails };
-
-                setEnquiries([parsedEnquiry]);
-
-                // Set initial tab based on status
-                const status = parsedEnquiry.status?.toLowerCase() || 'new';
-                const statusMap = {
-                    'new': 0,
-                    'qualified': 1,
-                    'not responded': 2,
-                    'won': 3,
-                    'final': 4,
-                };
-                setIndex(statusMap[status] ?? 0);
+                setLead({
+                    ...enquiry,
+                    propertybid: bids,
+                    followupdetails: enquiry.followupdetails
+                        ? (typeof enquiry.followupdetails === 'string' ? JSON.parse(enquiry.followupdetails) : enquiry.followupdetails)
+                        : [],
+                });
             } else {
-                console.error("Unexpected API response format:", response.data);
-                setError(response.data?.message || t('unexpectedResponse'));
+                setError(t('leadNotFound'));
             }
-        } catch (error) {
-            console.error('Error fetching enquiries:', error);
-            let errorMessage = t('serverError');
-            if (error.response) {
-                if (error.response.status === 401) {
-                    errorMessage = t('unauthorized');
-                    Alert.alert(t('error'), t('unauthorized'), [
-                        { text: t('ok'), onPress: () => router.push('/login') },
-                    ]);
-                } else if (error.response.status === 404) {
-                    errorMessage = t('leadNotFound');
-                } else {
-                    errorMessage = error.response.data?.message || t('serverError');
-                }
-            }
-            setError(errorMessage);
+        } catch (err) {
+            setError(t('errorFetchingLead'));
+            console.error('Error fetching lead:', {
+                message: err.message,
+                response: err.response?.data,
+                status: err.response?.status,
+            });
         } finally {
             setLoading(false);
-            setRefreshing(false);
         }
     };
 
-    // Define dynamic routes with filtered enquiries based on status
-    const NewLeadRoute = () => <NewLead enquiries={enquiries.filter(e => e.status?.toLowerCase() === 'new')} />;
-    const QualifiedLeadRoute = () => <QualifiedLead enquiries={enquiries.filter(e => e.status?.toLowerCase() === 'qualified')} />;
-    const NotRespondedRoute = () => <NotResponded enquiries={enquiries.filter(e => e.status?.toLowerCase() === 'not responded')} />;
-    const WonRoute = () => <Won enquiries={enquiries.filter(e => e.status?.toLowerCase() === 'won')} />;
-    const FinalRoute = () => <Final enquiries={enquiries.filter(e => e.status?.toLowerCase() === 'final')} />;
-
-    // Define the SceneMap with the dynamic routes
-    const renderScene = SceneMap({
-        NewLead: NewLeadRoute,
-        QualifiedLead: QualifiedLeadRoute,
-        NotResponded: NotRespondedRoute,
-        Won: WonRoute,
-        Final: FinalRoute,
-    });
-
-    // Custom renderTabBar to make tabs scrollable with professional styling
-    const CustomTabBar = (props) => {
-        const tabWidth = moderateScale(120);
-
-        return (
-            <TabBar
-                {...props}
-                scrollEnabled={true}
-                style={styles.tabBar}
-                tabStyle={{ width: tabWidth, paddingHorizontal: scale(8) }}
-                renderTabBarItem={({ route, index: tabIndex, focused, onPress }) => (
-                    <TouchableOpacity
-                        key={route.key}
-                        style={[
-                            styles.tabItem,
-                            { width: tabWidth },
-                            focused ? styles.tabItemActive : styles.tabItemInactive,
-                        ]}
-                        onPress={onPress}
-                    >
-                        <Text
-                            style={[
-                                styles.tabText,
-                                focused ? styles.tabTextActive : styles.tabTextInactive,
-                                i18n.language === 'hi'
-                                    ? { fontFamily: 'NotoSerifDevanagari-Medium' }
-                                    : { fontFamily: 'Rubik-Medium' },
-                            ]}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                        >
-                            {route.title}
-                        </Text>
-                        {focused && <View style={styles.tabIndicator} />}
-                    </TouchableOpacity>
-                )}
-                indicatorStyle={{ backgroundColor: 'transparent' }}
-            />
-        );
+    const handleCallPress = () => {
+        if (lead?.mobilenumber) {
+            Linking.openURL(`tel:${lead.mobilenumber}`);
+        }
     };
 
-    return (
-        <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Image source={icons.backArrow} style={styles.backIcon} />
-                </TouchableOpacity>
-                <Text
-                    style={[
-                        styles.headerTitle,
-                        i18n.language === 'hi'
-                            ? { fontFamily: 'NotoSerifDevanagari-Bold' }
-                            : { fontFamily: 'Rubik-Bold' },
-                    ]}
-                >
-                    {t('crm')}
-                </Text>
-                <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.notificationButton}>
-                    <Image source={icons.bell} style={styles.bellIcon} />
-                </TouchableOpacity>
-            </View>
+    const handleWhatsAppPress = () => {
+        if (lead?.mobilenumber) {
+            Linking.openURL(`whatsapp://send?phone=${lead.mobilenumber}`);
+        }
+    };
 
-            {/* Lead Info Card */}
-            <View style={styles.cardContainer}>
-                {error ? (
-                    <View style={styles.errorCard}>
-                        <Text
-                            style={[
-                                styles.errorText,
-                                i18n.language === 'hi'
-                                    ? { fontFamily: 'NotoSerifDevanagari-Medium' }
-                                    : { fontFamily: 'Rubik-Medium' },
-                            ]}
-                        >
-                            {error}
+    const saveChanges = async () => {
+        if (!lead) {
+            setStatusMessage(t('leadNotLoaded'));
+            setStatusType('error');
+            setShowStatusModal(true);
+            return;
+        }
+        if (!newNoteDescription && !selectedStatus) {
+            setStatusMessage(t('noChangesProvided'));
+            setStatusType('error');
+            setShowStatusModal(true);
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const token = await AsyncStorage.getItem('userToken');
+            const payload = {
+                recordid: lead.id,
+                ...(newNoteDescription && {
+                    followupdate: new Date().toISOString(),
+                    followupdescription: newNoteDescription,
+                }),
+                ...(selectedStatus && { followupstatus: selectedStatus }),
+            };
+            const response = await axios.post('https://landsquire.in/api/updatefollowup', payload, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
+            });
+            if (response.data.success) {
+                const newDetails = newNoteDescription
+                    ? [...(lead.followupdetails || []), {
+                        date: new Date().toISOString(),
+                        description: newNoteDescription,
+                    }]
+                    : lead.followupdetails;
+                setLead({
+                    ...lead,
+                    status: selectedStatus || lead.status,
+                    followupdetails: newDetails,
+                });
+                setNewNoteDescription('');
+                setSelectedStatus(null);
+                setShowManageModal(false);
+                setStatusMessage(t('Follow-up Added and Status Updated'));
+                setStatusType('success');
+                setShowStatusModal(true);
+            } else {
+                throw new Error(response.data.error || t('errorSavingChanges'));
+            }
+        } catch (err) {
+            console.error('Error saving changes:', {
+                message: err.message,
+                response: err.response?.data,
+                status: err.response?.status,
+            });
+            setStatusMessage(err.response?.data?.error || err.message || t('errorSavingChanges'));
+            setStatusType('error');
+            setShowStatusModal(true);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#234F68" />
+                <Text style={[styles.loadingText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {t('loading')}
+                </Text>
+            </View>
+        );
+    }
+
+    if (error || !lead) {
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                    {error || t('leadNotFound')}
+                </Text>
+            </View>
+        );
+    }
+
+    return (
+        <ScrollView style={styles.container}>
+            <View style={styles.card}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.7}>
+                        <MaterialIcons name="arrow-back" size={moderateScale(24)} color="#1F3A5F" />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                        {t('Lead Details')}
+                    </Text>
+                </View>
+
+                {/* Lead Information */}
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                        {t('Lead Information')}
+                    </Text>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>{t('Name')}:</Text>
+                        <Text style={[styles.detailValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {lead.name || t('unknown')}
                         </Text>
                     </View>
-                ) : loading ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#8bc83f" />
-                        <Text
-                            style={[
-                                styles.loadingText,
-                                i18n.language === 'hi'
-                                    ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                    : { fontFamily: 'Rubik-Regular' },
-                            ]}
-                        >
-                            {t('loading')}
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>{t('Email')}:</Text>
+                        <Text style={[styles.detailValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {lead.email || t('notAvailable')}
                         </Text>
                     </View>
-                ) : enquiries.length > 0 ? (
-                    <View style={styles.leadCard}>
-                        <View style={styles.leadHeader}>
-                            <Image
-                                source={images.placeholder}
-                                style={styles.leadImage}
-                            />
-                            <View style={styles.leadInfo}>
-                                <Text
-                                    style={[
-                                        styles.leadTitle,
-                                        i18n.language === 'hi'
-                                            ? { fontFamily: 'NotoSerifDevanagari-Bold' }
-                                            : { fontFamily: 'Rubik-Bold' },
-                                    ]}
-                                >
-                                    {t('leadId')}: {enquiries[0].id}
-                                </Text>
-                                <Text
-                                    style={[
-                                        styles.leadText,
-                                        i18n.language === 'hi'
-                                            ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                            : { fontFamily: 'Rubik-Regular' },
-                                    ]}
-                                >
-                                    {t('name')}: {enquiries[0].name || 'N/A'}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.leadDetails}>
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>{t('propertyFor')}:</Text>
-                                <Text
-                                    style={[
-                                        styles.detailValue,
-                                        i18n.language === 'hi'
-                                            ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                            : { fontFamily: 'Rubik-Regular' },
-                                    ]}
-                                >
-                                    {enquiries[0].housecategory || 'N/A'}
-                                </Text>
-                            </View>
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>{t('status')}:</Text>
-                                <Text
-                                    style={[
-                                        styles.detailValue,
-                                        i18n.language === 'hi'
-                                            ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                            : { fontFamily: 'Rubik-Regular' },
-                                    ]}
-                                >
-                                    {enquiries[0].status || 'N/A'}
-                                </Text>
-                            </View>
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>{t('createdAt')}:</Text>
-                                <Text
-                                    style={[
-                                        styles.detailValue,
-                                        i18n.language === 'hi'
-                                            ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                            : { fontFamily: 'Rubik-Regular' },
-                                    ]}
-                                >
-                                    {enquiries[0].created_at ? new Date(enquiries[0].created_at).toLocaleDateString() : 'N/A'}
-                                </Text>
-                            </View>
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>{t('mobile')}:</Text>
-                                <Text
-                                    style={[
-                                        styles.detailValue,
-                                        i18n.language === 'hi'
-                                            ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                            : { fontFamily: 'Rubik-Regular' },
-                                    ]}
-                                >
-                                    {enquiries[0].mobilenumber || 'N/A'}
-                                </Text>
-                            </View>
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>{t('email')}:</Text>
-                                <Text
-                                    style={[
-                                        styles.detailValue,
-                                        i18n.language === 'hi'
-                                            ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                            : { fontFamily: 'Rubik-Regular' },
-                                    ]}
-                                >
-                                    {enquiries[0].email || 'N/A'}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                ) : (
-                    <View style={styles.errorCard}>
-                        <Text
-                            style={[
-                                styles.errorText,
-                                i18n.language === 'hi'
-                                    ? { fontFamily: 'NotoSerifDevanagari-Medium' }
-                                    : { fontFamily: 'Rubik-Medium' },
-                            ]}
-                        >
-                            {t('noLeadData')}
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>{t('Mobile')}:</Text>
+                        <Text style={[styles.detailValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {lead.mobilenumber || t('notAvailable')}
                         </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>{t('City')}:</Text>
+                        <Text style={[styles.detailValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {lead.inwhichcity || t('notAvailable')}
+                        </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>{t('Category')}:</Text>
+                        <Text style={[styles.detailValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {lead.housecategory || t('notAvailable')}
+                        </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>{t('Property For')}:</Text>
+                        <Text style={[styles.detailValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {(lead.propertyfor !== 'Rent' ? 'Sell' : 'Rent') || t('notSpecified')}
+                        </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>{t('Status')}:</Text>
+                        <Text style={[styles.detailValue, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {lead.status || t('notAvailable')}
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Bid Details */}
+                {lead.propertybid && lead.propertybid.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={[styles.sectionTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                            {t('Bid Details')}
+                        </Text>
+                        {lead.propertybid.map((bid, idx) => (
+                            <View key={idx} style={styles.bidItem}>
+                                <Text style={[styles.bidDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                                    {new Date(bid.date).toLocaleString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                    })}
+                                </Text>
+                                <Text style={[styles.bidAmount, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                                    {formatINR(bid.bidamount)}
+                                </Text>
+                            </View>
+                        ))}
                     </View>
                 )}
+
+                {/* Action Buttons */}
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                        {t('Actions')}
+                    </Text>
+                    <View style={styles.buttonContainer}>
+                        <View style={styles.buttonRow}>
+                            {lead.propertyid && (
+                                <TouchableOpacity
+                                    style={[styles.actionButton, styles.viewPropertyButton]}
+                                    onPress={() => router.push(`/properties/${lead.propertyid}`)}
+                                    activeOpacity={0.7}
+                                >
+                                    <MaterialIcons name="visibility" size={moderateScale(16)} color="#fff" style={styles.buttonIcon} />
+                                    <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                        {t('viewProperty')}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.callButton, !lead.mobilenumber && styles.disabledButton]}
+                                onPress={handleCallPress}
+                                disabled={!lead.mobilenumber}
+                                activeOpacity={0.7}
+                            >
+                                <Feather name="phone" size={moderateScale(16)} color="#fff" style={styles.buttonIcon} />
+                                <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                    {t('Call Now')}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.whatsappButton, !lead.mobilenumber && styles.disabledButton]}
+                                onPress={handleWhatsAppPress}
+                                disabled={!lead.mobilenumber}
+                                activeOpacity={0.7}
+                            >
+                                <FontAwesome5 name="whatsapp" size={moderateScale(16)} color="#fff" style={styles.buttonIcon} />
+                                <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                    {t('Whatsapp')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.manageButton]}
+                                onPress={() => setShowMessageModal(true)}
+                                activeOpacity={0.7}
+                            >
+                                <MaterialIcons name="notes" size={moderateScale(16)} color="#fff" style={styles.buttonIcon} />
+                                <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                    {t('View Notes')}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.manageButton]}
+                                onPress={() => setShowManageModal(true)}
+                                activeOpacity={0.7}
+                            >
+                                <MaterialIcons name="edit" size={moderateScale(16)} color="#fff" style={styles.buttonIcon} />
+                                <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                    {t('Update Lead')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
             </View>
 
-            <TabView
-                navigationState={{ index, routes }}
-                renderScene={renderScene}
-                onIndexChange={setIndex}
-                initialLayout={{ width: layout.width }}
-                renderTabBar={(props) => <CustomTabBar {...props} />}
-                sceneContainerStyle={styles.tabView}
-                animationEnabled={true}
-                swipeEnabled={true}
-            />
-        </View>
+            {/* Notes Timeline Modal */}
+            <Modal
+                visible={showMessageModal}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowMessageModal(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={[styles.modalTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                            {t('Notes Timeline')}
+                        </Text>
+                        <ScrollView style={styles.notesScroll}>
+                            {lead.followupdetails?.length > 0 ? (
+                                lead.followupdetails.map((note, idx) => (
+                                    <View key={idx} style={styles.noteItem}>
+                                        <View style={styles.noteTimeline}>
+                                            <View style={styles.timelineDot} />
+                                            {idx < lead.followupdetails.length - 1 && <View style={styles.timelineLine} />}
+                                        </View>
+                                        <View style={styles.noteContent}>
+                                            <Text style={[styles.noteDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-SemiBold' : 'Rubik-SemiBold' }]}>
+                                                {new Date(note.date).toLocaleString('en-US', {
+                                                    year: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                })}
+                                            </Text>
+                                            <Text style={[styles.noteDescription, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                                                {note.description || t('notAvailable')}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ))
+                            ) : (
+                                <Text style={[styles.noNotesText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                                    {t('noNotes')}
+                                </Text>
+                            )}
+                        </ScrollView>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.cancelButton]}
+                                onPress={() => setShowMessageModal(false)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                    {t('Close')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Manage Lead Modal */}
+            <Modal
+                visible={showManageModal}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowManageModal(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={[styles.modalTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                            {t('Manage Lead')}
+                        </Text>
+                        <Text style={[styles.inputLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                            {t('Update Status')}
+                        </Text>
+                        <RNPickerSelect
+                            onValueChange={(value) => setSelectedStatus(value)}
+                            items={statuses}
+                            style={pickerSelectStyles}
+                            placeholder={{ label: t('Select Status'), value: null }}
+                            value={selectedStatus}
+                        />
+                        <Text style={[styles.inputLabel, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                            {t('Add Note')}
+                        </Text>
+                        <TextInput
+                            style={styles.noteInput}
+                            placeholder={t('Enter note description')}
+                            placeholderTextColor="#9CA3AF"
+                            value={newNoteDescription}
+                            onChangeText={setNewNoteDescription}
+                            multiline
+                        />
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.saveButton, isSaving && styles.disabledButton]}
+                                onPress={saveChanges}
+                                activeOpacity={0.7}
+                                disabled={isSaving}
+                            >
+                                {isSaving ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                        {t('Save')}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.cancelButton]}
+                                onPress={() => {
+                                    setNewNoteDescription('');
+                                    setSelectedStatus(null);
+                                    setShowManageModal(false);
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                    {t('Cancel')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Status Modal */}
+            <Modal
+                visible={showStatusModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowStatusModal(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={[styles.statusModalContent, statusType === 'success' ? styles.successModal : styles.errorModal]}>
+                        <View style={styles.statusIcon}>
+                            <MaterialIcons
+                                name={statusType === 'success' ? 'check-circle' : 'error'}
+                                size={moderateScale(40)}
+                                color={statusType === 'success' ? '#2ECC71' : '#EF4444'}
+                            />
+                        </View>
+                        <Text style={[styles.statusModalTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                            {statusType === 'success' ? t('Success') : t('Error')}
+                        </Text>
+                        <Text style={[styles.statusModalMessage, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {statusMessage}
+                        </Text>
+                        <TouchableOpacity
+                            style={[styles.statusModalButton]}
+                            onPress={() => setShowStatusModal(false)}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[styles.actionButtonText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Medium' : 'Rubik-Medium' }]}>
+                                {t('OK')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </ScrollView>
     );
 };
 
-export default LeadsScreen;
+export default LeadDetail;
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f6f5',
+        backgroundColor: '#fafafa',
+    },
+    card: {
+        paddingHorizontal: moderateScale(12),
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: scale(16),
-        paddingVertical: verticalScale(12),
-        backgroundColor: '#ffffff',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        marginBottom: verticalScale(12),
     },
     backButton: {
-        backgroundColor: '#e6e8eb',
-        borderRadius: moderateScale(12),
-        width: moderateScale(40),
-        height: moderateScale(40),
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    backIcon: {
-        width: moderateScale(20),
-        height: moderateScale(20),
-        tintColor: '#234F68',
+        padding: moderateScale(8),
     },
     headerTitle: {
         fontSize: moderateScale(20),
-        color: '#234F68',
-        fontWeight: '700',
-    },
-    notificationButton: {
-        padding: moderateScale(8),
-    },
-    bellIcon: {
-        width: moderateScale(24),
-        height: moderateScale(24),
-        tintColor: '#234F68',
-    },
-    cardContainer: {
-        paddingHorizontal: scale(16),
-        paddingVertical: verticalScale(12),
-    },
-    leadCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: moderateScale(12),
-        padding: moderateScale(16),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    leadHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: verticalScale(12),
-    },
-    leadImage: {
-        width: moderateScale(50),
-        height: moderateScale(50),
-        borderRadius: moderateScale(25),
-        borderWidth: 1.5,
-        borderColor: '#8bc83f',
-    },
-    leadInfo: {
+        color: '#1F3A5F',
+        fontWeight: 'bold',
         flex: 1,
-        marginLeft: scale(12),
+        textAlign: 'center',
     },
-    leadTitle: {
-        fontSize: moderateScale(18),
-        color: '#234F68',
-        fontWeight: '700',
-        marginBottom: verticalScale(4),
+    section: {
+        marginBottom: verticalScale(16),
+        paddingBottom: verticalScale(8),
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
     },
-    leadText: {
-        fontSize: moderateScale(14),
-        color: '#333',
-    },
-    leadDetails: {
-        borderTopWidth: 1,
-        borderTopColor: '#e6e8eb',
-        paddingTop: verticalScale(12),
+    sectionTitle: {
+        fontSize: moderateScale(16),
+        color: '#1F3A5F',
+        fontWeight: '600',
+        marginBottom: verticalScale(10),
     },
     detailRow: {
         flexDirection: 'row',
@@ -466,95 +557,277 @@ const styles = StyleSheet.create({
     },
     detailLabel: {
         fontSize: moderateScale(14),
-        color: '#666',
+        color: '#6B7280',
         fontFamily: 'Rubik-Regular',
         flex: 1,
     },
     detailValue: {
         fontSize: moderateScale(14),
-        color: '#333',
+        color: '#374151',
         flex: 2,
         textAlign: 'right',
     },
-    errorCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: moderateScale(12),
-        padding: moderateScale(16),
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+    bidItem: {
+        backgroundColor: '#E3F0FA',
+        padding: moderateScale(12),
+        borderRadius: moderateScale(8),
+        marginBottom: verticalScale(8),
+        borderLeftWidth: 4,
+        borderLeftColor: '#3B82F6',
     },
-    errorText: {
-        fontSize: moderateScale(16),
-        color: '#e63946',
-        textAlign: 'center',
+    bidDate: {
+        fontSize: moderateScale(12),
+        color: '#6B7280',
+        marginBottom: verticalScale(4),
     },
-    loadingContainer: {
-        backgroundColor: '#ffffff',
-        borderRadius: moderateScale(12),
-        padding: moderateScale(16),
+    bidAmount: {
+        fontSize: moderateScale(14),
+        color: '#1F3A5F',
+        fontWeight: '600',
+    },
+    buttonContainer: {
+        marginTop: verticalScale(8),
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: verticalScale(8),
+    },
+    actionButton: {
+        flex: 1,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        paddingVertical: moderateScale(12),
+        paddingHorizontal: moderateScale(8),
+        borderRadius: moderateScale(10),
+        marginHorizontal: scale(4),
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.15,
         shadowRadius: 4,
         elevation: 3,
+    },
+    viewPropertyButton: {
+        backgroundColor: '#1F3A5F',
+    },
+    callButton: {
+        backgroundColor: '#2ECC71',
+    },
+    whatsappButton: {
+        backgroundColor: '#25D366',
+    },
+    manageButton: {
+        backgroundColor: '#3B82F6',
+    },
+    disabledButton: {
+        backgroundColor: '#D1D5DB',
+    },
+    actionButtonText: {
+        fontSize: moderateScale(13),
+        color: '#FFFFFF',
+        // marginLeft: scale(6),
+        fontWeight: '500',
+        // textAlign: 'center',
+    },
+    buttonIcon: {
+        marginRight: scale(6),
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     loadingText: {
         fontSize: moderateScale(16),
-        color: '#333',
-        marginTop: verticalScale(8),
+        color: '#374151',
     },
-    tabBar: {
-        backgroundColor: '#ffffff',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        paddingVertical: verticalScale(4),
-    },
-    tabItem: {
-        alignItems: 'center',
+    errorContainer: {
+        flex: 1,
         justifyContent: 'center',
-        paddingVertical: verticalScale(8),
-        marginHorizontal: scale(4),
-        borderRadius: moderateScale(12),
+        alignItems: 'center',
+        padding: scale(16),
     },
-    tabItemActive: {
-        backgroundColor: '#234F68',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    tabItemInactive: {
-        backgroundColor: '#e6e8eb',
-    },
-    tabText: {
-        fontSize: moderateScale(14),
-        fontWeight: '600',
+    errorText: {
+        fontSize: moderateScale(16),
+        color: '#EF4444',
         textAlign: 'center',
     },
-    tabTextActive: {
-        color: '#ffffff',
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        paddingBottom: 20,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
     },
-    tabTextInactive: {
-        color: '#666',
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: moderateScale(16),
+        borderTopRightRadius: moderateScale(16),
+        padding: moderateScale(20),
+        maxHeight: '85%',
     },
-    tabIndicator: {
-        height: verticalScale(3),
-        backgroundColor: '#ffffff',
-        width: '50%',
-        borderRadius: moderateScale(2),
+    modalTitle: {
+        fontSize: moderateScale(18),
+        color: '#1F3A5F',
+        fontWeight: 'bold',
+        marginBottom: verticalScale(12),
+    },
+    inputLabel: {
+        fontSize: moderateScale(14),
+        color: '#1F3A5F',
+        marginBottom: verticalScale(8),
+        fontWeight: '500',
+    },
+    noteInput: {
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: moderateScale(8),
+        paddingHorizontal: moderateScale(12),
+        paddingVertical: verticalScale(8),
+        marginBottom: verticalScale(12),
+        fontSize: moderateScale(14),
+        color: '#374151',
+        backgroundColor: '#F9FAFB',
+    },
+    notesScroll: {
+        maxHeight: verticalScale(250),
+        marginBottom: verticalScale(12),
+    },
+    noteItem: {
+        flexDirection: 'row',
+        marginBottom: verticalScale(16),
+        alignItems: 'flex-start',
+    },
+    noteTimeline: {
+        alignItems: 'center',
+        marginRight: scale(12),
+    },
+    timelineDot: {
+        width: moderateScale(12),
+        height: moderateScale(12),
+        borderRadius: moderateScale(6),
+        backgroundColor: '#3B82F6',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        marginTop: verticalScale(4),
+        zIndex: 1,
+    },
+    timelineLine: {
+        width: 2,
+        flex: 1,
+        backgroundColor: '#3B82F6',
         marginTop: verticalScale(4),
     },
-    tabView: {
-        backgroundColor: '#f5f6f5',
+    noteContent: {
+        flex: 1,
+        backgroundColor: '#F9FAFB',
+        padding: moderateScale(12),
+        borderRadius: moderateScale(8),
+        borderLeftWidth: 3,
+        borderLeftColor: '#3B82F6',
+    },
+    noteDate: {
+        fontSize: moderateScale(12),
+        color: '#1F3A5F',
+        marginBottom: verticalScale(4),
+        fontWeight: '600',
+    },
+    noteDescription: {
+        fontSize: moderateScale(14),
+        color: '#374151',
+    },
+    noNotesText: {
+        fontSize: moderateScale(14),
+        color: '#9CA3AF',
+        textAlign: 'center',
+        marginVertical: verticalScale(20),
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    saveButton: {
+        backgroundColor: '#2ECC71',
+        flex: 1,
+        marginRight: scale(6),
+    },
+    cancelButton: {
+        backgroundColor: '#EF4444',
+        flex: 1,
+        marginLeft: scale(6),
+    },
+    statusModalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: moderateScale(16),
+        padding: moderateScale(20),
+        marginHorizontal: scale(20),
+        alignItems: 'center',
+        justifyContent: 'center',
+        maxWidth: scale(300),
+        alignSelf: 'center',
+    },
+    successModal: {
+        borderWidth: 2,
+        borderColor: '#2ECC71',
+    },
+    errorModal: {
+        borderWidth: 2,
+        borderColor: '#EF4444',
+    },
+    statusModalTitle: {
+        fontSize: moderateScale(18),
+        color: '#1F3A5F',
+        fontWeight: 'bold',
+        marginBottom: verticalScale(8),
+        textAlign: 'center',
+    },
+    statusModalMessage: {
+        fontSize: moderateScale(14),
+        color: '#374151',
+        marginBottom: verticalScale(16),
+        textAlign: 'center',
+    },
+    statusModalButton: {
+        backgroundColor: '#3B82F6',
+        width: '100%',
+        paddingVertical: moderateScale(12),
+        paddingHorizontal: moderateScale(16),
+        borderRadius: moderateScale(10),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    statusIcon: {
+        marginBottom: verticalScale(12),
+    },
+});
+
+const pickerSelectStyles = StyleSheet.create({
+    inputIOS: {
+        fontSize: moderateScale(14),
+        paddingHorizontal: moderateScale(12),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: moderateScale(8),
+        color: '#374151',
+        marginBottom: verticalScale(12),
+        fontFamily: 'Rubik-Regular',
+        backgroundColor: '#F9FAFB',
+    },
+    inputAndroid: {
+        fontSize: moderateScale(14),
+        paddingHorizontal: moderateScale(12),
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: moderateScale(8),
+        color: '#374151',
+        marginBottom: verticalScale(12),
+        fontFamily: 'Rubik-Regular',
+        backgroundColor: '#F9FAFB',
+    },
+    placeholder: {
+        color: '#9CA3AF',
     },
 });

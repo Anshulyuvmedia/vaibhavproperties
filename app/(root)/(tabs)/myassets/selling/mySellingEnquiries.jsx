@@ -147,7 +147,7 @@ const MySellingEnquiries = () => {
     const renderEnquiry = ({ item }) => {
         // console.log('id', item.id);
         return (
-            <TouchableOpacity style={styles.card} onPress={() => router.push(`/CRM/${item.id}`)}>
+            <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
                 <View style={styles.cardHeader}>
                     <View>
                         <Text style={styles.cardLabel}>Name:</Text>

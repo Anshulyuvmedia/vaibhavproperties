@@ -1,86 +1,81 @@
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity } from 'react-native';
 import React from 'react';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 
 const NewLead = ({ enquiries }) => {
     const { t, i18n } = useTranslation();
+    const router = useRouter();
+
+    const renderEnquiry = ({ item }) => {
+        return (
+            <TouchableOpacity
+                style={styles.card}
+                onPress={() => router.push(`/CRM/${item.id}`)}
+                activeOpacity={0.8}
+            >
+                <View style={styles.cardHeader}>
+                    <View>
+                        <Text style={styles.cardLabel}>{t('Name')}:</Text>
+                        <Text style={[styles.cardTitle, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Bold' : 'Rubik-Bold' }]}>
+                            {item.name || t('unknown')}
+                        </Text>
+                    </View>
+                    <View>
+                        <Text style={styles.cardLabel}>{t('Date')}:</Text>
+                        <Text style={[styles.cardDate, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {new Date(item.created_at).toLocaleDateString()}
+                        </Text>
+                    </View>
+                    <View>
+                        <Text style={styles.cardLabel}>{t('Category')}:</Text>
+                        <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {item.housecategory || t('notAvailable')}
+                        </Text>
+                    </View>
+                </View>
+                <View style={styles.cardRow}>
+                    <View>
+                        <Text style={styles.cardLabel}>{t('City')}:</Text>
+                        <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {item.inwhichcity || t('notAvailable')}
+                        </Text>
+                    </View>
+                    <View>
+                        <Text style={styles.cardLabel}>{t('Property For')}:</Text>
+                        <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {(item.propertyfor !== 'Rent' ? 'Sell' : 'Rent') || t('notSpecified')}
+                        </Text>
+                    </View>
+                    <View>
+                        <Text style={styles.cardLabel}>{t('Status')}:</Text>
+                        <Text style={[styles.cardText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
+                            {item.status || t('notAvailable')}
+                        </Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
-        <ScrollView style={styles.container}>
+        <View style={styles.container}>
             {enquiries.length > 0 ? (
-                enquiries.map((enquiry, index) => (
-                    <View key={index} style={styles.card}>
-                        <Text
-                            style={[
-                                styles.title,
-                                i18n.language === 'hi'
-                                    ? { fontFamily: 'NotoSerifDevanagari-Medium' }
-                                    : { fontFamily: 'Rubik-Medium' },
-                            ]}
-                        >
-                            {t('followUpDetails')}
-                        </Text>
-                        {enquiry.followupdetails && enquiry.followupdetails.length > 0 ? (
-                            enquiry.followupdetails.map((detail, idx) => (
-                                <View key={idx} style={styles.detailContainer}>
-                                    <Text
-                                        style={[
-                                            styles.date,
-                                            i18n.language === 'hi'
-                                                ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                                : { fontFamily: 'Rubik-Regular' },
-                                        ]}
-                                    >
-                                        {new Date(detail.date).toLocaleString('en-US', {
-                                            year: 'numeric',
-                                            month: 'short',
-                                            day: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                        })}
-                                    </Text>
-                                    <Text
-                                        style={[
-                                            styles.description,
-                                            i18n.language === 'hi'
-                                                ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                                : { fontFamily: 'Rubik-Regular' },
-                                        ]}
-                                    >
-                                        {detail.description || 'N/A'}
-                                    </Text>
-                                </View>
-                            ))
-                        ) : (
-                            <Text
-                                style={[
-                                    styles.noData,
-                                    i18n.language === 'hi'
-                                        ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                        : { fontFamily: 'Rubik-Regular' },
-                                ]}
-                            >
-                                {t('noFollowUpDetails')}
-                            </Text>
-                        )}
-                    </View>
-                ))
+                <FlatList
+                    data={enquiries}
+                    renderItem={renderEnquiry}
+                    keyExtractor={(item) => item.id.toString()}
+                    contentContainerStyle={styles.listContent}
+                />
             ) : (
-                <View style={styles.card}>
-                    <Text
-                        style={[
-                            styles.noData,
-                            i18n.language === 'hi'
-                                ? { fontFamily: 'NotoSerifDevanagari-Regular' }
-                                : { fontFamily: 'Rubik-Regular' },
-                        ]}
-                    >
+                <View style={styles.noDataContainer}>
+                    <Text style={[styles.noDataText, { fontFamily: i18n.language === 'hi' ? 'NotoSerifDevanagari-Regular' : 'Rubik-Regular' }]}>
                         {t('noLeads')}
                     </Text>
                 </View>
             )}
-        </ScrollView>
+        </View>
     );
 };
 
@@ -89,9 +84,11 @@ export default NewLead;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fafafa',
+        backgroundColor: '#f5f7fa',
+    },
+    listContent: {
         paddingHorizontal: scale(16),
-        paddingVertical: verticalScale(10),
+        paddingVertical: verticalScale(12),
     },
     card: {
         backgroundColor: '#ffffff',
@@ -99,35 +96,47 @@ const styles = StyleSheet.create({
         padding: moderateScale(16),
         marginBottom: verticalScale(12),
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 4,
     },
-    title: {
-        fontSize: moderateScale(18),
-        color: '#234F68',
-        marginBottom: verticalScale(12),
-        fontWeight: '600',
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: verticalScale(10),
     },
-    detailContainer: {
-        marginBottom: verticalScale(12),
-        padding: moderateScale(12),
-        backgroundColor: '#f4f2f7',
-        borderRadius: moderateScale(8),
+    cardLabel: {
+        fontSize: moderateScale(12),
+        color: '#6B7280',
+        fontFamily: 'Rubik-Regular',
     },
-    date: {
+    cardTitle: {
+        fontSize: moderateScale(16),
+        color: '#1F3A5F',
+        fontWeight: 'bold',
+    },
+    cardDate: {
         fontSize: moderateScale(14),
-        color: '#555',
-        marginBottom: verticalScale(4),
+        color: '#374151',
     },
-    description: {
-        fontSize: moderateScale(16),
-        color: '#333',
+    cardRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: verticalScale(8),
     },
-    noData: {
+    cardText: {
+        fontSize: moderateScale(14),
+        color: '#374151',
+    },
+    noDataContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    noDataText: {
         fontSize: moderateScale(16),
-        color: '#999',
+        color: '#9CA3AF',
         textAlign: 'center',
     },
 });

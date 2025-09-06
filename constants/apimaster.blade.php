@@ -1082,18 +1082,17 @@ class ApiMasterController extends Controller
         }
     }
 
-    public function fetchenquiry(Request $rq, $id)
+    public function fetchenquiry(Request $request, $id)
     {
+        // Log::info('fetchenquiry called', ['id' => $id, 'headers' => $request->headers->all()]);
         try {
-            $user = $this->validateToken($rq);
+            $user = $this->validateToken($request);
             if (is_a($user, '\Illuminate\Http\JsonResponse')) {
-                Log::info('Token validation failed for lead ID: ' . $id);
+                // Log::info('Token validation failed for lead ID: ' . $id);
                 return $user;
             }
 
-            // Fetch the single lead
             $lead = Lead::where('id', $id)->first();
-
             if (!$lead) {
                 Log::warning('No lead found for ID: ' . $id . ', user ID: ' . $user->id);
                 return response()->json([
@@ -1104,13 +1103,13 @@ class ApiMasterController extends Controller
 
             return response()->json([
                 'success' => true,
-                'lead' => $lead, // return single object
+                'lead' => $lead,
             ]);
         } catch (Exception $e) {
-            Log::error('Error in fetchenquiry for lead ID: ' . $id . ', Message: ' . $e->getMessage());
+            Log::error('Error in fetchenquiry for lead ID: ' . $id, ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Internal server error',
+                'message' => 'Internal server error: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -1607,6 +1606,114 @@ class ApiMasterController extends Controller
                 ],
                 500,
             );
+        }
+    }
+
+
+    public function updatefollowup(Request $request)
+    {
+        // Log::info('updatefollowup called', [
+        //     'payload' => $request->all(),
+        //     'headers' => $request->headers->all(),
+        // ]);
+        try {
+            $user = $this->validateToken($request);
+            if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+                Log::warning('Token validation failed', ['response' => $user]);
+                return $user;
+            }
+
+            $recordId = $request->input('recordid');
+            if (!$recordId || !is_numeric($recordId)) {
+                Log::warning('Invalid or missing recordid', ['recordid' => $recordId]);
+                return response()->json([
+                    'error' => 'Invalid or missing record ID.',
+                    'received' => $recordId,
+                ], 422);
+            }
+
+            $lead = Lead::find($recordId);
+            if (!$lead) {
+                Log::warning('Lead not found', ['recordid' => $recordId]);
+                return response()->json([
+                    'error' => 'Lead not found for ID: ' . $recordId,
+                ], 404);
+            }
+
+            $existingFollowups = $lead->followupdetails ? json_decode($lead->followupdetails, true) : [];
+            $followupdate = $request->input('followupdate');
+            $followupdescription = $request->input('followupdescription');
+            $updated = false;
+
+            if ($followupdate && $followupdescription) {
+                try {
+                    new \DateTime($followupdate);
+                } catch (Exception $e) {
+                    Log::warning('Invalid follow-up date format', ['followupdate' => $followupdate]);
+                    return response()->json([
+                        'error' => 'Invalid follow-up date format: ' . $followupdate,
+                    ], 422);
+                }
+                if (strlen($followupdescription) > 1000) {
+                    Log::warning('Follow-up description too long', ['length' => strlen($followupdescription)]);
+                    return response()->json([
+                        'error' => 'Follow-up description exceeds 1000 characters.',
+                    ], 422);
+                }
+                $existingFollowups[] = [
+                    'date' => $followupdate,
+                    'description' => $followupdescription,
+                ];
+                $lead->followupdetails = json_encode($existingFollowups);
+                $updated = true;
+            } elseif ($followupdate || $followupdescription) {
+                Log::warning('Incomplete note data', [
+                    'followupdate' => $followupdate,
+                    'followupdescription' => $followupdescription,
+                ]);
+                return response()->json([
+                    'error' => 'Both followupdate and followupdescription must be provided together.',
+                    'received' => ['followupdate' => $followupdate, 'followupdescription' => $followupdescription],
+                ], 422);
+            }
+
+            $followupstatus = $request->input('followupstatus');
+            if ($followupstatus) {
+                $validStatuses = ['New', 'Qualified', 'Not Responded', 'Won', 'Final'];
+                if (!in_array($followupstatus, $validStatuses)) {
+                    Log::warning('Invalid status value', ['followupstatus' => $followupstatus]);
+                    return response()->json([
+                        'error' => 'Invalid status value: ' . $followupstatus,
+                        'validStatuses' => $validStatuses,
+                    ], 422);
+                }
+                $lead->status = $followupstatus;
+                $updated = true;
+            }
+
+            if (!$updated) {
+                Log::warning('No changes provided', ['payload' => $request->all()]);
+                return response()->json([
+                    'error' => 'No changes provided to update.',
+                    'received' => $request->all(),
+                ], 422);
+            }
+
+            $lead->save();
+            // Log::info('Lead updated successfully', ['recordid' => $recordId]);
+
+            return response()->json([
+                'success' => 'Follow-up added and/or status updated successfully.',
+                'lead' => $lead,
+            ], 200);
+        } catch (Exception $e) {
+            Log::error('updatefollowup error', [
+                'error' => $e->getMessage(),
+                'payload' => $request->all(),
+            ]);
+            return response()->json([
+                'error' => 'An error occurred: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }
