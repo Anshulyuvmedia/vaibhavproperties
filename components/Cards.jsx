@@ -1,9 +1,10 @@
 import { StyleSheet, Text, TouchableOpacity, View, Image, Dimensions } from 'react-native'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import images from '@/constants/images'
 import icons from '@/constants/icons'
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+import * as Location from "expo-location";
 
 // Get screen width for dynamic card sizing
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -95,6 +96,7 @@ const Card = ({ item, onPress }) => {
 export { Card };
 
 const HorizontalCard = ({ item, onPress, onView, map }) => {
+  // console.log('item:', item);
   // Helper to format price in Indian Rupees
   const formatINR = (amount) => {
     if (!amount) return '₹0';
@@ -121,7 +123,7 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
           source={{
             uri: item.thumbnail
               ? `https://landsquire.in/adminAssets/images/Listings/${item.thumbnail}`
-              : 'https://via.placeholder.com/150', // Fallback image
+              : `https://landsquire.in/adminAssets/images/Projects/${item.thumbnail}`, // Fallback image
           }}
           className="w-full h-full rounded-[30px]"
           style={{ resizeMode: 'cover' }}
@@ -171,6 +173,148 @@ const HorizontalCard = ({ item, onPress, onView, map }) => {
 };
 
 export { HorizontalCard };
+
+// HorizontalCard component for displaying both properties and projects
+const MapCard = ({ item, onPress, onView, map }) => {
+  // Helper to format price in Indian Rupees
+  const formatINR = (amount) => {
+    if (!amount) return '₹0';
+    const num = Number(amount);
+    if (num >= 1e7) {
+      return '₹' + (num / 1e7).toFixed(2).replace(/\.00$/, '') + ' Cr';
+    } else if (num >= 1e5) {
+      return '₹' + (num / 1e5).toFixed(2).replace(/\.00$/, '') + ' Lakh';
+    }
+    return '₹' + num.toLocaleString('en-IN');
+  };
+  // console.log('item:', item);
+  const [projectCity, setProjectCity] = useState("Unknown City");
+  // Determine field values based on item type
+  const isProperty = item.type === 'property';
+  const propertyName = item.property_name || item.projecttitle || 'Unnamed Property';
+  const category = item.category || 'Project';
+  const city = item.city || 'Unknown City';
+  const price = item.price || '';
+  const centroid = item.latitude
+  const thumbnailPath = isProperty
+    ? `https://landsquire.in/adminAssets/images/Listings/${item.thumbnail}`
+    : `https://landsquire.in/adminAssets/images/Projects/${item.thumbnail}`;
+
+  const getAddressFromCoordinates = async (latitude, longitude) => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        // console.log("Permission to access location was denied");
+        return null;
+      }
+
+      const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+      if (results.length > 0) {
+        const addressObj = results[0];
+        return addressObj.city || addressObj.region || "Unknown City";
+      }
+      return null;
+    } catch (error) {
+      console.error("Error in reverse geocoding:", error);
+      return null;
+    }
+  };
+
+  // Parse centroid for project
+  const parseCentroid = (coordinates) => {
+    try {
+      const coords = JSON.parse(coordinates);
+      if (!Array.isArray(coords) || coords.length === 0) return null;
+      let latSum = 0, lngSum = 0;
+      coords.forEach(c => {
+        latSum += parseFloat(c.lat);
+        lngSum += parseFloat(c.lng);
+      });
+      return {
+        latitude: latSum / coords.length,
+        longitude: lngSum / coords.length,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (!isProperty && item.coordinates) {
+      const centroid = parseCentroid(item.coordinates);
+      if (centroid) {
+        getAddressFromCoordinates(centroid.latitude, centroid.longitude)
+          .then(cityName => {
+            if (cityName) {
+              setProjectCity(cityName);
+            }
+          });
+      }
+    }
+  }, [item]);
+
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="w-[320px] h-[130px] rounded-[30px] bg-[#f5f4f8] flex-row overflow-hidden"
+    >
+      {/* Image Section */}
+      <View className="w-[150px] h-full relative p-2">
+        <Image
+          source={{
+            uri: item.thumbnail ? thumbnailPath : 'https://landsquire.in/adminAssets/images/default.jpg', // Fallback image
+          }}
+          className="w-full h-full rounded-[30px]"
+          style={{ resizeMode: 'cover' }}
+        />
+        {/* Category Badge */}
+        <View
+          className="absolute bottom-4 left-4 rounded-xl px-4 py-1"
+          style={{ backgroundColor: 'rgba(35,79,104,0.9)', backdropFilter: 'blur(8px)' }}
+        >
+          <Text className="text-sm font-rubik text-white">
+            {category}
+          </Text>
+        </View>
+      </View>
+      {/* Text Content Section */}
+      <View className="flex-1 p-2 justify-center items-start">
+        {/* Property/Project Name */}
+        <Text className="text-lg font-rubik-medium text-black-300">
+          {propertyName.length > 17 ? propertyName.slice(0, 17) + '...' : propertyName}
+        </Text>
+
+        {/* Location */}
+        <View className="flex-row items-center mt-1">
+          <Ionicons name="location-outline" size={16} color="#234F68" />
+          <Text className="text-sm font-rubik text-black ml-1">
+            {isProperty ? city : projectCity}
+          </Text>
+        </View>
+
+        {/* Price */}
+        <View className="w-[100%] flex-row items-center justify-between mt-2">
+          <Text className="text-base font-rubik text-black-300">
+            {price && formatINR(price)}
+          </Text>
+
+          {map && (
+            <TouchableOpacity
+              onPress={onView}
+              className="py-1 px-2 bg-primary-400 rounded-lg items-center"
+            >
+              <Ionicons name="eye-outline" size={20} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+export { MapCard };
 
 const styles = StyleSheet.create({
 

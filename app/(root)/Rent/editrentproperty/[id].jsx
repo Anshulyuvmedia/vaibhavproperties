@@ -16,10 +16,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import RBSheet from 'react-native-raw-bottom-sheet';
 import { Ionicons, MaterialCommunityIcons, Feather, AntDesign, MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import { v4 as uuidv4 } from 'uuid';
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 
 const EditRentProperty = () => {
     const { id } = useLocalSearchParams();
     const navigation = useNavigation();
+    const [sessionToken, setSessionToken] = useState(uuidv4());
 
     const GOOGLE_MAPS_API_KEY = Constants.expoConfig.extra.GOOGLE_MAPS_API_KEY;
     const [step1Data, setStep1Data] = useState({ property_name: '', description: '', nearbylocation: '', price: '' });
@@ -107,7 +110,9 @@ const EditRentProperty = () => {
 
     const [selectedSubCategory, setSelectedSubCategory] = useState('');
     const [selectedPropertyFor, setSelectedPropertyFor] = useState('');
-
+    const [suggestions, setSuggestions] = useState([]);
+    const [message, setMessage] = useState({ type: '', title: '', text: '' });
+    const [searchTerm, setSearchTerm] = useState('');
     // State for tracking invalid fields
     const [step1Errors, setStep1Errors] = useState({ property_name: false, mainImage: false, category: false, description: false, nearbylocation: false, price: false });
     const [step2Errors, setStep2Errors] = useState({ bathroom: false, floor: false, city: false, coordinates: false, officeaddress: false, bedroom: false, fullAddress: false });
@@ -200,9 +205,9 @@ const EditRentProperty = () => {
         if (step === 2) {
             const newErrors = {
                 amenities: amenities.length < 1,
-                floor: !step3Data?.floor,
-                bathroom: !step3Data?.bathroom,
-                bedroom: !step3Data?.bedroom,
+                // floor: !step3Data?.floor,
+                // bathroom: !step3Data?.bathroom,
+                // bedroom: !step3Data?.bedroom,
                 city: !step3Data?.city,
                 officeaddress: !step3Data?.officeaddress,
                 landArea: !landArea,
@@ -214,9 +219,9 @@ const EditRentProperty = () => {
                 title = 'Step 2 Error';
                 message = [
                     newErrors.amenities ? 'Please enter amenities.' : '',
-                    newErrors.floor ? 'Please enter no. of floors' : '',
-                    newErrors.bathroom ? 'Please enter no. of bathroom.' : '',
-                    newErrors.bedroom ? 'Please enter no. of bathroom.' : '',
+                    // newErrors.floor ? 'Please enter no. of floors' : '',
+                    // newErrors.bathroom ? 'Please enter no. of bathroom.' : '',
+                    // newErrors.bedroom ? 'Please enter no. of bathroom.' : '',
                     newErrors.landArea ? 'Please enter land area.' : '',
                     newErrors.city ? 'Please enter city.' : '',
                     newErrors.officeaddress ? 'Please enter Property address.' : '',
@@ -637,8 +642,15 @@ const EditRentProperty = () => {
 
     const fetchPropertyData = async () => {
         try {
+            const token = await AsyncStorage.getItem('userToken');
+
             setLoading(true);
-            const response = await axios.get(`https://landsquire.in/api/property-details/${id}`);
+            const response = await axios.get(`https://landsquire.in/api/property-details/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
             if (response.data) {
                 const apiData = response.data.details;
                 // console.log('apiData', apiData);
@@ -840,6 +852,102 @@ const EditRentProperty = () => {
         router.back();
         // Example: router.push('/contact-support');
         // Or open an email client, phone call, or support ticket API
+    };
+
+    const handleSearch = (text) => {
+        setSearchTerm(text);
+        setStep3Data({ ...step3Data, city: text }); // Sync city with input
+        if (text.length > 2) {
+            fetchSuggestions(text);
+        } else {
+            setSuggestions([]);
+        }
+    };
+
+    const fetchSuggestions = async (input) => {
+        try {
+            const response = await axios.get('https://maps.googleapis.com/maps/api/place/autocomplete/json', {
+                params: {
+                    input,
+                    components: 'country:IN',
+                    types: '(cities)',
+                    key: GOOGLE_MAPS_API_KEY,
+                    sessiontoken: sessionToken,
+                },
+            });
+            // console.log('API Response:', response.data); // Debug the response
+            if (response.data.status === 'OK') {
+                setSuggestions(response.data.predictions);
+            } else {
+                setSuggestions([]);
+                setMessage({
+                    type: 'error',
+                    title: 'Error',
+                    text: response.data.error_message || 'Failed to fetch suggestions.',
+                });
+                console.error('API Error:', response.data.error_message);
+            }
+        } catch (error) {
+            console.error('Fetch Suggestions Error:', error);
+            setSuggestions([]);
+            setMessage({
+                type: 'error',
+                title: 'Error',
+                text: 'An unexpected error occurred during search.',
+            });
+        }
+    };
+
+    const handleSelect = async (placeId) => {
+        try {
+            const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+                params: {
+                    place_id: placeId,
+                    fields: 'address_components,formatted_address',
+                    key: GOOGLE_MAPS_API_KEY,
+                    sessiontoken: sessionToken,
+                },
+            });
+            // console.log('Place Details Response:', response.data); // Debug the response
+            if (response.data.status === 'OK') {
+                const components = response.data.result.address_components;
+                let selectedCity = '';
+                let selectedState = '';
+                components.forEach(comp => {
+                    if (comp.types.includes('locality') || comp.types.includes('sublocality')) {
+                        selectedCity = comp.long_name;
+                    }
+                    if (comp.types.includes('administrative_area_level_1')) {
+                        selectedState = comp.long_name;
+                    }
+                });
+                if (selectedCity) {
+                    setStep3Data({ ...step3Data, city: selectedCity });
+                    setSearchTerm(selectedCity);
+                    setSuggestions([]);
+                    setSessionToken(uuidv4()); // Reset session token after selection
+                } else {
+                    setMessage({
+                        type: 'error',
+                        title: 'Error',
+                        text: 'Could not extract city from selection.',
+                    });
+                }
+            } else {
+                setMessage({
+                    type: 'error',
+                    title: 'Error',
+                    text: response.data.error_message || 'Failed to fetch place details.',
+                });
+            }
+        } catch (error) {
+            console.error('Handle Select Error:', error);
+            setMessage({
+                type: 'error',
+                title: 'Error',
+                text: 'An unexpected error occurred during selection.',
+            });
+        }
     };
 
     return (
@@ -1138,7 +1246,7 @@ const EditRentProperty = () => {
                                 </View>
                             </View>
 
-                            {(selectedCategory !== 'Agricultural' && selectedCategory !== 'Commercial' && selectedCategory !== 'Industrial') && (
+                            {(selectedSubCategory !== 'Plot' && selectedSubCategory !== 'Land') && (
                                 <View style={styles.stepContent}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                         <View style={{ flex: 1, marginRight: 5 }}>
@@ -1192,9 +1300,30 @@ const EditRentProperty = () => {
                                     <Text style={[styles.label, step2Errors.city && { color: 'red' }]}>City</Text>
                                     <View style={styles.inputContainer}>
                                         <MaterialCommunityIcons name="city-variant-outline" size={24} color="#1F4C6B" style={styles.inputIcon} />
-                                        <TextInput style={styles.input} placeholder="Enter City" value={step3Data.city} onChangeText={text => setStep3Data({ ...step3Data, city: text })} />
+                                        <TextInput style={styles.input} placeholder="Enter City" onChangeText={handleSearch} value={step3Data.city} />
                                     </View>
                                 </View>
+                                {message.text && (
+                                    <View style={styles.errorContainer}>
+                                        <Text style={styles.errorText}>{message.title}: {message.text}</Text>
+                                    </View>
+                                )}
+                                {suggestions.length > 0 && (
+                                    <FlatList
+                                        data={suggestions}
+                                        keyExtractor={(item) => item.place_id}
+                                        renderItem={({ item }) => (
+                                            <TouchableOpacity
+                                                style={styles.suggestionItem}
+                                                onPress={() => handleSelect(item.place_id)}
+                                            >
+                                                <Text style={styles.suggestionText}>{item.description}</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                        style={styles.suggestionsList}
+                                    />
+                                )}
+
                                 <Text style={[styles.label, step2Errors.officeaddress && { color: 'red' }]}>Property Address</Text>
                                 <TextInput
                                     style={styles.textarea}
@@ -1997,6 +2126,20 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
         textAlign: 'center',
+    },
+    suggestionsList: { backgroundColor: '#fff', borderRadius: moderateScale(10), maxHeight: verticalScale(200), width: '100%', marginBottom: verticalScale(10) },
+    suggestionItem: { padding: moderateScale(10), borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+    suggestionText: { fontFamily: 'Rubik-Regular', color: '#555', fontSize: scale(14) },
+    errorContainer: {
+        backgroundColor: '#FEE2E2',
+        padding: 10,
+        borderRadius: 10,
+        marginVertical: 10,
+    },
+    errorText: {
+        color: '#B91C1C',
+        fontSize: 14,
+        fontFamily: 'Rubik-Regular',
     },
 });
 

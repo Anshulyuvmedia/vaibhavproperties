@@ -7,7 +7,7 @@ import axios from "axios";
 import { Share } from "react-native";
 import RBSheet from "react-native-raw-bottom-sheet";
 
-const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId }) => {
+const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId, isProject }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [sheetContent, setSheetContent] = useState({ type: "", message: "" });
     const rbSheetRef = useRef();
@@ -109,11 +109,23 @@ const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId }) => 
     };
 
     const fetchEncryptedId = async (id) => {
-        const token = await AsyncStorage.getItem("userToken");
-        const response = await axios.get(`https://landsquire.in/api/getencryptedid/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        return response.data.encrypted_id;
+        try {
+            const token = await AsyncStorage.getItem("userToken");
+            if (!token) {
+                throw new Error("No token found");
+            }
+            const response = await axios.get(`https://landsquire.in/api/getencryptedid/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.data.encrypted_id) {
+                return response.data.encrypted_id;
+            } else {
+                throw new Error("Encrypted ID not found in response");
+            }
+        } catch (error) {
+            console.error("Error fetching encrypted ID:", error.message);
+            throw error;
+        }
     };
 
     const shareProperty = async () => {
@@ -124,24 +136,36 @@ const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId }) => 
                 return;
             }
 
-            const encryptedId = await fetchEncryptedId(propertyData.id);
-            const propertyUrl = `https://landsquire.in/listing-details/${encryptedId}`;
-            const message = `View this property: ${propertyUrl}`;
+            let shareUrl;
+            let shareTitle = isProject ? "Check out this project!" : "Check out this property!";
+
+            if (isProject) {
+                // Project URL uses raw propertyData.id
+                shareUrl = `https://landsquire.in/project-details/${propertyData.id}`;
+            } else {
+                // Property URL uses encrypted ID
+                const encryptedId = await fetchEncryptedId(propertyData.id);
+                shareUrl = `https://landsquire.in/listing-details/${encryptedId}`;
+            }
+
+            const message = isProject
+                ? `View this project: ${shareUrl}`
+                : `View this property: ${shareUrl}`;
 
             const result = await Share.share({
                 message,
-                url: propertyUrl,
-                title: "Check out this property!",
+                url: shareUrl,
+                title: shareTitle,
             });
 
             if (result.action === Share.sharedAction) {
-                console.log("Property shared successfully!");
+                console.log(isProject ? "Project shared successfully!" : "Property shared successfully!");
             } else if (result.action === Share.dismissedAction) {
                 console.log("Share dismissed.");
             }
         } catch (error) {
-            console.error("Error sharing property:", error.message);
-            setSheetContent({ type: "error", message: "Could not share property." });
+            console.error("Error sharing:", error.message);
+            setSheetContent({ type: "error", message: `Could not share ${isProject ? "project" : "property"}.` });
             rbSheetRef.current?.open();
         }
     };
@@ -166,8 +190,8 @@ const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId }) => 
                             {propertyData?.roleid === loggedinUserId && (
                                 <Text
                                     className={`inline-flex items-center rounded-md capitalize px-2 py-1 text-xs font-rubik ring-1 ring-inset ${propertyData.status === "published"
-                                            ? "bg-green-50 text-green-700 ring-green-600/20"
-                                            : "bg-red-50 text-red-700 ring-red-600/20"
+                                        ? "bg-green-50 text-green-700 ring-green-600/20"
+                                        : "bg-red-50 text-red-700 ring-red-600/20"
                                         }`}
                                 >
                                     {propertyData.status}
@@ -179,7 +203,7 @@ const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId }) => 
                             >
                                 <Ionicons name="share-social" size={28} color="#000000" />
                             </TouchableOpacity>
-                            {loggedinUserId && (
+                            {loggedinUserId &&  !isProject && (
                                 <TouchableOpacity
                                     onPress={toggleWishlist}
                                     className="flex flex-row bg-white rounded-full w-11 h-11 items-center justify-center"

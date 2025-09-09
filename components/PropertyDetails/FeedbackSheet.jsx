@@ -26,11 +26,14 @@ const FeedbackSheet = forwardRef(({ type, message, height, onClose }, ref) => {
             }}
             height={height}
             openDuration={250}
+            onClose={onClose}
         >
             <View className="items-center">
                 <Image source={alertIcon} className="w-[100px] h-[100px]" />
-                <Text className={`text-[18px] font-bold text-[${bgColor}] mt-2`}>{isSuccess ? "Success" : "Error"}</Text>
-                <Text className="text-base text-center mt-2">{message}</Text>
+                <Text className={`text-[18px] font-rubik-bold text-[${bgColor}] mt-2`}>
+                    {isSuccess ? "Success" : "Error"}
+                </Text>
+                <Text className="text-base text-center font-rubik mt-2">{message}</Text>
                 <TouchableOpacity
                     className={`bg-[${bgColor}] px-4 py-2 rounded-[10px] mt-5`}
                     onPress={() => {
@@ -38,7 +41,7 @@ const FeedbackSheet = forwardRef(({ type, message, height, onClose }, ref) => {
                         if (onClose) onClose();
                     }}
                 >
-                    <Text className="text-black font-bold">Close</Text>
+                    <Text className="text-black font-rubik-bold">Close</Text>
                 </TouchableOpacity>
             </View>
         </RBSheet>

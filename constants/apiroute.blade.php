@@ -49,5 +49,7 @@ Route::controller(ApiMasterController::class)->group(function () {
     Route::get('/getVisitorCount/{propertyId}', 'getVisitorCount')->name('getVisitorCount');
     Route::get('/fetchenquiry/{id}', 'fetchenquiry')->name('fetchenquiry');
     Route::post('/updatefollowup', 'updatefollowup')->name('updatefollowup');
+    Route::get('/upcomingproject', 'upcomingproject')->name('upcomingproject');
+    Route::get('/fetchproject/{id}', 'fetchproject')->name('fetchproject');
 
 });

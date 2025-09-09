@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
 import Search from '@/components/Search';
-import { Card, HorizontalCard } from '@/components/Cards';
+import { Card, HorizontalCard, MapCard } from '@/components/Cards';
 import Filters from '@/components/Filters';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,8 +33,10 @@ const Home = () => {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [error, setError] = useState(null);
+    const [projectsData, setProjectsData] = useState([]);
 
     const handleCardPress = (id) => router.push(`/properties/${id}`);
+    const handleProjectPress = (id) => router.push(`/projects/${id}`);
 
     const fetchUserData = async () => {
         setLoading(true);
@@ -101,6 +103,16 @@ const Home = () => {
                 router.push('/signin');
                 return;
             }
+
+            // Fetch projects with region params
+            const projectsResponse = await axios.get('https://landsquire.in/api/upcomingproject', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'User-Agent': 'LandSquireApp/1.0 (React Native)',
+                },
+            });
+
+            setProjectsData(projectsResponse.data?.projects || []);
 
             const response = await axios.get(`https://landsquire.in/api/property-listings?page=${pageToFetch}`, {
                 headers: {
@@ -180,6 +192,7 @@ const Home = () => {
             setRefreshing(false);
         }
     }, [hasMore, loading, router, t]);
+
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -415,6 +428,40 @@ const Home = () => {
                                     data={rentListingData}
                                     renderItem={({ item }) => <HorizontalCard item={item} onPress={() => handleCardPress(item.id)} />}
                                     keyExtractor={(item) => `rent_${item.id}`}
+                                    horizontal
+                                    bounces={false}
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerClassName="flex gap-5"
+                                    ListFooterComponent={
+                                        <>
+                                            {loading && <ActivityIndicator size="large" color="#4A90E2" />}
+                                            {error && <Text className="text-red-500 text-center">{error}</Text>}
+                                        </>
+                                    }
+                                />
+                            </View>
+                        )}
+
+                        {projectsData && (
+                            <View className="my-5">
+                                <View className="flex flex-row items-center justify-between mb-5">
+                                    <Text
+                                        className={`text-xl ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-bold' : 'font-rubik-bold'} text-black-300`}
+                                    >
+                                        Upcoming Projects
+                                    </Text>
+                                    {/* <TouchableOpacity onPress={() => router.push('properties/explore')}>
+                                        <Text
+                                            className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-primary-300`}
+                                        >
+                                            {t('seeAll')}
+                                        </Text>
+                                    </TouchableOpacity> */}
+                                </View>
+                                <FlatList
+                                    data={projectsData}
+                                    renderItem={({ item }) => <MapCard item={item} onPress={() => handleProjectPress(item.id)} />}
+                                    keyExtractor={(item) => `project_${item.id}`}
                                     horizontal
                                     bounces={false}
                                     showsHorizontalScrollIndicator={false}

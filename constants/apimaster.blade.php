@@ -19,6 +19,7 @@ use App\Notifications\BidLiveNotification;
 use Illuminate\Support\Facades\File;
 use App\Models\Wishlist;
 use App\Models\PropertyVisit;
+use App\Models\UpcomingProject;
 
 class ApiMasterController extends Controller
 {
@@ -1715,5 +1716,34 @@ class ApiMasterController extends Controller
                 'error' => 'An error occurred: ' . $e->getMessage(),
             ], 500);
         }
+    }
+    
+    public function upcomingproject(Request $request)
+    {
+        $user = $this->validateToken($request);
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
+        }
+        //Upcoming Projects
+        $projects = UpcomingProject::where('status','=','Active')->get();
+
+        return response()->json([
+            'success' => 'success',
+            'projects' => $projects,
+        ], 200);
+    }
+    public function fetchproject(Request $request, $id)
+    {
+        $user = $this->validateToken($request);
+        if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+            return $user;
+        }
+        //Upcoming Projects
+        $projectData = UpcomingProject::where('id', $id)->where('status','=','Active')->first();
+
+        return response()->json([
+            'success' => 'success',
+            'projectData' => $projectData,
+        ], 200);
     }
 }
