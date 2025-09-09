@@ -310,7 +310,7 @@ const CrmPortal = () => {
                     style={styles.advancedFilterButton}
                     onPress={() => filterSheetRef.current.open()}
                 >
-                    <MaterialIcons name="filter-list" size={moderateScale(24)} color="#234F68" />
+                    <MaterialIcons name="filter-list" size={moderateScale(20)} color="#234F68" />
                     <Text
                         style={[
                             styles.advancedFilterText,
@@ -382,7 +382,7 @@ const CrmPortal = () => {
             {/* Filter Bottom Sheet */}
             <RBSheet
                 ref={filterSheetRef}
-                height={verticalScale(450)}
+                height={verticalScale(550)}
                 openDuration={250}
                 closeDuration={200}
                 customStyles={{
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
         paddingVertical: verticalScale(4),
         marginHorizontal: scale(4),
         borderRadius: moderateScale(12),
-        minWidth: moderateScale(75),
+        minWidth: moderateScale(70),
         alignItems: 'center',
     },
     filterButtonActive: {
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
 const pickerSelectStyles = StyleSheet.create({
     inputIOS: {
         fontSize: moderateScale(14),
-        padding: moderateScale(10),
+        paddingVertical: moderateScale(10),
         borderWidth: 1,
         borderColor: '#e6e8eb',
         borderRadius: moderateScale(8),
@@ -789,7 +789,7 @@ const pickerSelectStyles = StyleSheet.create({
     },
     inputAndroid: {
         fontSize: moderateScale(14),
-        padding: moderateScale(10),
+        paddingVertical: moderateScale(10),
         borderWidth: 1,
         borderColor: '#e6e8eb',
         borderRadius: moderateScale(8),

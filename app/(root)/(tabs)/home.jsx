@@ -416,7 +416,10 @@ const Home = () => {
                                     >
                                         Rent a property
                                     </Text>
-                                    <TouchableOpacity onPress={() => router.push('properties/explore')}>
+                                    <TouchableOpacity onPress={() => router.push({
+                                        pathname: "properties/explore",
+                                        params: { propertyFor: "Rent" },
+                                    })}>
                                         <Text
                                             className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik'} text-primary-300`}
                                         >

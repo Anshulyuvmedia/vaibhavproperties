@@ -13,7 +13,7 @@ export default function Index() {
             try {
                 const token = await AsyncStorage.getItem("userToken");
                 const userData = await AsyncStorage.getItem("userData");
-
+                // console.log('token', token);
                 if (token && userData) {
                     const user = JSON.parse(userData);
                     const userType = user?.user_type?.toLowerCase();
@@ -21,7 +21,7 @@ export default function Index() {
                     if (userType === "user") {
                         router.replace("/mapview");
                     } else if (userType === "broker" || userType === "bankagent") {
-                        router.replace("/");
+                        router.replace("/(root)/(tabs)/home");
                     } else {
                         router.replace("/login");
                     }

@@ -154,6 +154,7 @@ const Signin = () => {
 
         const storedToken = await AsyncStorage.getItem('userToken');
         const storedUserData = await AsyncStorage.getItem('userData');
+                console.log('token sigin', storedToken);
 
         if (storedToken && storedUserData) {
           otpSheetRef.current?.close();

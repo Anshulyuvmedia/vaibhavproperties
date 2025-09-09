@@ -57,6 +57,11 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      if (error.response?.status === 401) {
+        await AsyncStorage.removeItem('userToken');
+        await AsyncStorage.removeItem('userData');
+        router.push('/signin');
+      }
       setImage(images.avatar);
     } finally {
       setLoading(false);
@@ -216,15 +221,22 @@ const Dashboard = () => {
             {/* Settings Section */}
             <View className="mb-3">
               <MenuItem
+                icon="support-agent"
+                title='CRM'
+                onPress={() => router.push('/CRM/crmportal')}
+              />
+              <MenuItem
                 icon="notifications-none"
                 title={t('notifications')}
                 onPress={() => router.push('/notifications')}
               />
-              <MenuItem
-                icon="notifications-none"
-                title='CRM'
-                onPress={() => router.push('/CRM/crmportal')}
-              />
+              {userData?.user_type != 'bankagent' && (
+                <MenuItem
+                  icon="attach-money"
+                  title={t('applyforloan')}
+                  onPress={() => router.push('/loanenquiry')}
+                />
+              )}
               {/* {userData?.user_type != 'bankagent' && (
                 <MenuItem
                   icon="house-siding"
@@ -247,13 +259,7 @@ const Dashboard = () => {
                   onPress={() => router.push('/dashboard/loanleads')}
                 />
               )}
-              {userData?.user_type != 'bankagent' && (
-                <MenuItem
-                  icon="attach-money"
-                  title={t('applyforloan')}
-                  onPress={() => router.push('/loanenquiry')}
-                />
-              )}
+              
 
               {/* Language Toggle */}
               <View className="flex-row items-center justify-between py-2.5 px-3 bg-white rounded-lg mb-1.5 shadow-sm">

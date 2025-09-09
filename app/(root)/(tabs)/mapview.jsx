@@ -255,6 +255,12 @@ const Mapview = () => {
             setProjectsData([]);
             setFilteredData([]);
             setVisibleItems([]);
+            if (error.response?.status === 401) {
+                await AsyncStorage.removeItem('userToken');
+                await AsyncStorage.removeItem('userData');
+                router.push('/signin');
+            }
+
             if (error.message.includes("Network Error")) {
                 setError("Network error. Please check your internet connection.");
             } else {
