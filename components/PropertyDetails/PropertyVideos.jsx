@@ -4,6 +4,7 @@ import icons from "@/constants/icons";
 const PropertyVideos = ({ videoUrls, windowWidth, openLightbox, selectedMediaIndex, propertyGalleryLength }) => {
     // Return null if videoUrls is empty or not an array
     if (!Array.isArray(videoUrls) || videoUrls.length === 0) return null;
+    // console.log('videoUrls', videoUrls);
 
     // Validate that each video has a unique ID
     const validatedVideoUrls = videoUrls.map((video, index) => ({
@@ -30,7 +31,16 @@ const PropertyVideos = ({ videoUrls, windowWidth, openLightbox, selectedMediaInd
                             onPress={() => openLightbox(propertyGalleryLength + index)}
                             className="bg-primary-100 px-2 rounded-[10px]"
                         >
-                            <Image source={thumbnailUri} className="w-[75px] h-[75px]" resizeMode="cover" />
+                            <Image
+                                source={
+                                    typeof item.thumbnail === "string"
+                                        ? { uri: item.thumbnail }  // Remote URL
+                                        : icons.videofile          // Local require fallback
+                                }
+                                className="w-[75px] h-[75px]"
+                                resizeMode="cover"
+                            />
+
                             <Text className="text-black text-sm font-rubik-medium mt-2 text-center">
                                 {item.title || `Video ${index + 1}`}
                             </Text>
@@ -49,8 +59,8 @@ const PropertyVideos = ({ videoUrls, windowWidth, openLightbox, selectedMediaInd
                     <View
                         key={`dot-${index}`} // Add unique key for pagination dots
                         className={`w-2 h-2 rounded-full mx-1 ${selectedMediaIndex === propertyGalleryLength + index
-                                ? "bg-blue-500"
-                                : "bg-gray-300"
+                            ? "bg-blue-500"
+                            : "bg-gray-300"
                             }`}
                     />
                 ))}

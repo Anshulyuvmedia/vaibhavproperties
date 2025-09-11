@@ -6,18 +6,18 @@ import images from "@/constants/images";
 const BrokerCard = ({ brokerData, handleCall, openWhatsApp, getProfileImageUri }) => {
     if (!brokerData) return null;
 
+    console.log('brokerdata', brokerData.profile, typeof brokerData.profile);
     return (
         <View className="px-5 mt-4">
             <Text className="text-black-300 text-xl font-rubik-bold">Property Owner</Text>
             <TouchableOpacity
-                className="flex flex-row items-center bg-primary-100 rounded-3xl p-3 mt-2 shadow-md shadow-black/10"
+                className="flex flex-row items-center bg-primary-100 rounded-lg p-3 mt-2 shadow-md shadow-black/10"
                 onPress={() => {
-                    const imageUri = getProfileImageUri();
                     router.push({
                         pathname: `/broker/${brokerData.id}`,
                         params: {
                             name: brokerData.username,
-                            image: imageUri,
+                            image: brokerData?.profile,
                             city: brokerData.city || "Unknown",
                             email: brokerData.email || "N/A",
                             company: brokerData.company_name || "N/A",
@@ -26,7 +26,11 @@ const BrokerCard = ({ brokerData, handleCall, openWhatsApp, getProfileImageUri }
                 }}
             >
                 <Image
-                    source={{ uri: getProfileImageUri() }}
+                    source={
+                        typeof brokerData?.profile === "string"
+                            ? { uri: brokerData?.profile }
+                            : images.avatar
+                    }
                     className="w-14 h-14 rounded-full"
                     onError={(error) => console.log('Image load error for broker:', error.nativeEvent.error)}
                 />

@@ -180,6 +180,7 @@ class ApiMasterController extends Controller
 
         if ($user) {
             $otp = rand(100000, 999999);
+            // $this->sendOtp($user->mobilenumber, $otp);
             $user->update(['otp' => $otp]);
 
             // Log::info('OTP generated for user ID:', ['id' => $user->id, 'otp' => $otp]);
@@ -202,7 +203,41 @@ class ApiMasterController extends Controller
             404,
         );
     }
+    public function sendOtp($mobilenumber, $otpnumber)
+    {
+        $name = "Land Squire";
 
+        try {
+            $response = Http::withToken(env('SMS_KEY'))
+                ->post('https://sms.jaipursmshub.in/api_v2/message/send', [
+                    'sender_id' => 'PTPSMS',
+                    'dlt_template_id' => '1207168605001414924',
+                    'message' => 'Hi Your User OTP is: ' . $otpnumber . ' Thank you ! ' . $name . ' PTPSMS',
+                    'mobile_no' => $mobilenumber,
+                ]);
+
+            if ($response->successful()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'OTP sent successfully',
+                    'sms_api_response' => $response->json(),
+                ], 200);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send OTP',
+                'error' => $response->json(),
+            ], 500);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
     public function verifyotp(Request $request)
     {
         try {
@@ -573,9 +608,20 @@ class ApiMasterController extends Controller
     public function updateuserprofile(Request $request, $id)
     {
         try {
+            $user = $this->validateToken($request);
+            if (is_a($user, '\Illuminate\Http\JsonResponse')) {
+                // Log request payload as an array of key-value pairs
+                Log::info('Request payload:', $request->all());
+                return $user;
+            }
+
+            // Log user ID and request payload
+            Log::info('User ID:', ['id' => $id]);
+            Log::info('Request payload:', $request->all());
+
             $user = RegisterUser::find($id);
-            $filenameprofileimage = '';
-            $thumbnailFilename = null;
+            $filenameprofileimage = $user->profile ?? '';
+            $thumbnailFilename = $user->company_document ?? null;
 
             if ($request->hasFile('myprofileimage')) {
                 $request->validate([
@@ -600,15 +646,18 @@ class ApiMasterController extends Controller
                 'username' => $request->name,
                 'email' => $request->email,
                 'city' => $request->city,
+                'state' => $request->state,
                 'mobilenumber' => $request->mobile,
                 'company_name' => $request->company_name,
-                'profile' => $filenameprofileimage == null ? $user->profile : $filenameprofileimage,
-                'company_document' => $thumbnailFilename == null ? $user->company_document : $thumbnailFilename,
+                'bankname' => $request->bankname,
+                'profile' => $filenameprofileimage ?: $user->profile,
+                'company_document' => $thumbnailFilename ?: $user->company_document,
             ]);
 
             return response()->json(['success' => true, 'message' => 'Profile Updated..!!!', 'data' => $user]);
         } catch (Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+            Log::error('Error updating profile: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -1096,10 +1145,13 @@ class ApiMasterController extends Controller
             $lead = Lead::where('id', $id)->first();
             if (!$lead) {
                 Log::warning('No lead found for ID: ' . $id . ', user ID: ' . $user->id);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Lead not found or unauthorized',
-                ], 404);
+                return response()->json(
+                    [
+                        'success' => false,
+                        'message' => 'Lead not found or unauthorized',
+                    ],
+                    404,
+                );
             }
 
             return response()->json([
@@ -1108,13 +1160,15 @@ class ApiMasterController extends Controller
             ]);
         } catch (Exception $e) {
             Log::error('Error in fetchenquiry for lead ID: ' . $id, ['error' => $e->getMessage()]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Internal server error: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' => 'Internal server error: ' . $e->getMessage(),
+                ],
+                500,
+            );
         }
     }
-
 
     public function bankagentlist()
     {
@@ -1610,7 +1664,6 @@ class ApiMasterController extends Controller
         }
     }
 
-
     public function updatefollowup(Request $request)
     {
         // Log::info('updatefollowup called', [
@@ -1627,18 +1680,24 @@ class ApiMasterController extends Controller
             $recordId = $request->input('recordid');
             if (!$recordId || !is_numeric($recordId)) {
                 Log::warning('Invalid or missing recordid', ['recordid' => $recordId]);
-                return response()->json([
-                    'error' => 'Invalid or missing record ID.',
-                    'received' => $recordId,
-                ], 422);
+                return response()->json(
+                    [
+                        'error' => 'Invalid or missing record ID.',
+                        'received' => $recordId,
+                    ],
+                    422,
+                );
             }
 
             $lead = Lead::find($recordId);
             if (!$lead) {
                 Log::warning('Lead not found', ['recordid' => $recordId]);
-                return response()->json([
-                    'error' => 'Lead not found for ID: ' . $recordId,
-                ], 404);
+                return response()->json(
+                    [
+                        'error' => 'Lead not found for ID: ' . $recordId,
+                    ],
+                    404,
+                );
             }
 
             $existingFollowups = $lead->followupdetails ? json_decode($lead->followupdetails, true) : [];
@@ -1651,15 +1710,21 @@ class ApiMasterController extends Controller
                     new \DateTime($followupdate);
                 } catch (Exception $e) {
                     Log::warning('Invalid follow-up date format', ['followupdate' => $followupdate]);
-                    return response()->json([
-                        'error' => 'Invalid follow-up date format: ' . $followupdate,
-                    ], 422);
+                    return response()->json(
+                        [
+                            'error' => 'Invalid follow-up date format: ' . $followupdate,
+                        ],
+                        422,
+                    );
                 }
                 if (strlen($followupdescription) > 1000) {
                     Log::warning('Follow-up description too long', ['length' => strlen($followupdescription)]);
-                    return response()->json([
-                        'error' => 'Follow-up description exceeds 1000 characters.',
-                    ], 422);
+                    return response()->json(
+                        [
+                            'error' => 'Follow-up description exceeds 1000 characters.',
+                        ],
+                        422,
+                    );
                 }
                 $existingFollowups[] = [
                     'date' => $followupdate,
@@ -1672,10 +1737,13 @@ class ApiMasterController extends Controller
                     'followupdate' => $followupdate,
                     'followupdescription' => $followupdescription,
                 ]);
-                return response()->json([
-                    'error' => 'Both followupdate and followupdescription must be provided together.',
-                    'received' => ['followupdate' => $followupdate, 'followupdescription' => $followupdescription],
-                ], 422);
+                return response()->json(
+                    [
+                        'error' => 'Both followupdate and followupdescription must be provided together.',
+                        'received' => ['followupdate' => $followupdate, 'followupdescription' => $followupdescription],
+                    ],
+                    422,
+                );
             }
 
             $followupstatus = $request->input('followupstatus');
@@ -1683,10 +1751,13 @@ class ApiMasterController extends Controller
                 $validStatuses = ['New', 'Qualified', 'Not Responded', 'Won', 'Final'];
                 if (!in_array($followupstatus, $validStatuses)) {
                     Log::warning('Invalid status value', ['followupstatus' => $followupstatus]);
-                    return response()->json([
-                        'error' => 'Invalid status value: ' . $followupstatus,
-                        'validStatuses' => $validStatuses,
-                    ], 422);
+                    return response()->json(
+                        [
+                            'error' => 'Invalid status value: ' . $followupstatus,
+                            'validStatuses' => $validStatuses,
+                        ],
+                        422,
+                    );
                 }
                 $lead->status = $followupstatus;
                 $updated = true;
@@ -1694,30 +1765,39 @@ class ApiMasterController extends Controller
 
             if (!$updated) {
                 Log::warning('No changes provided', ['payload' => $request->all()]);
-                return response()->json([
-                    'error' => 'No changes provided to update.',
-                    'received' => $request->all(),
-                ], 422);
+                return response()->json(
+                    [
+                        'error' => 'No changes provided to update.',
+                        'received' => $request->all(),
+                    ],
+                    422,
+                );
             }
 
             $lead->save();
             // Log::info('Lead updated successfully', ['recordid' => $recordId]);
 
-            return response()->json([
-                'success' => 'Follow-up added and/or status updated successfully.',
-                'lead' => $lead,
-            ], 200);
+            return response()->json(
+                [
+                    'success' => 'Follow-up added and/or status updated successfully.',
+                    'lead' => $lead,
+                ],
+                200,
+            );
         } catch (Exception $e) {
             Log::error('updatefollowup error', [
                 'error' => $e->getMessage(),
                 'payload' => $request->all(),
             ]);
-            return response()->json([
-                'error' => 'An error occurred: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(
+                [
+                    'error' => 'An error occurred: ' . $e->getMessage(),
+                ],
+                500,
+            );
         }
     }
-    
+
     public function upcomingproject(Request $request)
     {
         $user = $this->validateToken($request);
@@ -1725,12 +1805,15 @@ class ApiMasterController extends Controller
             return $user;
         }
         //Upcoming Projects
-        $projects = UpcomingProject::where('status','=','Active')->get();
+        $projects = UpcomingProject::where('status', '=', 'Active')->get();
 
-        return response()->json([
-            'success' => 'success',
-            'projects' => $projects,
-        ], 200);
+        return response()->json(
+            [
+                'success' => 'success',
+                'projects' => $projects,
+            ],
+            200,
+        );
     }
     public function fetchproject(Request $request, $id)
     {
@@ -1739,11 +1822,15 @@ class ApiMasterController extends Controller
             return $user;
         }
         //Upcoming Projects
-        $projectData = UpcomingProject::where('id', $id)->where('status','=','Active')->first();
+        $projectData = UpcomingProject::where('id', $id)->where('status', '=', 'Active')->first();
 
-        return response()->json([
-            'success' => 'success',
-            'projectData' => $projectData,
-        ], 200);
+        return response()->json(
+            [
+                'success' => 'success',
+                'projectData' => $projectData,
+            ],
+            200,
+        );
     }
+    
 }

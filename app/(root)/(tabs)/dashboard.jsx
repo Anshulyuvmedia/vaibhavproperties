@@ -195,7 +195,12 @@ const Dashboard = () => {
                       <Text
                         className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-black-300 capitalize`}
                       >
-                        {t('role')}: {userData?.user_type || 'N/A'}
+                        {t('role')}: {userData?.user_type
+                          ? (userData.user_type === 'bankagent'
+                            ? 'Bank Agent'
+                            : userData.user_type.charAt(0).toUpperCase() + userData.user_type.slice(1))
+                          : 'N/A'}
+
                       </Text>
                       <Text
                         className={`text-base ${i18n.language === 'hi' ? 'font-noto-serif-devanagari-medium' : 'font-rubik-medium'} text-black-300 capitalize`}
@@ -220,11 +225,14 @@ const Dashboard = () => {
 
             {/* Settings Section */}
             <View className="mb-3">
-              <MenuItem
-                icon="support-agent"
-                title='CRM'
-                onPress={() => router.push('/CRM/crmportal')}
-              />
+              {userData?.user_type != 'user' && (
+                <MenuItem
+                  icon="support-agent"
+                  title='CRM'
+                  onPress={() => router.push('/CRM/crmportal')}
+                />
+              )}
+
               <MenuItem
                 icon="notifications-none"
                 title={t('notifications')}
@@ -259,7 +267,7 @@ const Dashboard = () => {
                   onPress={() => router.push('/dashboard/loanleads')}
                 />
               )}
-              
+
 
               {/* Language Toggle */}
               <View className="flex-row items-center justify-between py-2.5 px-3 bg-white rounded-lg mb-1.5 shadow-sm">

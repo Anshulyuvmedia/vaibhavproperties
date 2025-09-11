@@ -932,25 +932,25 @@ const Editproperty = () => {
                     }
                 }
 
-                let priceHistoryData = apiData.pricehistory;
-                if (typeof priceHistoryData === "string") {
-                    try {
-                        priceHistoryData = JSON.parse(priceHistoryData);
-                    } catch (error) {
-                        console.error("Error parsing pricehistory:", error);
-                        priceHistoryData = [];
-                    }
-                }
-                if (Array.isArray(priceHistoryData)) {
-                    priceHistoryData.sort((a, b) => new Date(b.dateValue) - new Date(a.dateValue));
-                    setStep2Data((prevData) => ({
-                        ...prevData,
-                        historydate: priceHistoryData.map(item => ({
-                            dateValue: item.dateValue,
-                            priceValue: item.priceValue.toString(),
-                        })),
-                    }));
-                }
+                // let priceHistoryData = apiData.pricehistory;
+                // if (typeof priceHistoryData === "string") {
+                //     try {
+                //         priceHistoryData = JSON.parse(priceHistoryData);
+                //     } catch (error) {
+                //         console.error("Error parsing pricehistory:", error);
+                //         priceHistoryData = [];
+                //     }
+                // }
+                // if (Array.isArray(priceHistoryData)) {
+                //     priceHistoryData.sort((a, b) => new Date(b.dateValue) - new Date(a.dateValue));
+                //     setStep2Data((prevData) => ({
+                //         ...prevData,
+                //         historydate: priceHistoryData.map(item => ({
+                //             dateValue: item.dateValue,
+                //             priceValue: item.priceValue.toString(),
+                //         })),
+                //     }));
+                // }
 
                 if (apiData.thumbnail) {
                     setMainImage(

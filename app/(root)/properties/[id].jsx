@@ -175,7 +175,7 @@ const PropertyDetails = () => {
         }
     };
 
-    const fetchPropertyData = async () => {
+    const fetchPropertyData = async (propertyId) => {
         try {
             setLoading(true);
             setError(null);
@@ -327,7 +327,7 @@ const PropertyDetails = () => {
             const userId = parsedUserData?.id || null;
             const token = await AsyncStorage.getItem('userToken');
 
-            console.log('propertyId', propertyId)
+            // console.log('propertyId', propertyId)
             const visitData = {
                 property_id: propertyId,
                 user_id: userId,
@@ -375,14 +375,14 @@ const PropertyDetails = () => {
     };
 
     useEffect(() => {
-        fetchPropertyData();
+        fetchPropertyData(propertyId);
         trackVisitor(propertyId);
     }, [propertyId]);
 
     const onRefresh = () => {
         setRefreshing(true);
         setError(null);
-        fetchPropertyData();
+        fetchPropertyData(propertyId);
         trackVisitor(propertyId);
     };
 
@@ -522,15 +522,6 @@ const PropertyDetails = () => {
                     brokerData={brokerData}
                     handleCall={handleCall}
                     openWhatsApp={openWhatsApp}
-                    getProfileImageUri={() =>
-                        brokerData && brokerData.profile
-                            ? typeof brokerData.profile === "number"
-                                ? `https://landsquire.in/adminAssets/images/Users/${brokerData.profile}.jpg`
-                                : brokerData.profile.startsWith("http")
-                                    ? brokerData.profile
-                                    : `https://landsquire.in/adminAssets/images/Users/${brokerData.profile}`
-                            : images.avatar
-                    }
                 />
                 <NearbyInfo
                     nearbylocation={propertyData.nearbylocation}

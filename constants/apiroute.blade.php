@@ -51,5 +51,5 @@ Route::controller(ApiMasterController::class)->group(function () {
     Route::post('/updatefollowup', 'updatefollowup')->name('updatefollowup');
     Route::get('/upcomingproject', 'upcomingproject')->name('upcomingproject');
     Route::get('/fetchproject/{id}', 'fetchproject')->name('fetchproject');
-
+    Route::post('/send-otp', 'sendOtp')->name('sendOtp');
 });

@@ -6,12 +6,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Share } from "react-native";
 import RBSheet from "react-native-raw-bottom-sheet";
+import images from "@/constants/images";
 
 const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId, isProject }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [sheetContent, setSheetContent] = useState({ type: "", message: "" });
     const rbSheetRef = useRef();
 
+    // console.log('propertyThumbnail', propertyThumbnail, typeof propertyThumbnail);
+    // useEffect(() => {
+    //     console.log('propertyThumbnail updated:', propertyThumbnail, typeof propertyThumbnail);
+    // }, [propertyThumbnail]);
     // Check if the property is already in the user's wishlist
     const checkWishlistStatus = async () => {
         if (!loggedinUserId || !propertyData?.id) {
@@ -91,14 +96,12 @@ const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId, isPro
                     message: response.data.added ? "Added to wishlist." : "Removed from wishlist.",
                 });
                 rbSheetRef.current?.open();
-                // Auto-close success message after 2 seconds
                 setTimeout(() => rbSheetRef.current?.close(), 2000);
             } else {
                 setSheetContent({ type: "error", message: response.data.message || "Failed to update wishlist." });
                 rbSheetRef.current?.open();
             }
 
-            // Refresh status
             await checkWishlistStatus();
         } catch (error) {
             console.error("Error updating wishlist:", error.response?.data, error.message);
@@ -140,10 +143,8 @@ const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId, isPro
             let shareTitle = isProject ? "Check out this project!" : "Check out this property!";
 
             if (isProject) {
-                // Project URL uses raw propertyData.id
                 shareUrl = `https://landsquire.in/project-details/${propertyData.id}`;
             } else {
-                // Property URL uses encrypted ID
                 const encryptedId = await fetchEncryptedId(propertyData.id);
                 shareUrl = `https://landsquire.in/listing-details/${encryptedId}`;
             }
@@ -174,10 +175,15 @@ const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId, isPro
         <>
             <View className="relative w-full p-2" style={{ height: Dimensions.get("window").height / 2 }}>
                 <Image
-                    source={{ uri: typeof propertyThumbnail === "string" ? propertyThumbnail : "https://via.placeholder.com/150" }}
+                    source={
+                        typeof propertyThumbnail === "string"
+                            ? { uri: propertyThumbnail }
+                            : images.newYork
+                    }
                     className="w-full h-full rounded-[50px]"
                     resizeMode="cover"
                 />
+
                 <View className="z-50 absolute inset-x-8" style={{ top: Platform.OS === "ios" ? 70 : 25 }}>
                     <View className="flex flex-row items-center justify-between w-full">
                         <TouchableOpacity
@@ -203,7 +209,7 @@ const PropertyHeader = ({ propertyThumbnail, propertyData, loggedinUserId, isPro
                             >
                                 <Ionicons name="share-social" size={28} color="#000000" />
                             </TouchableOpacity>
-                            {loggedinUserId &&  !isProject && (
+                            {loggedinUserId && !isProject && (
                                 <TouchableOpacity
                                     onPress={toggleWishlist}
                                     className="flex flex-row bg-white rounded-full w-11 h-11 items-center justify-center"

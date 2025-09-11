@@ -2,7 +2,7 @@ import { View, Text, ScrollView } from "react-native";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 
 const PropertyDetailsSection = ({ propertyData, visitcount }) => {
-    // console.log('visit count', visitcount);
+    console.log('visit count', visitcount);
     return (
         <View className="px-5 mt-7 flex gap-2">
             <Text className="text-2xl font-rubik-medium capitalize">{propertyData.property_name}</Text>
@@ -11,7 +11,7 @@ const PropertyDetailsSection = ({ propertyData, visitcount }) => {
                     <Ionicons name="location-outline" size={20} color="#234F68" />
                     <Text className="text-sm font-rubik text-black capitalize">{propertyData.city}</Text>
                 </View>
-                {visitcount != null && visitcount > 0 && (
+                {visitcount != null && (
                     <View className="flex flex-row items-center py-2">
                         <Ionicons name="eye-outline" size={20} color="#234F68" />
                         <Text className="text-sm font-rubik text-black ms-1">{visitcount}</Text>

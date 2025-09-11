@@ -43,7 +43,7 @@ export default function Index() {
         return (
             <View className="flex-1 justify-center items-center">
                 <ActivityIndicator size="large" color="#234F68" />
-                <Text className="mt-3">Assets Loading...</Text>
+                <Text className="mt-3">Assets are loading...</Text>
             </View>
         );
     }
