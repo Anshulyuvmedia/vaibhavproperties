@@ -52,6 +52,7 @@ const Card = ({ item, onPress }) => {
     return '₹' + num.toLocaleString('en-IN');
   };
 
+  // console.log('thumbnail', item.thumbnail)
   return (
     <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
       {/* Heart Icon */}

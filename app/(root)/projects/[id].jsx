@@ -110,7 +110,7 @@ const ProjectDetails = () => {
             if (response.data && response.data.projectData) {
                 const apiData = response.data.projectData;
                 setProjectData(apiData);
-                console.log('Project Data:', apiData); // Debug log
+                // console.log('Project Data:', apiData); // Debug log
 
                 // Set thumbnail
                 const thumbnail = apiData.thumbnail;

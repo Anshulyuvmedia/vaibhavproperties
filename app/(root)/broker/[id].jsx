@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, Dimensions, RefreshControl, Linking } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, RefreshControl, Linking } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
@@ -81,13 +81,20 @@ const Broker = () => {
     );
 
     const getProfileImageUri = () => {
-        let baseUri = brokerData?.profile
-            ? brokerData.profile.startsWith('http')
-                ? brokerData.profile
-                : `https://landsquire.in/adminAssets/images/Users/${brokerData.profile}`
-            : images.avatar;
-        return baseUri.toString();
+        // console.log('proimg', brokerData?.profile);
+
+        if (!brokerData?.profile || brokerData.profile === 'null') {
+            return images.avatar; // fallback image
+        }
+
+        if (brokerData.profile.startsWith('http')) {
+            return brokerData.profile;
+        }
+
+        return `https://landsquire.in/adminAssets/images/Users/${brokerData.profile}`;
     };
+
+
 
     const handleCardPress = (id) => router.push(`/properties/${id}`);
 
@@ -118,22 +125,27 @@ const Broker = () => {
             {brokerData ? (
                 <>
                     <Image
-                        source={{ uri: getProfileImageUri() }}
+                        source={typeof getProfileImageUri() === "string" ? { uri: getProfileImageUri() } : getProfileImageUri()}
                         style={styles.profileImage}
-                        onError={(error) => console.log('Image load error for', brokerData.username, ':', error.nativeEvent.error)}
+                        onError={() => console.log('Image load error for', brokerData?.username)}
                     />
+
                     <Text style={styles.name}>{brokerData.username}</Text>
                     <Text style={styles.email}>{brokerData.email}</Text>
                     <Text style={styles.email}>{brokerData.mobilenumber}</Text>
+                    <Text style={styles.listingsTitle}>Total {userPropertyData.length} listings</Text>
                 </>
             ) : error ? (
                 <Text style={styles.errorText}>{error}</Text>
             ) : null}
 
             <View style={styles.listingsSection}>
-                <Text style={styles.listingsTitle}>{userPropertyData.length} listings</Text>
+                
                 {loading ? (
-                    <Text style={styles.loadingText}>Loading...</Text>
+                    <View>
+                        <ActivityIndicator size="large" color="#8bc83f" />
+                        <Text style={styles.loadingText}>Loading...</Text>
+                    </View>
                 ) : error ? (
                     <Text style={styles.errorText}>{error}</Text>
                 ) : (

@@ -42,7 +42,7 @@ export default function Index() {
     if (loading) {
         return (
             <View className="flex-1 justify-center items-center">
-                <ActivityIndicator size="large" color="#234F68" />
+                <ActivityIndicator size="large" color="#8bc83f" />
                 <Text className="mt-3">Assets are loading...</Text>
             </View>
         );

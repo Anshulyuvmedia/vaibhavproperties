@@ -133,6 +133,7 @@ const Allbrokers = () => {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#8bc83f" />
+                <Text style={styles.loadingText}>Loading...</Text>
             </View>
         );
     }

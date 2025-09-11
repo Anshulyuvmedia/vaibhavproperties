@@ -6,7 +6,7 @@ import { MapCard } from '@/components/Cards';
 import Constants from 'expo-constants';
 import debounce from 'lodash.debounce';
 import * as Location from 'expo-location';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -588,6 +588,30 @@ const Mapview = () => {
         updateVisibleItems();
     }, [filteredData, region, page]);
 
+    const formatINR = (amount) => {
+        if (!amount) return '₹0';
+
+        // console.log("format price raw:", amount, typeof amount);
+
+        // Remove ₹ symbol and commas
+        const cleaned = String(amount).replace(/[₹,]/g, '').trim();
+        const num = Number(cleaned);
+
+        if (isNaN(num) || num <= 0) return '₹0';
+
+        if (num >= 1e7) {
+            return '₹' + (num / 1e7).toFixed(2).replace(/\.00$/, '') + ' Cr';
+        } else if (num >= 1e5) {
+            return '₹' + (num / 1e5).toFixed(1).replace(/\.0$/, '') + ' Lakh';
+        }
+
+        return '₹' + num.toLocaleString('en-IN');
+    };
+
+
+
+
+
     return (
         <Pressable style={styles.container} onPress={() => setShowSuggestions(false)}>
             {loading && (
@@ -683,6 +707,8 @@ const Mapview = () => {
                 {visibleItems.map((item) => {
                     if (item.type === 'property') {
                         const coords = parseCoordinates(item.maplocations);
+                        {/* console.log('price', item.price, typeof item.price); */}
+                        const proptype = item.category
                         const price =
                             item.price != null && !isNaN(item.price)
                                 ? `₹${Number(item.price).toLocaleString('en-IN')}`
@@ -692,10 +718,36 @@ const Mapview = () => {
                             <Marker
                                 key={`property-${item.id}`}
                                 coordinate={coords}
-                                pinColor="red"
                                 onPress={() => handleMarkerPress(item)}
-                                anchor={{ x: 0.5, y: 0.5 }}
-                            />
+                                anchor={{ x: 0.5, y: 1 }}
+                                tracksViewChanges={false}   // performance optimization
+                            >
+                                {/* Custom UI instead of red pin */}
+                                <View
+                                    style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        backgroundColor: '#fff',
+                                        borderRadius: 20,
+                                        paddingHorizontal: 8,
+                                        paddingVertical: 4,
+                                        shadowColor: '#000',
+                                        shadowOpacity: 0.2,
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowRadius: 4,
+                                        elevation: 4,
+                                    }}
+                                >
+                                    {proptype === 'Agriculture' ? (
+                                        <MaterialIcons name="house-siding" size={18} color="#234F68" style={{ marginRight: 4 }} />
+                                    ) : (
+                                        <Ionicons name="home-outline" size={18} color="#234F68" style={{ marginRight: 4 }} />
+                                    )}
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#000' }}>
+                                        {formatINR(price)}
+                                    </Text>
+                                </View>
+                            </Marker>
                         );
                     } else {
                         const polyCoords = parseProjectCoordinates(item.coordinates);
@@ -709,12 +761,14 @@ const Mapview = () => {
                                     fillColor="rgba(0, 200, 0, 0.3)"
                                     strokeColor="green"
                                     strokeWidth={2}
+                                    tracksViewChanges={false}
                                 />
                                 <Marker
                                     coordinate={centroid}
                                     pinColor="green"
                                     onPress={() => handleMarkerPress(item)}
                                     anchor={{ x: 0.5, y: 0.5 }}
+                                    tracksViewChanges={false}
                                 />
                             </React.Fragment>
                         );
@@ -722,20 +776,24 @@ const Mapview = () => {
                 })}
             </MapView>
 
-            {error && !loading && (
-                <View style={styles.errorContainer}>
-                    <View style={styles.noResultsContainer}>
-                        <Text style={styles.noResultsText}>{error}</Text>
+            {
+                error && !loading && (
+                    <View style={styles.errorContainer}>
+                        <View style={styles.noResultsContainer}>
+                            <Text style={styles.noResultsText}>{error}</Text>
+                        </View>
                     </View>
-                </View>
-            )}
-            {!error && !loading && visibleItems.length === 0 && filteredData.length === 0 && (
-                <View style={styles.errorContainer}>
-                    <View style={styles.noResultsContainer}>
-                        <Text style={styles.noResultsText}>Can't find real estate nearby you</Text>
+                )
+            }
+            {
+                !error && !loading && visibleItems.length === 0 && filteredData.length === 0 && (
+                    <View style={styles.errorContainer}>
+                        <View style={styles.noResultsContainer}>
+                            <Text style={styles.noResultsText}>Can't find real estate nearby you</Text>
+                        </View>
                     </View>
-                </View>
-            )}
+                )
+            }
 
             <FlatList
                 ref={flatListRef}
@@ -773,7 +831,7 @@ const Mapview = () => {
                     }, 500);
                 }}
             />
-        </Pressable>
+        </Pressable >
     );
 };
 
